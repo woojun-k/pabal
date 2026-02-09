@@ -26,6 +26,8 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Message {
 
+    public static final UUID SYSTEM_SENDER_ID = new UUID(0L, 0L);
+
     @Id
     @UuidV7Generated(mode = UuidV7Generated.Mode.MONOTONIC)
     private UUID uuid;
