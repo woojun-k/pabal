@@ -96,6 +96,31 @@ public class ChatRoom {
                 .build();
     }
 
+    public void updateLastMessage(UUID messageId, Instant messageAt) {
+        // 최초 메시지
+        if (this.lastMessageAt == null) {
+            this.lastMessageId = messageId;
+            this.lastMessageAt = messageAt;
+            return;
+        }
+
+        // 더 최근 메시지
+        if (this.lastMessageAt.isBefore(messageAt)) {
+            this.lastMessageId = messageId;
+            this.lastMessageAt = messageAt;
+            return;
+        }
+
+        // 동일한 시간이라면 UUID 비교 (v7 monotonic)
+        if (this.lastMessageAt.equals(messageAt) &&
+                this.lastMessageId.compareTo(messageId) < 0) {
+            this.lastMessageId = messageId;
+            this.lastMessageAt = messageAt;
+        }
+
+        // 더 오래된 메시지라면 무시
+    }
+
     public void delete() {
         if (this.deletedAt != null) {
             throw new IllegalStateException("이미 삭제된 채팅입니다");

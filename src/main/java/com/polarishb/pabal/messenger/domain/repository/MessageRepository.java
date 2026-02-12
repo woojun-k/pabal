@@ -10,5 +10,5 @@ import java.util.UUID;
 public interface MessageRepository {
     Message save(Message message);
     Optional<Message> findById(UUID uuid);
-    Optional<Message> findByChatRoomIdAndSenderIdAndClientMessageId(UUID roomId, UUID senderId, UUID clientMessageId);
+    Optional<Message> findByChatRoomIdAndSenderIdAndClientMessageId(UUID chatRoomId, UUID senderId, UUID clientMessageId);
 }
