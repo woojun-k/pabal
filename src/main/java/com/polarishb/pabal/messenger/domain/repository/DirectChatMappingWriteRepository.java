@@ -3,10 +3,6 @@ package com.polarishb.pabal.messenger.domain.repository;
 import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
 import com.polarishb.pabal.messenger.domain.repository.result.DirectChatMappingResult;
 
-import java.util.Optional;
-import java.util.UUID;
-
-public interface DirectChatMappingRepository {
+public interface DirectChatMappingWriteRepository {
     DirectChatMappingResult save(DirectChatMapping mapping);
-    Optional<DirectChatMapping> findByUserIds(UUID userId1, UUID userId2);
 }

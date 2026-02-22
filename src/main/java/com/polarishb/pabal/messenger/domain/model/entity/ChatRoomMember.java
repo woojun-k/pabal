@@ -1,85 +1,79 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
-import jakarta.persistence.*;
 import lombok.AccessLevel;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "chat_room_member",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"chatRoomId", "userId"})
-    },
-    indexes = {
-        @Index(name = "idx_user_chat_room", columnList = "userId,chatRoomId"),
-        @Index(name = "idx_active_members", columnList = "chatRoomId,leftAt")
-    }
-)
+
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ChatRoomMember {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID uuid;
-
-    @Column(nullable = false)
+    private UUID id;
     private UUID chatRoomId;
-
-    @Column(nullable = false)
     private UUID userId;
 
     private UUID lastReadMessageId;
     private Instant lastReadAt;
 
-    @Column(nullable = false)
     private Instant joinedAt;
-
     private Instant leftAt;
 
-    @Column(nullable = false, updatable = false)
-    private Instant createdAt;
-
-    private Instant updatedAt;
-
-    @Builder
-    private ChatRoomMember(UUID chatRoomId, UUID userId) {
-        this.chatRoomId = chatRoomId;
-        this.userId = userId;
-        Instant now = Instant.now();
-        this.joinedAt = now;
-        this.createdAt = now;
+    public static ChatRoomMember create(
+        UUID chatRoomId,
+        UUID userId,
+        Instant joinedAt
+    ) {
+        return new ChatRoomMember(
+            null,
+            chatRoomId,
+            userId,
+            null,
+            null,
+            joinedAt,
+            null
+        );
     }
 
-    public static ChatRoomMember join(UUID chatRoomId, UUID userId) {
-        return ChatRoomMember.builder()
-            .chatRoomId(chatRoomId)
-            .userId(userId)
-            .build();
+    public static ChatRoomMember reconstitute(
+         UUID id,
+         UUID chatRoomId,
+         UUID userId,
+         UUID lastReadMessageId,
+         Instant lastReadAt,
+         Instant joinedAt,
+         Instant leftAt
+    ) {
+        return new ChatRoomMember(
+            id,
+            chatRoomId,
+            userId,
+            lastReadMessageId,
+            lastReadAt,
+            joinedAt,
+            leftAt
+        );
     }
 
-    public void updateLastRead(UUID messageId) {
+    public static ChatRoomMember join(UUID chatRoomId, UUID userId, Instant joinedAt) {
+        return create(chatRoomId, userId, joinedAt);
+    }
+
+    public void updateLastRead(UUID messageId, Instant readAt) {
         this.lastReadMessageId = messageId;
-        Instant now = Instant.now();
-        this.lastReadAt = now;
-        this.updatedAt = now;
+        this.lastReadAt = readAt;
     }
 
-    public void leave() {
-        Instant now = Instant.now();
-        this.leftAt = now;
-        this.updatedAt = now;
+    public void leave(Instant leftAt) {
+        this.leftAt = leftAt;
     }
 
-    public void rejoin() {
+    public void rejoin(Instant joinedAt) {
         this.leftAt = null;
-        Instant now = Instant.now();
-        this.joinedAt = now;
-        this.updatedAt = now;
+        this.joinedAt = joinedAt;
     }
 
     public boolean isActive() {

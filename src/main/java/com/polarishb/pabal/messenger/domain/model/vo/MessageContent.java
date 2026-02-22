@@ -1,20 +1,11 @@
 package com.polarishb.pabal.messenger.domain.model.vo;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
-@Embeddable
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MessageContent {
+//@Embeddable
+public record MessageContent(
+    String value
+) {
 
     private static final int MAX_LENGTH = 5000;
-
-    @Column(nullable = false)
-    private String value;
 
     public MessageContent(String value) {
         validate(value);
