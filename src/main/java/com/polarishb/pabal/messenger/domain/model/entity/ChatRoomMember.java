@@ -2,6 +2,7 @@ package com.polarishb.pabal.messenger.domain.model.entity;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -10,8 +11,10 @@ import java.util.UUID;
 
 @Getter
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ChatRoomMember {
 
+    @EqualsAndHashCode.Include
     private UUID id;
     private UUID chatRoomId;
     private UUID userId;

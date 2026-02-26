@@ -23,6 +23,12 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
     }
 
     @Override
+    public Optional<Message> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
+        return jpaRepository.findByChatRoomIdAndId(chatRoomId, id)
+                .map(MessageEntity::toDomain);
+    }
+
+    @Override
     public Optional<Message> findByChatRoomIdAndSenderIdAndClientMessageId(
             UUID chatRoomId,
             UUID senderId,

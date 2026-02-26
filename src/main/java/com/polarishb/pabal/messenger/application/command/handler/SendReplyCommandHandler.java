@@ -1,7 +1,7 @@
 package com.polarishb.pabal.messenger.application.command.handler;
 
 import com.polarishb.pabal.common.cqrs.CommandHandler;
-import com.polarishb.pabal.messenger.application.command.input.SendMessageCommand;
+import com.polarishb.pabal.messenger.application.command.input.SendReplyCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
 import com.polarishb.pabal.messenger.application.service.context.SendContext;
@@ -15,18 +15,26 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class SendMessageHandler implements CommandHandler<SendMessageCommand, SendMessageResult> {
+public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand, SendMessageResult> {
 
     private final MessageSendSupport messageSendSupport;
 
     @Override
     @Transactional
-    public SendMessageResult handle(SendMessageCommand command) {
+    public SendMessageResult handle(SendReplyCommand command) {
 
         // 컨텍스트 로드
         SendContext context = messageSendSupport.loadContext(command);
 
-        // 중복 확인
+        // 답글 로드
+        Message replyTarget = messageSendSupport.loadReplyTarget(
+                command.replyToMessageId()
+        );
+
+        // 답글 검증
+        messageSendSupport.validateReplyTarget(replyTarget, command.chatRoomId());
+
+        // 중복 검증
         Optional<SendMessageResult> duplicate = messageSendSupport.findDuplicate(command);
         if (duplicate.isPresent()) {
             return duplicate.get();
@@ -34,14 +42,15 @@ public class SendMessageHandler implements CommandHandler<SendMessageCommand, Se
 
         // 메세지 생성 및 저장
         Instant now = Instant.now();
-        Message message = Message.create(
+        Message reply = Message.createReply(
                 command.chatRoomId(),
                 command.senderId(),
                 command.clientMessageId(),
+                command.replyToMessageId(),
                 command.content(),
                 now
         );
 
-        return messageSendSupport.saveAndPublish(context.chatRoom(), message);
+        return messageSendSupport.saveAndPublish(context.chatRoom(), reply);
     }
 }

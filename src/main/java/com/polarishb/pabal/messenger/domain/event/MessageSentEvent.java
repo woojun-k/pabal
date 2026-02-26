@@ -2,7 +2,8 @@ package com.polarishb.pabal.messenger.domain.event;
 
 import java.util.UUID;
 
-public record MessageCreatedEvent(
+public record MessageSentEvent(
+    UUID messageId,
     UUID chatRoomId,
-    UUID messageId
+    UUID senderId
 ) {}

@@ -24,12 +24,17 @@ public class ChatRoomRepositoryImpl implements ChatRoomRepository {
     }
 
     @Override
-    public Optional<ChatRoom> findById(UUID chatRoomId) {
-        return readRepository.findById(chatRoomId);
+    public Optional<ChatRoom> findById(UUID id) {
+        return readRepository.findById(id);
     }
 
     @Override
-    public void remove(UUID chatRoomId) {
-        writeRepository.remove(chatRoomId);
+    public Optional<ChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
+        return readRepository.findByTenantIdAndId(tenantId, id);
+    }
+
+    @Override
+    public void remove(UUID id) {
+        writeRepository.remove(id);
     }
 }

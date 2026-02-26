@@ -77,8 +77,8 @@ public class Message {
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId,
-            String content,
             UUID replyToMessageId,
+            String content,
             Instant createdAt
     ) {
         return new Message(

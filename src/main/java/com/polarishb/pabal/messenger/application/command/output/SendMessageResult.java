@@ -8,5 +8,4 @@ public record SendMessageResult(
     UUID clientMessageId,
     Instant createdAt,
     boolean isDuplicated
-) {
-}
+) {}

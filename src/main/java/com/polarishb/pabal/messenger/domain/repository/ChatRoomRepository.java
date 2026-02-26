@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public interface ChatRoomRepository {
     ChatRoomResult save(ChatRoom chatRoom);
-    Optional<ChatRoom> findById(UUID uuid);
-    void remove(UUID chatRoomId);
+    Optional<ChatRoom> findById(UUID id);
+    Optional<ChatRoom> findByTenantIdAndId(UUID tenantId, UUID id);
+    void remove(UUID id);
 }

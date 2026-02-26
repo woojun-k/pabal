@@ -1,9 +1,26 @@
 package com.polarishb.pabal.messenger.domain.exception;
 
+import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
+
+import java.util.Map;
 import java.util.UUID;
 
-public class MemberNotInRoomException extends RuntimeException {
-    public MemberNotInRoomException(UUID userId) {
-        super(String.format("사용자가 채팅방의 멤버가 아닙니다: %s", userId));
+public class MemberNotInRoomException extends MessengerException {
+
+    public MemberNotInRoomException() {
+        super(MessengerErrorCode.MEMBER_NOT_IN_ROOM);
     }
+
+    public MemberNotInRoomException(String customMessage) {
+        super(MessengerErrorCode.MEMBER_NOT_IN_ROOM, customMessage);
+    }
+
+    public MemberNotInRoomException(UUID userId) {
+        super(
+                MessengerErrorCode.MEMBER_NOT_IN_ROOM,
+                MessengerErrorCode.MEMBER_NOT_IN_ROOM.getMessage(),
+                Map.of("userId", userId.toString())
+        );
+    }
+
 }

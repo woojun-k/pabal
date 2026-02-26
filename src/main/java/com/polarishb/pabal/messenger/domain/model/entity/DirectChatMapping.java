@@ -2,14 +2,17 @@ package com.polarishb.pabal.messenger.domain.model.entity;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.util.UUID;
 
 @Getter
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class DirectChatMapping {
 
+    @EqualsAndHashCode.Include
     private UUID id;
     private UUID tenantId;
     private UUID chatRoomId;

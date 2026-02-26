@@ -29,6 +29,11 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
+    public Optional<Message> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
+        return readRepository.findByChatRoomIdAndId(chatRoomId, id);
+    }
+
+    @Override
     public Optional<Message> findByChatRoomIdAndSenderIdAndClientMessageId(
             UUID chatRoomId,
             UUID senderId,

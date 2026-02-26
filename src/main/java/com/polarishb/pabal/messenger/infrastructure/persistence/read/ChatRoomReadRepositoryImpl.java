@@ -17,7 +17,12 @@ public class ChatRoomReadRepositoryImpl implements ChatRoomReadRepository {
     private final ChatRoomReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<ChatRoom> findById(UUID chatRoomId) {
-        return jpaRepository.findById(chatRoomId).map(ChatRoomEntity::toDomain);
+    public Optional<ChatRoom> findById(UUID id) {
+        return jpaRepository.findById(id).map(ChatRoomEntity::toDomain);
+    }
+
+    @Override
+    public Optional<ChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
+        return jpaRepository.findByTenantIdAndId(tenantId, id).map(ChatRoomEntity::toDomain);
     }
 }

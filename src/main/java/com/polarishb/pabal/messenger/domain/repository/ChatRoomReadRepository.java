@@ -6,5 +6,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ChatRoomReadRepository {
-    Optional<ChatRoom> findById(UUID chatRoomId);
+    Optional<ChatRoom> findById(UUID id);
+    Optional<ChatRoom> findByTenantIdAndId(UUID tenantId, UUID id);
 }
