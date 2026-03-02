@@ -17,11 +17,11 @@ public class DirectChatMappingReadRepositoryImpl implements DirectChatMappingRea
     private final DirectChatMappingReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<DirectChatMapping> findByUserIds(UUID userId1, UUID userId2) {
+    public Optional<DirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2) {
         UUID min = userId1.compareTo(userId2) < 0 ? userId1 : userId2;
         UUID max = userId1.compareTo(userId2) < 0 ? userId2 : userId1;
 
-        return jpaRepository.findByUserIdMinAndUserIdMax(min, max)
+        return jpaRepository.findByTenantIdAndUserIdMinAndUserIdMax(tenantId, min, max)
                 .map(DirectChatMappingEntity::toDomain);
     }
 }

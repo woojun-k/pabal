@@ -25,6 +25,6 @@ public abstract class GlobalException extends RuntimeException {
     protected GlobalException(ErrorCode errorCode, String message, Map<String, Object> payload, Throwable cause) {
         super(message, cause);
         this.errorCode = errorCode;
-        this.payload = payload;
+        this.payload = payload == null ? Map.of() : payload;
     }
 }

@@ -27,4 +27,9 @@ public class ChatRoomMemberRepositoryImpl
     public Optional<ChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId) {
         return readRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
     }
+
+    @Override
+    public Optional<ChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
+        return readRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId);
+    }
 }

@@ -5,4 +5,5 @@ import com.polarishb.pabal.messenger.domain.repository.result.DirectChatMappingR
 
 public interface DirectChatMappingWriteRepository {
     DirectChatMappingResult save(DirectChatMapping mapping);
+    void flush();
 }

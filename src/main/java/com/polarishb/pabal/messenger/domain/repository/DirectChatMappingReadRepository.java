@@ -6,5 +6,5 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DirectChatMappingReadRepository {
-    Optional<DirectChatMapping> findByUserIds(UUID userId1, UUID userId2);
+    Optional<DirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2);
 }

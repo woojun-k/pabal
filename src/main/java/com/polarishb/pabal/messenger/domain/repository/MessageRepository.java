@@ -8,7 +8,8 @@ import java.util.UUID;
 
 public interface MessageRepository {
     MessageResult save(Message message);
-    Optional<Message> findById(UUID id);
+    Optional<Message> findByTenantIdAndId(UUID tenantId, UUID id);
     Optional<Message> findByChatRoomIdAndId(UUID chatRoomId, UUID id);
     Optional<Message> findByChatRoomIdAndSenderIdAndClientMessageId(UUID chatRoomId, UUID senderId, UUID clientMessageId);
+    Optional<Message> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(UUID tenantId, UUID chatRoomId, UUID senderId, UUID clientMessageId);
 }

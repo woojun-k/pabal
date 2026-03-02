@@ -28,7 +28,7 @@ public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand,
 
         // 답글 로드
         Message replyTarget = messageSendSupport.loadReplyTarget(
-                command.replyToMessageId()
+                command.tenantId(), command.replyToMessageId()
         );
 
         // 답글 검증
@@ -41,14 +41,14 @@ public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand,
         }
 
         // 메세지 생성 및 저장
-        Instant now = Instant.now();
         Message reply = Message.createReply(
+                command.tenantId(),
                 command.chatRoomId(),
                 command.senderId(),
                 command.clientMessageId(),
                 command.replyToMessageId(),
                 command.content(),
-                now
+                Instant.now()
         );
 
         return messageSendSupport.saveAndPublish(context.chatRoom(), reply);

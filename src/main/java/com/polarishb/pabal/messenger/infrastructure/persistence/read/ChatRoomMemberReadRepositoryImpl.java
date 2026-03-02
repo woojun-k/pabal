@@ -21,4 +21,10 @@ public class ChatRoomMemberReadRepositoryImpl implements ChatRoomMemberReadRepos
         return jpaRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
                 .map(ChatRoomMemberEntity::toDomain);
     }
+
+    @Override
+    public Optional<ChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
+        return jpaRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId)
+                .map(ChatRoomMemberEntity::toDomain);
+    }
 }

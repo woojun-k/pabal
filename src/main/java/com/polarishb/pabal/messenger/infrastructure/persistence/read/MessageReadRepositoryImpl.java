@@ -17,8 +17,8 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
     private final MessageReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<Message> findById(UUID id) {
-        return jpaRepository.findById(id)
+    public Optional<Message> findByTenantIdAndId(UUID tenantId, UUID id) {
+        return jpaRepository.findByTenantIdAndId(tenantId, id)
                 .map(MessageEntity::toDomain);
     }
 
@@ -41,5 +41,21 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
                         clientMessageId
                 )
                 .map(MessageEntity::toDomain);
+    }
+
+    @Override
+    public Optional<Message> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
+            UUID tenantId,
+            UUID chatRoomId,
+            UUID senderId,
+            UUID clientMessageId
+    ) {
+        return jpaRepository.findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
+            tenantId,
+            chatRoomId,
+            senderId,
+            clientMessageId
+        )
+        .map(MessageEntity::toDomain);
     }
 }

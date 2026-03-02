@@ -31,6 +31,9 @@ public class MessageEntity extends DeletableEntity {
     private UUID id;
 
     @Column(nullable = false)
+    private UUID tenantId;
+
+    @Column(nullable = false)
     private UUID chatRoomId;
 
     @Column(nullable = false)
@@ -55,6 +58,7 @@ public class MessageEntity extends DeletableEntity {
     public static MessageEntity from(Message message) {
         MessageEntity entity = new MessageEntity();
         entity.id = message.getId();
+        entity.tenantId = message.getTenantId();
         entity.chatRoomId = message.getChatRoomId();
         entity.senderId = message.getSenderId();
         entity.clientMessageId = message.getClientMessageId();
@@ -68,6 +72,7 @@ public class MessageEntity extends DeletableEntity {
     public Message toDomain() {
         return Message.reconstitute(
                 this.id,
+                this.tenantId,
                 this.chatRoomId,
                 this.senderId,
                 this.clientMessageId,
@@ -75,7 +80,9 @@ public class MessageEntity extends DeletableEntity {
                 new MessageContent(this.content),
                 this.status,
                 this.replyToMessageId,
-                this.getCreatedAt()
+                this.getCreatedAt(),
+                this.getUpdatedAt(),
+                this.getDeletedAt()
         );
     }
 }

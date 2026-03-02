@@ -8,5 +8,6 @@ import java.util.UUID;
 
 public interface DirectChatMappingRepository {
     DirectChatMappingResult save(DirectChatMapping mapping);
-    Optional<DirectChatMapping> findByUserIds(UUID userId1, UUID userId2);
+    void flush();
+    Optional<DirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2);
 }

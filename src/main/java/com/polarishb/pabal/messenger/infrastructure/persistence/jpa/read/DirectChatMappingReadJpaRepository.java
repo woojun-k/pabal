@@ -7,5 +7,5 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DirectChatMappingReadJpaRepository extends JpaRepository<DirectChatMappingEntity, UUID> {
-    Optional<DirectChatMappingEntity> findByUserIdMinAndUserIdMax(UUID min, UUID max);
+    Optional<DirectChatMappingEntity> findByTenantIdAndUserIdMinAndUserIdMax(UUID tenantId, UUID min, UUID max);
 }

@@ -15,7 +15,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class SendMessageHandler implements CommandHandler<SendMessageCommand, SendMessageResult> {
+public class SendMessageCommandHandler implements CommandHandler<SendMessageCommand, SendMessageResult> {
 
     private final MessageSendSupport messageSendSupport;
 
@@ -33,13 +33,13 @@ public class SendMessageHandler implements CommandHandler<SendMessageCommand, Se
         }
 
         // 메세지 생성 및 저장
-        Instant now = Instant.now();
         Message message = Message.create(
+                command.tenantId(),
                 command.chatRoomId(),
                 command.senderId(),
                 command.clientMessageId(),
                 command.content(),
-                now
+                Instant.now()
         );
 
         return messageSendSupport.saveAndPublish(context.chatRoom(), message);

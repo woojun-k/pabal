@@ -20,6 +20,7 @@ public class Message {
 
     @EqualsAndHashCode.Include
     private UUID id;
+    private UUID tenantId;
     private UUID chatRoomId;
     private UUID senderId;
     private UUID clientMessageId;
@@ -28,8 +29,11 @@ public class Message {
     private MessageStatus status;
     private UUID replyToMessageId;
     private Instant createdAt;
+    private Instant updatedAt;
+    private Instant deletedAt;
 
     public static Message create(
+            UUID tenantId,
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId,
@@ -38,6 +42,7 @@ public class Message {
     ) {
         return new Message(
                 null,
+                tenantId,
                 chatRoomId,
                 senderId,
                 clientMessageId,
@@ -45,12 +50,15 @@ public class Message {
                 new MessageContent(content),
                 MessageStatus.ACTIVE,
                 null,
-                createdAt
+                createdAt,
+                null,
+                null
         );
     }
 
     public static Message reconstitute(
             UUID id,
+            UUID tenantId,
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId,
@@ -58,10 +66,13 @@ public class Message {
             MessageContent content,
             MessageStatus status,
             UUID replyToMessageId,
-            Instant createdAt
+            Instant createdAt,
+            Instant updatedAt,
+            Instant deletedAt
     ) {
         return new Message(
                 id,
+                tenantId,
                 chatRoomId,
                 senderId,
                 clientMessageId,
@@ -69,11 +80,14 @@ public class Message {
                 content,
                 status,
                 replyToMessageId,
-                createdAt
+                createdAt,
+                updatedAt,
+                deletedAt
         );
     }
 
     public static Message createReply(
+            UUID tenantId,
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId,
@@ -83,6 +97,7 @@ public class Message {
     ) {
         return new Message(
                 null,
+                tenantId,
                 chatRoomId,
                 senderId,
                 clientMessageId,
@@ -90,22 +105,27 @@ public class Message {
                 new MessageContent(content),
                 MessageStatus.ACTIVE,
                 replyToMessageId,
-                createdAt
+                createdAt,
+                null,
+                null
         );
     }
 
-    public void delete() {
+    public void delete(Instant deletedAt) {
         if (this.status == MessageStatus.DELETED) {
             throw new IllegalStateException("이미 삭제된 메시지입니다");
         }
         this.status = MessageStatus.DELETED;
+        this.updatedAt = deletedAt;
+        this.deletedAt = deletedAt;
     }
 
-    public void edit(String newContent) {
+    public void edit(String newContent, Instant updatedAt) {
         if (this.status == MessageStatus.DELETED) {
             throw new IllegalStateException("삭제된 메시지는 수정할 수 없습니다");
         }
         this.content = new MessageContent(newContent);
         this.status = MessageStatus.EDITED;
+        this.updatedAt = updatedAt;
     }
 }

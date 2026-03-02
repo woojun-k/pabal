@@ -24,7 +24,12 @@ public class DirectChatMappingRepositoryImpl implements DirectChatMappingReposit
     }
 
     @Override
-    public Optional<DirectChatMapping> findByUserIds(UUID userId1, UUID userId2) {
-        return readRepository.findByUserIds(userId1, userId2);
+    public void flush() {
+        writeRepository.flush();
+    };
+
+    @Override
+    public Optional<DirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2) {
+        return readRepository.findByTenantIdAndUserIds(tenantId, userId1, userId2);
     }
 }

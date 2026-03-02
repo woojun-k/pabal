@@ -8,4 +8,5 @@ import java.util.UUID;
 public interface ChatRoomMemberRepository {
     void save(ChatRoomMember member);
     Optional<ChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId);
+    Optional<ChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId);
 }
