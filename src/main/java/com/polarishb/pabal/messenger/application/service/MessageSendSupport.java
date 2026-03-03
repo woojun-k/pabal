@@ -15,6 +15,8 @@ import com.polarishb.pabal.messenger.domain.repository.MessageRepository;
 import com.polarishb.pabal.messenger.domain.repository.result.MessageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -82,6 +84,7 @@ public class MessageSendSupport {
                 ));
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     public SendMessageResult saveAndPublish(ChatRoom chatRoom, Message message) {
         MessageResult result = messageRepository.save(message);
 

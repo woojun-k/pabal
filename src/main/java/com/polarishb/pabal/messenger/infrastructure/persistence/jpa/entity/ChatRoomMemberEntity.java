@@ -30,6 +30,9 @@ public class ChatRoomMemberEntity extends DeletableEntity {
     private UUID id;
 
     @Column(nullable = false)
+    private UUID tenantId;
+
+    @Column(nullable = false)
     private UUID chatRoomId;
 
     @Column(nullable = false)
@@ -46,6 +49,7 @@ public class ChatRoomMemberEntity extends DeletableEntity {
     public static ChatRoomMemberEntity from(ChatRoomMember chatRoomMember) {
         ChatRoomMemberEntity entity = new ChatRoomMemberEntity();
         entity.id = chatRoomMember.getId();
+        entity.tenantId = chatRoomMember.getTenantId();
         entity.chatRoomId = chatRoomMember.getChatRoomId();
         entity.userId = chatRoomMember.getUserId();
         entity.lastReadMessageId = chatRoomMember.getLastReadMessageId();
@@ -58,6 +62,7 @@ public class ChatRoomMemberEntity extends DeletableEntity {
     public ChatRoomMember toDomain() {
         return ChatRoomMember.reconstitute(
             this.id,
+            this.tenantId,
             this.chatRoomId,
             this.userId,
             this.lastReadMessageId,

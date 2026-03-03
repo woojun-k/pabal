@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface ChatRoomReadJpaRepository extends JpaRepository<ChatRoomEntity, UUID> {
     Optional<ChatRoomEntity> findByTenantIdAndId(UUID tenantId, UUID id);
+    Optional<ChatRoomEntity> findByWorkspaceIdAndName(UUID workspaceId, String name);
 }

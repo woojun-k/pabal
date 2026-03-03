@@ -29,16 +29,17 @@ public class DirectRoomCreationService {
         Instant now = Instant.now();
 
         ChatRoom chatRoom = ChatRoom.createDirect(
+                command.roomName(),
                 command.requesterId(),
                 command.tenantId(),
                 now
         );
         ChatRoomResult chatRoomResult = chatRoomRepository.save(chatRoom);
 
-        UUID chatRoomId = chatRoomResult.id();
+        UUID chatRoomId = chatRoomResult.roomId();
 
-        ChatRoomMember member1 = ChatRoomMember.join(chatRoomId, command.requesterId(), now);
-        ChatRoomMember member2 = ChatRoomMember.join(chatRoomId, command.participantId(), now);
+        ChatRoomMember member1 = ChatRoomMember.join(command.tenantId(), chatRoomId, command.requesterId(), now);
+        ChatRoomMember member2 = ChatRoomMember.join(command.tenantId(), chatRoomId, command.participantId(), now);
 
         chatRoomMemberRepository.save(member1);
         chatRoomMemberRepository.save(member2);

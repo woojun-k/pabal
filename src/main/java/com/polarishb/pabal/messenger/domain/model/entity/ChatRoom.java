@@ -1,7 +1,10 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
+import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelSettings;
+import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
+import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -18,7 +21,7 @@ public class ChatRoom {
     @EqualsAndHashCode.Include
     private UUID id;
     private RoomType type;
-    private String name;
+    private RoomName name;
     private UUID createdBy;
     private UUID tenantId;
 
@@ -30,7 +33,7 @@ public class ChatRoom {
 
     public static ChatRoom create(
         RoomType type,
-        String name,
+        RoomName name,
         UUID createdBy,
         UUID tenantId,
         ChannelSettings channelSettings,
@@ -52,7 +55,7 @@ public class ChatRoom {
     public static ChatRoom reconstitute(
             UUID id,
             RoomType type,
-            String name,
+            RoomName name,
             UUID createdBy,
             UUID tenantId,
             ChannelSettings channelSettings,
@@ -98,12 +101,12 @@ public class ChatRoom {
         // 더 오래된 메시지라면 무시
     }
 
-    public static ChatRoom createDirect(UUID createdBy, UUID tenantId, Instant createdAt) {
-        return create(RoomType.DIRECT, null, createdBy, tenantId, null, createdAt);
+    public static ChatRoom createDirect(String nameOrNull, UUID createdBy, UUID tenantId, Instant createdAt) {
+        return create(RoomType.DIRECT, new OptionalName(nameOrNull), createdBy, tenantId, null, createdAt);
     }
 
-    public static ChatRoom createGroup(String name, UUID createdBy, UUID tenantId, Instant createdAt) {
-        return create(RoomType.GROUP, name, createdBy, tenantId,  null, createdAt);
+    public static ChatRoom createGroup(String nameOrNull, UUID createdBy, UUID tenantId, Instant createdAt) {
+        return create(RoomType.GROUP, new OptionalName(nameOrNull), createdBy, tenantId,  null, createdAt);
     }
 
     public static ChatRoom createChannel(
@@ -116,7 +119,7 @@ public class ChatRoom {
         return new ChatRoom(
                 null,
                 RoomType.CHANNEL,
-                name,
+                new ChannelName(name),
                 createdBy,
                 tenantId,
                 ChannelSettings.create(workspaceId),

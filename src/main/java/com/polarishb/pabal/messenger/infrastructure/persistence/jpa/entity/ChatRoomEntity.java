@@ -5,6 +5,7 @@ import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelSettings;
+import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -72,7 +73,7 @@ public class ChatRoomEntity extends DeletableEntity {
         return ChatRoom.reconstitute(
                 this.id,
                 this.type,
-                this.name,
+                new RoomName(this.name, this.type),
                 this.createdBy,
                 this.tenantId,
                 channelSettings,

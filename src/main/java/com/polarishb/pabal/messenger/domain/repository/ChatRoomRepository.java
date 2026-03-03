@@ -10,5 +10,6 @@ public interface ChatRoomRepository {
     ChatRoomResult save(ChatRoom chatRoom);
     Optional<ChatRoom> findById(UUID id);
     Optional<ChatRoom> findByTenantIdAndId(UUID tenantId, UUID id);
+    Optional<ChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName);
     void remove(UUID id);
 }

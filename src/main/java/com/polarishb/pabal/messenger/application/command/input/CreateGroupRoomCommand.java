@@ -1,7 +1,13 @@
 package com.polarishb.pabal.messenger.application.command.input;
 
-public record CreateGroupRoomCommand(
+import com.polarishb.pabal.common.cqrs.Command;
 
-) {
-    // TODO: Add fields for group room name, description, creator, initial members, etc.
-}
+import java.util.List;
+import java.util.UUID;
+
+public record CreateGroupRoomCommand(
+    UUID tenantId,
+    UUID requesterId,
+    List<UUID> participantIds,
+    String roomName
+) implements Command {}

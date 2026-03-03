@@ -2,7 +2,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.GetOrCreateDirectRoomCommand;
-import com.polarishb.pabal.messenger.application.command.output.GetOrCreateDirectRoomResult;
+import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
 import com.polarishb.pabal.messenger.application.service.DirectRoomCreationService;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateDirectChatMappingException;
 import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
@@ -15,24 +15,24 @@ import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
-public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOrCreateDirectRoomCommand, GetOrCreateDirectRoomResult> {
+public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOrCreateDirectRoomCommand, CreateRoomResult> {
 
     private final DirectChatMappingRepository directChatMappingRepository;
     private final DirectRoomCreationService directRoomCreationService;
 
     @Override
-    public GetOrCreateDirectRoomResult handle(GetOrCreateDirectRoomCommand command) {
+    public CreateRoomResult handle(GetOrCreateDirectRoomCommand command) {
 
         Optional<DirectChatMapping> existing = directChatMappingRepository
                 .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId());
 
         if (existing.isPresent()) {
-            return new GetOrCreateDirectRoomResult(existing.get().getChatRoomId());
+            return new CreateRoomResult(existing.get().getChatRoomId());
         }
 
         try {
             UUID chatRoomId = directRoomCreationService.create(command);
-            return new GetOrCreateDirectRoomResult(chatRoomId);
+            return new CreateRoomResult(chatRoomId);
         } catch (DuplicateDirectChatMappingException e) {
             DirectChatMapping mapping = directChatMappingRepository
                     .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId())
@@ -40,7 +40,7 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
                             "Direct chat mapping duplicate detected, but existing mapping was not found.", e
                     ));
 
-            return new GetOrCreateDirectRoomResult(mapping.getChatRoomId());
+            return new CreateRoomResult(mapping.getChatRoomId());
         }
     }
 }

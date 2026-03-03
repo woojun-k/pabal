@@ -20,6 +20,7 @@ public class MessageWriteRepositoryImpl implements MessageWriteRepository {
         MessageEntity saved = jpaRepository.save(entity);
         return new MessageResult(
                 saved.getId(),
+                saved.getTenantId(),
                 saved.getChatRoomId(),
                 saved.getSenderId(),
                 saved.getClientMessageId(),

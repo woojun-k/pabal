@@ -19,7 +19,7 @@ import java.util.UUID;
         @UniqueConstraint(columnNames = {"chat_room_id", "sender_id", "client_message_id"})
     },
     indexes = {
-        @Index(name = "idx_chat_room_created", columnList = "chatRoomId,createdAt,uuid")
+        @Index(name = "idx_chat_room_created", columnList = "chatRoomId,createdAt,id")
     }
 )
 @Getter

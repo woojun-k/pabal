@@ -7,5 +7,6 @@ import java.util.UUID;
 public record GetOrCreateDirectRoomCommand(
     UUID tenantId,
     UUID requesterId,
-    UUID participantId
+    UUID participantId,
+    String roomName
 ) implements Command {}

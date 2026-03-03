@@ -34,6 +34,11 @@ public class ChatRoomRepositoryImpl implements ChatRoomRepository {
     }
 
     @Override
+    public Optional<ChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName) {
+        return readRepository.findByWorkspaceIdAndName(workspaceId, chatRoomName);
+    }
+
+    @Override
     public void remove(UUID id) {
         writeRepository.remove(id);
     }

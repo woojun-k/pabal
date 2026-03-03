@@ -16,6 +16,7 @@ public class ChatRoomMember {
 
     @EqualsAndHashCode.Include
     private UUID id;
+    private UUID tenantId;
     private UUID chatRoomId;
     private UUID userId;
 
@@ -26,12 +27,14 @@ public class ChatRoomMember {
     private Instant leftAt;
 
     public static ChatRoomMember create(
+        UUID tenantId,
         UUID chatRoomId,
         UUID userId,
         Instant joinedAt
     ) {
         return new ChatRoomMember(
             null,
+            tenantId,
             chatRoomId,
             userId,
             null,
@@ -43,6 +46,7 @@ public class ChatRoomMember {
 
     public static ChatRoomMember reconstitute(
          UUID id,
+         UUID tenantId,
          UUID chatRoomId,
          UUID userId,
          UUID lastReadMessageId,
@@ -52,6 +56,7 @@ public class ChatRoomMember {
     ) {
         return new ChatRoomMember(
             id,
+            tenantId,
             chatRoomId,
             userId,
             lastReadMessageId,
@@ -61,8 +66,8 @@ public class ChatRoomMember {
         );
     }
 
-    public static ChatRoomMember join(UUID chatRoomId, UUID userId, Instant joinedAt) {
-        return create(chatRoomId, userId, joinedAt);
+    public static ChatRoomMember join(UUID tenantId, UUID chatRoomId, UUID userId, Instant joinedAt) {
+        return create(tenantId, chatRoomId, userId, joinedAt);
     }
 
     public void updateLastRead(UUID messageId, Instant readAt) {

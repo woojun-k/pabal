@@ -26,7 +26,7 @@ public class DirectChatMappingRepositoryImpl implements DirectChatMappingReposit
     @Override
     public void flush() {
         writeRepository.flush();
-    };
+    }
 
     @Override
     public Optional<DirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2) {
