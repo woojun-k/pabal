@@ -13,7 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.List;
+import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -47,17 +48,20 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
         // 멤버 추가 (requester + participants)
         Instant now = Instant.now();
 
-        // requester 먼저
-        chatRoomMemberRepository.save(
-                ChatRoomMember.join(command.tenantId(), result.roomId(), command.requesterId(), now)
-        );
+        List<ChatRoomMember> members = Stream.concat(
+                        Stream.of(command.requesterId()),
+                        command.participantIds().stream()
+                )
+                .distinct()
+                .map(memberId -> ChatRoomMember.join(
+                        command.tenantId(),
+                        result.roomId(),
+                        memberId,
+                        now
+                ))
+                .toList();
 
-        // participants
-        for (UUID participantId : command.participantIds()) {
-            chatRoomMemberRepository.save(
-                    ChatRoomMember.join(command.tenantId(), result.roomId(), participantId, now)
-            );
-        }
+        chatRoomMemberRepository.saveAll(members);
 
         return new CreateRoomResult(result.roomId(), chatRoom.getName().valueOrNull());
     }

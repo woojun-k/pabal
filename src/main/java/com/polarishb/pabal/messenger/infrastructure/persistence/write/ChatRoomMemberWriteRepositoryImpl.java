@@ -7,6 +7,8 @@ import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.write.ChatRo
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.stream.StreamSupport;
+
 @Repository
 @RequiredArgsConstructor
 public class ChatRoomMemberWriteRepositoryImpl implements ChatRoomMemberWriteRepository {
@@ -17,5 +19,14 @@ public class ChatRoomMemberWriteRepositoryImpl implements ChatRoomMemberWriteRep
     public void save(ChatRoomMember member) {
         ChatRoomMemberEntity entity = ChatRoomMemberEntity.from(member);
         jpaRepository.save(entity);
+    }
+
+    @Override
+    public void saveAll(Iterable<ChatRoomMember> members) {
+        var entities = StreamSupport.stream(members.spliterator(), false)
+                .map(ChatRoomMemberEntity::from)
+                .toList();
+
+        jpaRepository.saveAll(entities);
     }
 }

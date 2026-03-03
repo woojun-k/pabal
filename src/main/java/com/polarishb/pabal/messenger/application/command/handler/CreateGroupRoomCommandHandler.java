@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -50,17 +51,20 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
         // 멤버 추가 (requester + participants)
         Instant now = Instant.now();
 
-        // requester 먼저
-        chatRoomMemberRepository.save(
-                ChatRoomMember.join(command.tenantId(), result.roomId(), command.requesterId(), now)
-        );
+        List<ChatRoomMember> members = Stream.concat(
+                        Stream.of(command.requesterId()),
+                        command.participantIds().stream()
+                )
+                .distinct()
+                .map(memberId -> ChatRoomMember.join(
+                        command.tenantId(),
+                        result.roomId(),
+                        memberId,
+                        now
+                ))
+                .toList();
 
-        // participants
-        for (UUID participantId : command.participantIds()) {
-            chatRoomMemberRepository.save(
-                    ChatRoomMember.join(command.tenantId(), result.roomId(), participantId, now)
-            );
-        }
+        chatRoomMemberRepository.saveAll(members);
 
         return new CreateRoomResult(result.roomId(), roomName);
     }

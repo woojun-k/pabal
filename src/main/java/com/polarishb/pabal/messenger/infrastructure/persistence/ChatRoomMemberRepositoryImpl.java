@@ -24,6 +24,9 @@ public class ChatRoomMemberRepositoryImpl
     }
 
     @Override
+    public void saveAll(Iterable<ChatRoomMember> members) { writeRepository.saveAll(members); }
+
+    @Override
     public Optional<ChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId) {
         return readRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
     }

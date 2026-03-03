@@ -4,4 +4,5 @@ import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
 
 public interface ChatRoomMemberWriteRepository {
     void save(ChatRoomMember member);
+    void saveAll(Iterable<ChatRoomMember> members);
 }
