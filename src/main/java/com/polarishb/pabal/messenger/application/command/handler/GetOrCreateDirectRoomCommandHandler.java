@@ -27,12 +27,12 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
                 .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId());
 
         if (existing.isPresent()) {
-            return new CreateRoomResult(existing.get().getChatRoomId());
+            return new CreateRoomResult(existing.get().getChatRoomId(), null);
         }
 
         try {
             UUID chatRoomId = directRoomCreationService.create(command);
-            return new CreateRoomResult(chatRoomId);
+            return new CreateRoomResult(chatRoomId, null);
         } catch (DuplicateDirectChatMappingException e) {
             DirectChatMapping mapping = directChatMappingRepository
                     .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId())
@@ -40,7 +40,7 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
                             "Direct chat mapping duplicate detected, but existing mapping was not found.", e
                     ));
 
-            return new CreateRoomResult(mapping.getChatRoomId());
+            return new CreateRoomResult(mapping.getChatRoomId(), null);
         }
     }
 }

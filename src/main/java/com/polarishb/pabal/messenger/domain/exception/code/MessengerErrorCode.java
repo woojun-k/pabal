@@ -22,7 +22,8 @@ public enum MessengerErrorCode implements ErrorCode {
 
     // 409 Conflict
     DUPLICATE_MESSAGE("MSG409001", "이미 전송된 메시지입니다", 409),
-    DUPLICATE_DIRECT_MAPPING("MSG409002", "이미 생성된 채팅방입니다", 409);
+    DUPLICATE_DIRECT_MAPPING("MSG409002", "이미 생성된 채팅방입니다", 409),
+    DUPLICATE_CHANNEL_NAME("MSG409003", "이미 있는 채널 이름입니다", 409);
 
     private final String code;
     private final String message;

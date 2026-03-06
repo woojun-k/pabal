@@ -3,21 +3,16 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.CreateGroupRoomCommand;
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
+import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
-import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
-import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import com.polarishb.pabal.messenger.domain.repository.result.ChatRoomResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
@@ -26,15 +21,15 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
 
     private static final int MAX_DISPLAYED_MEMBERS = 3;
 
-    private final ChatRoomRepository chatRoomRepository;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomCreationSupport creationSupport;
 
     @Override
     @Transactional
     public CreateRoomResult handle(CreateGroupRoomCommand command) {
+        Instant now = Instant.now();
 
         // 방 이름 결정
-        String roomName = command.roomName() != null
+        String roomName = (command.roomName() != null)
                 ? command.roomName()
                 : generateRoomName(command.participantIds(), command.requesterId());
 
@@ -46,25 +41,17 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
                 Instant.now()
         );
 
-        ChatRoomResult result = chatRoomRepository.save(chatRoom);
+        ChatRoomResult result = creationSupport.saveRoom(chatRoom);
+
 
         // 멤버 추가 (requester + participants)
-        Instant now = Instant.now();
-
-        List<ChatRoomMember> members = Stream.concat(
-                        Stream.of(command.requesterId()),
-                        command.participantIds().stream()
-                )
-                .distinct()
-                .map(memberId -> ChatRoomMember.join(
-                        command.tenantId(),
-                        result.roomId(),
-                        memberId,
-                        now
-                ))
-                .toList();
-
-        chatRoomMemberRepository.saveAll(members);
+        creationSupport.addMembers(
+                command.tenantId(),
+                result.roomId(),
+                command.requesterId(),
+                command.participantIds(),
+                now
+        );
 
         return new CreateRoomResult(result.roomId(), roomName);
     }
@@ -72,26 +59,19 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
     private String generateRoomName(List<UUID> participantIds, UUID requesterId) {
 
         // 전체 멤버 리스트 (requester + participants)
-        List<UUID> allMembers = new ArrayList<>();
-        allMembers.add(requesterId);
-        allMembers.addAll(participantIds);
-
-        // 정렬
-        allMembers.sort(Comparator.naturalOrder());
+        List<String> all = Stream.concat(Stream.of(requesterId), participantIds.stream())
+                .distinct()
+                .sorted()
+                .map(UUID::toString)
+                .toList();
 
         // 이름 생성
-        if (allMembers.size() <= MAX_DISPLAYED_MEMBERS) {
-            return allMembers.stream()
-                    .map(UUID::toString)
-                    .collect(Collectors.joining(", "));
-        } else {
-            String displayed = allMembers.stream()
-                    .limit(MAX_DISPLAYED_MEMBERS)
-                    .map(UUID::toString)
-                    .collect(Collectors.joining(", "));
-
-            int remaining = allMembers.size() - MAX_DISPLAYED_MEMBERS;
-            return displayed + " 외 " + remaining + "명";
+        if (all.size() <= MAX_DISPLAYED_MEMBERS) {
+            return String.join(", ", all);
         }
+
+        String displayed = String.join(", ", all.subList(0, MAX_DISPLAYED_MEMBERS));
+        int remaining = all.size() - MAX_DISPLAYED_MEMBERS;
+        return displayed + " 외 " + remaining + "명";
     }
 }

@@ -7,6 +7,7 @@ import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberWriteReposi
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ public class ChatRoomMemberRepositoryImpl
     }
 
     @Override
-    public void saveAll(Iterable<ChatRoomMember> members) { writeRepository.saveAll(members); }
+    public void saveAll(List<ChatRoomMember> members) { writeRepository.saveAll(members); }
 
     @Override
     public Optional<ChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId) {

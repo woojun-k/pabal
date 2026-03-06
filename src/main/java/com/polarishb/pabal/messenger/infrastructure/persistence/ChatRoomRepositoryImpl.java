@@ -1,6 +1,7 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence;
 
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
+import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomWriteRepository;
@@ -31,6 +32,11 @@ public class ChatRoomRepositoryImpl implements ChatRoomRepository {
     @Override
     public Optional<ChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
         return readRepository.findByTenantIdAndId(tenantId, id);
+    }
+
+    @Override
+    public Optional<ChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name) {
+        return readRepository.findByTenantIdAndWorkspaceIdAndName(tenantId, workspaceId, name);
     }
 
     @Override
