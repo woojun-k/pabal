@@ -36,6 +36,8 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
                 command.requesterId(),
                 command.tenantId(),
                 command.workspaceId(),
+                command.isPrivate(),
+                command.description(),
                 now
         );
 
