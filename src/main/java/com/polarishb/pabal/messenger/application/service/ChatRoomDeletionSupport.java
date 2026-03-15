@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.application.service;
 
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
 import com.polarishb.pabal.messenger.domain.exception.UnauthorizedRoomDeletionException;
@@ -18,7 +19,7 @@ public class ChatRoomDeletionSupport {
 
     private final ChatRoomRepository chatRoomRepository;
 
-    public ChatRoom loadRoom(UUID tenantId, UUID roomId) {
+    public PersistedChatRoom loadRoom(UUID tenantId, UUID roomId) {
         return chatRoomRepository.findByTenantIdAndId(tenantId, roomId)
                 .orElseThrow(() -> new ChatRoomNotFoundException(roomId));
     }
@@ -44,13 +45,15 @@ public class ChatRoomDeletionSupport {
         }
     }
 
-    public void scheduleForDeletion(ChatRoom room) {
+    public void scheduleForDeletion(PersistedChatRoom persistedRoom) {
+        ChatRoom room = persistedRoom.chatRoom();
         room.scheduleForDeletion(Instant.now());
-        chatRoomRepository.save(room);
+        chatRoomRepository.update(persistedRoom);
     }
 
-    public void deleteImmediately(ChatRoom room) {
+    public void deleteImmediately(PersistedChatRoom persistedRoom) {
+        ChatRoom room = persistedRoom.chatRoom();
         room.deleteImmediately();
-        chatRoomRepository.save(room);
+        chatRoomRepository.update(persistedRoom);
     }
 }

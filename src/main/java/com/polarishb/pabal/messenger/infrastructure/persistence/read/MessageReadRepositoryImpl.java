@@ -1,6 +1,7 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.read;
 
-import com.polarishb.pabal.messenger.domain.model.entity.Message;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessagePersistenceMapper;
+import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.repository.MessageReadRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.MessageReadJpaRepository;
@@ -17,19 +18,21 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
     private final MessageReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<Message> findByTenantIdAndId(UUID tenantId, UUID id) {
+    public Optional<PersistedMessage> findByTenantIdAndId(UUID tenantId, UUID id) {
         return jpaRepository.findByTenantIdAndId(tenantId, id)
-                .map(MessageEntity::toDomain);
+                .map(MessageEntity::toState)
+                .map(MessagePersistenceMapper::toPersisted);
     }
 
     @Override
-    public Optional<Message> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
+    public Optional<PersistedMessage> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
         return jpaRepository.findByChatRoomIdAndId(chatRoomId, id)
-                .map(MessageEntity::toDomain);
+                .map(MessageEntity::toState)
+                .map(MessagePersistenceMapper::toPersisted);
     }
 
     @Override
-    public Optional<Message> findByChatRoomIdAndSenderIdAndClientMessageId(
+    public Optional<PersistedMessage> findByChatRoomIdAndSenderIdAndClientMessageId(
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId
@@ -40,22 +43,25 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
                         senderId,
                         clientMessageId
                 )
-                .map(MessageEntity::toDomain);
+                .map(MessageEntity::toState)
+                .map(MessagePersistenceMapper::toPersisted);
     }
 
     @Override
-    public Optional<Message> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
+    public Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
             UUID tenantId,
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId
     ) {
-        return jpaRepository.findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
-            tenantId,
-            chatRoomId,
-            senderId,
-            clientMessageId
-        )
-        .map(MessageEntity::toDomain);
+        return jpaRepository
+                .findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
+                    tenantId,
+                    chatRoomId,
+                    senderId,
+                    clientMessageId
+                )
+                .map(MessageEntity::toState)
+                .map(MessagePersistenceMapper::toPersisted);
     }
 }

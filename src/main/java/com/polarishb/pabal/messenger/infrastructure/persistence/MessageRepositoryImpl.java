@@ -1,10 +1,9 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence;
 
-import com.polarishb.pabal.messenger.domain.model.entity.Message;
+import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.repository.MessageReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.MessageRepository;
 import com.polarishb.pabal.messenger.domain.repository.MessageWriteRepository;
-import com.polarishb.pabal.messenger.domain.repository.result.MessageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -19,22 +18,27 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final MessageReadRepository readRepository;
 
     @Override
-    public MessageResult save(Message message) {
-        return writeRepository.save(message);
+    public PersistedMessage append(PersistedMessage persistedMessage) {
+        return writeRepository.append(persistedMessage);
     }
 
     @Override
-    public Optional<Message> findByTenantIdAndId(UUID tenantId, UUID id) {
+    public PersistedMessage update(PersistedMessage persistedMessage) {
+        return writeRepository.update(persistedMessage);
+    }
+
+    @Override
+    public Optional<PersistedMessage> findByTenantIdAndId(UUID tenantId, UUID id) {
         return readRepository.findByTenantIdAndId(tenantId, id);
     }
 
     @Override
-    public Optional<Message> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
+    public Optional<PersistedMessage> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
         return readRepository.findByChatRoomIdAndId(chatRoomId, id);
     }
 
     @Override
-    public Optional<Message> findByChatRoomIdAndSenderIdAndClientMessageId(
+    public Optional<PersistedMessage> findByChatRoomIdAndSenderIdAndClientMessageId(
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId
@@ -47,7 +51,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
-    public Optional<Message> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
+    public Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
             UUID tenantId,
             UUID chatRoomId,
             UUID senderId,

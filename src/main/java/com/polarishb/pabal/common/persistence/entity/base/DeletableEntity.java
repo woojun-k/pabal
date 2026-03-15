@@ -15,7 +15,7 @@ public abstract class DeletableEntity extends UpdatableEntity {
         return this.deletedAt != null;
     }
 
-    public void delete() {
-        this.deletedAt = Instant.now();
+    protected final void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

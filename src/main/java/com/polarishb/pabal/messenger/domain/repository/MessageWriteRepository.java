@@ -1,8 +1,8 @@
 package com.polarishb.pabal.messenger.domain.repository;
 
-import com.polarishb.pabal.messenger.domain.model.entity.Message;
-import com.polarishb.pabal.messenger.domain.repository.result.MessageResult;
+import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 
 public interface MessageWriteRepository {
-    MessageResult save(Message message);
+    PersistedMessage append(PersistedMessage persistedMessage);
+    PersistedMessage update(PersistedMessage persistedMessage);
 }

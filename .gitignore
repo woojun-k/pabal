@@ -38,3 +38,7 @@ out/
 
 ### jenv ###
 .java-version
+
+# OS generated files
+.DS_Store
+**/.DS_Store

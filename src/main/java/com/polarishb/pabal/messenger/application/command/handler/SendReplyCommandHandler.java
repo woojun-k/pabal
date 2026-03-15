@@ -4,7 +4,9 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.SendReplyCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
-import com.polarishb.pabal.messenger.application.service.context.SendContext;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.model.entity.Message;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -24,24 +26,31 @@ public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand,
     public SendMessageResult handle(SendReplyCommand command) {
 
         // 컨텍스트 로드
-        SendContext context = messageSendSupport.loadContext(command);
+        PersistedChatRoom chatRoom = messageSendSupport.loadChatRoom(command);
+
+        PersistedChatRoomMember member = messageSendSupport.loadSenderMember(command);
+        messageSendSupport.validateMemberActive(member.member(), command.senderId());
 
         // 답글 로드
-        Message replyTarget = messageSendSupport.loadReplyTarget(
-                command.tenantId(), command.replyToMessageId()
+        PersistedMessage replyTarget = messageSendSupport.loadReplyTarget(
+                command.tenantId(),
+                command.replyToMessageId()
         );
 
         // 답글 검증
-        messageSendSupport.validateReplyTarget(replyTarget, command.chatRoomId());
+        messageSendSupport.validateReplyTarget(
+                replyTarget.message(),
+                command.chatRoomId()
+        );
 
         // 중복 검증
-        Optional<SendMessageResult> duplicate = messageSendSupport.findDuplicate(command);
+        Optional<PersistedMessage> duplicate = messageSendSupport.findDuplicate(command);
         if (duplicate.isPresent()) {
-            return duplicate.get();
+            return messageSendSupport.toDuplicateResult(duplicate.get());
         }
 
         // 메세지 생성 및 저장
-        Message reply = Message.createReply(
+        Message message = Message.createReply(
                 command.tenantId(),
                 command.chatRoomId(),
                 command.senderId(),
@@ -51,6 +60,7 @@ public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand,
                 Instant.now()
         );
 
-        return messageSendSupport.saveAndPublish(context.chatRoom(), reply);
+        PersistedMessage saved = messageSendSupport.send(chatRoom, message);
+        return messageSendSupport.toSentResult(saved);
     }
 }

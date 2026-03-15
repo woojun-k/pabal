@@ -2,10 +2,9 @@ package com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity;
 
 import com.polarishb.pabal.common.persistence.entity.base.DeletableEntity;
 import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
-import com.polarishb.pabal.messenger.domain.model.entity.Message;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.model.type.MessageType;
-import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -55,34 +54,51 @@ public class MessageEntity extends DeletableEntity {
 
     private UUID replyToMessageId;
 
-    public static MessageEntity from(Message message) {
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    public static MessageEntity fromNewState(MessageState state) {
         MessageEntity entity = new MessageEntity();
-        entity.id = message.getId();
-        entity.tenantId = message.getTenantId();
-        entity.chatRoomId = message.getChatRoomId();
-        entity.senderId = message.getSenderId();
-        entity.clientMessageId = message.getClientMessageId();
-        entity.type = message.getType();
-        entity.content = message.getContent().value();
-        entity.status = message.getStatus();
-        entity.replyToMessageId = message.getReplyToMessageId();
+        entity.id = state.id();
+        entity.tenantId = state.tenantId();
+        entity.chatRoomId = state.chatRoomId();
+        entity.senderId = state.senderId();
+        entity.clientMessageId = state.clientMessageId();
+        entity.type = state.type();
+        entity.content = state.content();
+        entity.status = state.status();
+        entity.replyToMessageId = state.replyToMessageId();
+        entity.setCreatedAt(state.createdAt());
+        entity.setUpdatedAt(state.updatedAt());
+        entity.setDeletedAt(state.deletedAt());
         return entity;
     }
 
-    public Message toDomain() {
-        return Message.reconstitute(
+    public MessageState toState() {
+        return new MessageState(
                 this.id,
                 this.tenantId,
                 this.chatRoomId,
                 this.senderId,
                 this.clientMessageId,
                 this.type,
-                new MessageContent(this.content),
+                this.content,
                 this.status,
                 this.replyToMessageId,
                 this.getCreatedAt(),
                 this.getUpdatedAt(),
-                this.getDeletedAt()
+                this.getDeletedAt(),
+                this.version
         );
+    }
+
+    public void apply(MessageState state) {
+        this.type = state.type();
+        this.content = state.content();
+        this.status = state.status();
+        this.replyToMessageId = state.replyToMessageId();
+        this.setUpdatedAt(state.updatedAt());
+        this.setDeletedAt(state.deletedAt());
     }
 }

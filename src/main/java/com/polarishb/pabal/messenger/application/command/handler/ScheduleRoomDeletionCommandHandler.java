@@ -3,7 +3,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.ScheduleRoomDeletionCommand;
 import com.polarishb.pabal.messenger.application.service.ChatRoomDeletionSupport;
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +18,11 @@ public class ScheduleRoomDeletionCommandHandler implements CommandHandler<Schedu
     @Transactional
     public Void handle(ScheduleRoomDeletionCommand command) {
 
-        ChatRoom room = chatRoomDeletionSupport.loadRoom(command.tenantId(), command.roomId());
+        PersistedChatRoom persistedRoom = chatRoomDeletionSupport.loadRoom(command.tenantId(), command.roomId());
 
-        chatRoomDeletionSupport.validateScheduleDeletionPermission(room, command.requesterId());
+        chatRoomDeletionSupport.validateScheduleDeletionPermission(persistedRoom.chatRoom(), command.requesterId());
 
-        chatRoomDeletionSupport.scheduleForDeletion(room);
+        chatRoomDeletionSupport.scheduleForDeletion(persistedRoom);
 
         return null;
     }

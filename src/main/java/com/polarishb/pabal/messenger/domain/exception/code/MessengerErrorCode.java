@@ -16,6 +16,7 @@ public enum MessengerErrorCode implements ErrorCode {
     // 404 Not Found
     CHAT_ROOM_NOT_FOUND("MSG404001", "채팅방을 찾을 수 없습니다", 404),
     MESSAGE_NOT_FOUND("MSG404002", "메시지를 찾을 수 없습니다", 404),
+    MEMBER_NOT_FOUND("MSG404003", "채팅방에 없는 멤버입니다", 404),
 
     // 403 Forbidden
     MEMBER_NOT_IN_ROOM("MSG403001", "채팅방의 멤버가 아닙니다", 403),

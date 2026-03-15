@@ -1,14 +1,15 @@
 package com.polarishb.pabal.messenger.domain.repository;
 
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface ChatRoomMemberRepository {
-    void save(ChatRoomMember member);
-    void saveAll(List<ChatRoomMember> members);
-    Optional<ChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId);
-    Optional<ChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId);
+    PersistedChatRoomMember append(PersistedChatRoomMember member);
+    List<PersistedChatRoomMember> appendAll(List<PersistedChatRoomMember> members);
+    PersistedChatRoomMember update(PersistedChatRoomMember member);
+    Optional<PersistedChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId);
+    Optional<PersistedChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId);
 }

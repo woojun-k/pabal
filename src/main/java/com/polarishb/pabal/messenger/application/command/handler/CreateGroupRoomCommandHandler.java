@@ -4,8 +4,8 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.CreateGroupRoomCommand;
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
-import com.polarishb.pabal.messenger.domain.repository.result.ChatRoomResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,22 +38,21 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
                 roomName,
                 command.requesterId(),
                 command.tenantId(),
-                Instant.now()
+                now
         );
 
-        ChatRoomResult result = creationSupport.saveRoom(chatRoom);
-
+        PersistedChatRoom saved = creationSupport.saveRoom(chatRoom);
 
         // 멤버 추가 (requester + participants)
         creationSupport.addMembers(
                 command.tenantId(),
-                result.roomId(),
+                saved.state().id(),
                 command.requesterId(),
                 command.participantIds(),
                 now
         );
 
-        return new CreateRoomResult(result.roomId(), roomName);
+        return new CreateRoomResult(saved.state().id(), roomName);
     }
 
     private String generateRoomName(List<UUID> participantIds, UUID requesterId) {

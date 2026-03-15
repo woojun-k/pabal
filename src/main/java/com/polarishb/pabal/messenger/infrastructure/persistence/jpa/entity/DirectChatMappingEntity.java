@@ -2,7 +2,7 @@ package com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity;
 
 import com.polarishb.pabal.common.persistence.entity.base.BaseEntity;
 import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
-import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
+import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingState;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -39,23 +39,33 @@ public class DirectChatMappingEntity extends BaseEntity {
     @Column(nullable = false)
     private UUID userIdMax;
 
-    public static DirectChatMappingEntity from(DirectChatMapping mapping) {
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    public static DirectChatMappingEntity fromNewState(DirectChatMappingState state) {
         DirectChatMappingEntity entity = new DirectChatMappingEntity();
-        entity.id = mapping.getId();
-        entity.tenantId = mapping.getTenantId();
-        entity.chatRoomId = mapping.getChatRoomId();
-        entity.userIdMin = mapping.getUserIdMin();
-        entity.userIdMax = mapping.getUserIdMax();
+        entity.id = state.id();
+        entity.tenantId = state.tenantId();
+        entity.chatRoomId = state.chatRoomId();
+        entity.userIdMin = state.userIdMin();
+        entity.userIdMax = state.userIdMax();
         return entity;
     }
 
-    public DirectChatMapping toDomain() {
-        return DirectChatMapping.reconstitute(
+    public DirectChatMappingState toState() {
+        return new DirectChatMappingState(
                 this.id,
                 this.tenantId,
                 this.chatRoomId,
                 this.userIdMin,
-                this.userIdMax
+                this.userIdMax,
+                this.version
         );
+    }
+
+    public void apply(DirectChatMappingState state) {
+        // Mapping is immutable in terms of user IDs, but we might update chatRoomId if needed (rare)
+        this.chatRoomId = state.chatRoomId();
     }
 }

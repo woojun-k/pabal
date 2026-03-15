@@ -4,6 +4,7 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.DeleteMessageCommand;
 import com.polarishb.pabal.messenger.application.command.output.DeleteMessageResult;
+import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageDeletedEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageEditForbiddenException;
 import com.polarishb.pabal.messenger.domain.exception.MessageNotFoundException;
@@ -27,9 +28,11 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
     public DeleteMessageResult handle(DeleteMessageCommand command) {
 
         // 메시지 조회
-        Message message = messageRepository
+        PersistedMessage persisted = messageRepository
                 .findByTenantIdAndId(command.tenantId(), command.messageId())
                 .orElseThrow(() -> new MessageNotFoundException(command.messageId()));
+
+        Message message = persisted.message();
 
         // 권한 확인 (본인만 삭제 가능)
         if (!message.getSenderId().equals(command.requesterId())) {
@@ -43,7 +46,9 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
         message.delete(Instant.now());
 
         // 저장
-        messageRepository.save(message);
+        PersistedMessage updated = messageRepository.update(persisted);
+
+        message = updated.message();
 
         // 이벤트 발행
         eventPublisher.publishAfterCommit(

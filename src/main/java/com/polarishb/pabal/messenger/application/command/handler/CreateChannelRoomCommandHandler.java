@@ -4,9 +4,9 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.CreateChannelRoomCommand;
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
-import com.polarishb.pabal.messenger.domain.repository.result.ChatRoomResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +24,14 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
     public CreateRoomResult handle(CreateChannelRoomCommand command) {
         Instant now = Instant.now();
 
-        // 워크스페이스 & 멤버십 검증
-        // TODO: Workspace 도메인 추가 시 구현
+        // 채널 이름 중복 검증 (워크스페이스 내에서 유니크해야 함)
+        creationSupport.validateChannelNameUniqueness(
+                command.tenantId(),
+                command.workspaceId(),
+                new ChannelName(command.channelName())
+        );
 
-        ChannelName channelName = new ChannelName(command.channelName());
-
-        creationSupport.validateChannelNameUniqueness(command.tenantId(), command.workspaceId(), channelName);
-
+        // 채팅방 생성
         ChatRoom chatRoom = ChatRoom.createChannel(
                 command.channelName(),
                 command.requesterId(),
@@ -41,17 +42,18 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
                 now
         );
 
-        ChatRoomResult result = creationSupport.saveRoom(chatRoom);
+        // 저장
+        PersistedChatRoom saved = creationSupport.saveRoom(chatRoom);
 
-        // 멤버 추가 (requester + participants)
+        // 생성자 멤버 추가
         creationSupport.addMembers(
                 command.tenantId(),
-                result.roomId(),
+                saved.state().id(),
                 command.requesterId(),
                 command.participantIds(),
                 now
         );
 
-        return new CreateRoomResult(result.roomId(), chatRoom.getName().valueOrNull());
+        return new CreateRoomResult(saved.state().id(), saved.state().name());
     }
 }

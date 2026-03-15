@@ -2,7 +2,7 @@ package com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity;
 
 import com.polarishb.pabal.common.persistence.entity.base.DeletableEntity;
 import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -46,21 +46,25 @@ public class ChatRoomMemberEntity extends DeletableEntity {
 
     private Instant leftAt;
 
-    public static ChatRoomMemberEntity from(ChatRoomMember chatRoomMember) {
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    public static ChatRoomMemberEntity fromNewState(ChatRoomMemberState state) {
         ChatRoomMemberEntity entity = new ChatRoomMemberEntity();
-        entity.id = chatRoomMember.getId();
-        entity.tenantId = chatRoomMember.getTenantId();
-        entity.chatRoomId = chatRoomMember.getChatRoomId();
-        entity.userId = chatRoomMember.getUserId();
-        entity.lastReadMessageId = chatRoomMember.getLastReadMessageId();
-        entity.lastReadAt = chatRoomMember.getLastReadAt();
-        entity.joinedAt = chatRoomMember.getJoinedAt();
-        entity.leftAt = chatRoomMember.getLeftAt();
+        entity.id = state.id();
+        entity.tenantId = state.tenantId();
+        entity.chatRoomId = state.chatRoomId();
+        entity.userId = state.userId();
+        entity.lastReadMessageId = state.lastReadMessageId();
+        entity.lastReadAt = state.lastReadAt();
+        entity.joinedAt = state.joinedAt();
+        entity.leftAt = state.leftAt();
         return entity;
     }
 
-    public ChatRoomMember toDomain() {
-        return ChatRoomMember.reconstitute(
+    public ChatRoomMemberState toState() {
+        return new ChatRoomMemberState(
             this.id,
             this.tenantId,
             this.chatRoomId,
@@ -68,8 +72,16 @@ public class ChatRoomMemberEntity extends DeletableEntity {
             this.lastReadMessageId,
             this.lastReadAt,
             this.joinedAt,
-            this.leftAt
+            this.leftAt,
+            this.version
         );
+    }
+
+    public void apply(ChatRoomMemberState state) {
+        this.lastReadMessageId = state.lastReadMessageId();
+        this.lastReadAt = state.lastReadAt();
+        this.joinedAt = state.joinedAt();
+        this.leftAt = state.leftAt();
     }
 
 }

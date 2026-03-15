@@ -1,4 +1,11 @@
 package com.polarishb.pabal.messenger.domain.event;
 
-public class MemberLeftEvent {
-}
+import com.polarishb.pabal.common.event.DomainEvent;
+
+import java.util.UUID;
+
+public record MemberLeftEvent(
+    UUID tenantId,
+    UUID chatRoomId,
+    UUID userId
+) implements DomainEvent {}

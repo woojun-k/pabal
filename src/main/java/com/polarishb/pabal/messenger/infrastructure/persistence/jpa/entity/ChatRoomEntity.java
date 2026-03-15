@@ -2,11 +2,10 @@ package com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity;
 
 import com.polarishb.pabal.common.persistence.entity.base.DeletableEntity;
 import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelSettings;
-import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -54,40 +53,42 @@ public class ChatRoomEntity extends DeletableEntity {
 
     private Instant lastMessageAt;
 
-    public static ChatRoomEntity from(ChatRoom chatRoom) {
-        ChatRoomEntity entity = new ChatRoomEntity();
-        entity.id = chatRoom.getId();
-        entity.type = chatRoom.getType();
-        entity.name = chatRoom.getName().valueOrNull();
-        entity.createdBy = chatRoom.getCreatedBy();
-        entity.tenantId = chatRoom.getTenantId();
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
-        Optional.ofNullable(chatRoom.getChannelSettings())
+    public static ChatRoomEntity fromNewState(ChatRoomState state) {
+        ChatRoomEntity entity = new ChatRoomEntity();
+        entity.id = state.id();
+        entity.type = state.type();
+        entity.name = state.name();
+        entity.createdBy = state.createdBy();
+        entity.tenantId = state.tenantId();
+
+        Optional.ofNullable(state.channelSettings())
                 .ifPresent(settings -> {
                     entity.workspaceId = settings.workspaceId();
                     entity.isPrivate = settings.isPrivate();
                     entity.description = settings.description();
                 });
 
-        entity.status = chatRoom.getStatus();
-        entity.scheduledDeletionAt = chatRoom.getScheduledDeletionAt();
-
-        entity.lastMessageId = chatRoom.getLastMessageId();
-        entity.lastMessageAt = chatRoom.getLastMessageAt();
+        entity.status = state.status();
+        entity.scheduledDeletionAt = state.scheduledDeletionAt();
+        entity.lastMessageId = state.lastMessageId();
+        entity.lastMessageAt = state.lastMessageAt();
+        entity.setCreatedAt(state.createdAt());
         return entity;
     }
 
-    public ChatRoom toDomain() {
+    public ChatRoomState toState() {
         ChannelSettings channelSettings = this.workspaceId != null
                 ? new ChannelSettings(this.workspaceId, this.isPrivate, this.description)
                 : null;
 
-        RoomName roomName = RoomName.of(this.type, this.name);
-
-        return ChatRoom.reconstitute(
+        return new ChatRoomState(
                 this.id,
                 this.type,
-                roomName,
+                this.name,
                 this.createdBy,
                 this.tenantId,
                 channelSettings,
@@ -95,7 +96,23 @@ public class ChatRoomEntity extends DeletableEntity {
                 this.scheduledDeletionAt,
                 this.lastMessageId,
                 this.lastMessageAt,
-                this.getCreatedAt()
+                this.getCreatedAt(),
+                this.version
         );
+    }
+
+    public void apply(ChatRoomState state) {
+        this.name = state.name();
+        this.status = state.status();
+        this.scheduledDeletionAt = state.scheduledDeletionAt();
+        this.lastMessageId = state.lastMessageId();
+        this.lastMessageAt = state.lastMessageAt();
+
+        Optional.ofNullable(state.channelSettings())
+                .ifPresent(settings -> {
+                    this.workspaceId = settings.workspaceId();
+                    this.isPrivate = settings.isPrivate();
+                    this.description = settings.description();
+                });
     }
 }

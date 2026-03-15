@@ -1,11 +1,10 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence;
 
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomWriteRepository;
-import com.polarishb.pabal.messenger.domain.repository.result.ChatRoomResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -20,27 +19,32 @@ public class ChatRoomRepositoryImpl implements ChatRoomRepository {
     private final ChatRoomReadRepository readRepository;
 
     @Override
-    public ChatRoomResult save(ChatRoom chatRoom) {
-        return writeRepository.save(chatRoom);
+    public PersistedChatRoom append(PersistedChatRoom chatRoom) {
+        return writeRepository.append(chatRoom);
     }
 
     @Override
-    public Optional<ChatRoom> findById(UUID id) {
+    public PersistedChatRoom update(PersistedChatRoom chatRoom) {
+        return writeRepository.update(chatRoom);
+    }
+
+    @Override
+    public Optional<PersistedChatRoom> findById(UUID id) {
         return readRepository.findById(id);
     }
 
     @Override
-    public Optional<ChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
+    public Optional<PersistedChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
         return readRepository.findByTenantIdAndId(tenantId, id);
     }
 
     @Override
-    public Optional<ChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name) {
+    public Optional<PersistedChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name) {
         return readRepository.findByTenantIdAndWorkspaceIdAndName(tenantId, workspaceId, name);
     }
 
     @Override
-    public Optional<ChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName) {
+    public Optional<PersistedChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName) {
         return readRepository.findByWorkspaceIdAndName(workspaceId, chatRoomName);
     }
 

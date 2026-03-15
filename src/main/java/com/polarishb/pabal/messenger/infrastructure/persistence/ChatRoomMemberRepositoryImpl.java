@@ -1,6 +1,6 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence;
 
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberWriteRepository;
@@ -13,27 +13,33 @@ import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
-public class ChatRoomMemberRepositoryImpl
-        implements ChatRoomMemberRepository {
+public class ChatRoomMemberRepositoryImpl implements ChatRoomMemberRepository {
 
     private final ChatRoomMemberWriteRepository writeRepository;
     private final ChatRoomMemberReadRepository readRepository;
 
     @Override
-    public void save(ChatRoomMember member) {
-        writeRepository.save(member);
+    public PersistedChatRoomMember append(PersistedChatRoomMember member) {
+        return writeRepository.append(member);
     }
 
     @Override
-    public void saveAll(List<ChatRoomMember> members) { writeRepository.saveAll(members); }
+    public List<PersistedChatRoomMember> appendAll(List<PersistedChatRoomMember> members) {
+        return writeRepository.appendAll(members);
+    }
 
     @Override
-    public Optional<ChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId) {
+    public PersistedChatRoomMember update(PersistedChatRoomMember member) {
+        return writeRepository.update(member);
+    }
+
+    @Override
+    public Optional<PersistedChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId) {
         return readRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
     }
 
     @Override
-    public Optional<ChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
+    public Optional<PersistedChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
         return readRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId);
     }
 }
