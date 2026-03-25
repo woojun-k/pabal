@@ -13,5 +13,4 @@ public interface ChatRoomRepository {
     Optional<PersistedChatRoom> findByTenantIdAndId(UUID tenantId, UUID id);
     Optional<PersistedChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name);
     Optional<PersistedChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName);
-    void remove(UUID id);
 }

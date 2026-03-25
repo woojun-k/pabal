@@ -6,13 +6,13 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class MessageDto {
-    private UUID id;
-    private UUID chatRoomId;
-    private UUID senderId;
-    private MessageContent content; // Assuming MessageContent is a Value Object
-    private Instant createdAt;
-    private Instant updatedAt;
-    private MessageStatus status;
+    private final UUID id;
+    private final UUID chatRoomId;
+    private final UUID senderId;
+    private final MessageContent content; // Assuming MessageContent is a Value Object
+    private final Instant createdAt;
+    private final Instant updatedAt;
+    private final MessageStatus status;
 
     public MessageDto(UUID id, UUID chatRoomId, UUID senderId, MessageContent content, Instant createdAt, Instant updatedAt, MessageStatus status) {
         this.id = id;

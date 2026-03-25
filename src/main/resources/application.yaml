@@ -1,3 +1,31 @@
 spring:
   application:
     name: pabal
+
+pabal:
+  security:
+    jwt:
+      issuer-uri: ${ISSUER_URI}
+      audience: pabal-api
+      user-id-claim: uid
+      tenant-id-claim: tenant_id
+      principal-claim: sub
+      clock-skew: 30s
+
+  websocket:
+    relay:
+      enabled: true
+      host: rabbitmq-stomp
+      port: 61613
+      client-login: ${STOMP_CLIENT_LOGIN}
+      client-passcode: ${STOMP_CLIENT_PASSCODE}
+      system-login: ${STOMP_SYSTEM_LOGIN}
+      system-passcode: ${STOMP_SYSTEM_PASSCODE}
+      virtual-host: /
+      system-heartbeat-send-interval: 10000
+      system-heartbeat-receive-interval: 10000
+    endpoint:
+      path: /websocket
+      allowed-origin-patterns:
+        - https://www.example.com
+      sock-js-enabled: true

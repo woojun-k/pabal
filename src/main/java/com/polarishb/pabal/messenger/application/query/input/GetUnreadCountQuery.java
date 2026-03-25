@@ -3,8 +3,8 @@ package com.polarishb.pabal.messenger.application.query.input;
 import java.util.UUID;
 
 public class GetUnreadCountQuery {
-    private UUID chatRoomId;
-    private UUID userId;
+    private final UUID chatRoomId;
+    private final UUID userId;
 
     public GetUnreadCountQuery(UUID chatRoomId, UUID userId) {
         this.chatRoomId = chatRoomId;

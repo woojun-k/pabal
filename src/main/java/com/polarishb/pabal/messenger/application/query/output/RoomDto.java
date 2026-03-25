@@ -5,10 +5,10 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class RoomDto {
-    private UUID id;
-    private String name;
-    private RoomType type;
-    private Instant createdAt;
+    private final UUID id;
+    private final String name;
+    private final RoomType type;
+    private final Instant createdAt;
     // TODO: Add more fields as needed, e.g., lastMessageSnippet, unreadCount, membersCount
 
     public RoomDto(UUID id, String name, RoomType type, Instant createdAt) {

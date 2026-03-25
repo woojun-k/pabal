@@ -9,6 +9,7 @@ import com.polarishb.pabal.messenger.domain.exception.DuplicateDirectChatMapping
 import com.polarishb.pabal.messenger.domain.repository.DirectChatMappingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +22,7 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
     private final DirectRoomCreationService directRoomCreationService;
 
     @Override
+    @Transactional
     public CreateRoomResult handle(GetOrCreateDirectRoomCommand command) {
 
         Optional<PersistedDirectChatMapping> existing = directChatMappingRepository

@@ -3,7 +3,6 @@ package com.polarishb.pabal.messenger.infrastructure.persistence.write;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomWriteRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.ChatRoomEntity;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
-import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -55,15 +53,5 @@ public class ChatRoomWriteRepositoryImpl implements ChatRoomWriteRepository {
         entity.apply(nextState);
 
         return ChatRoomPersistenceMapper.toPersisted(entity.toState());
-    }
-
-    @Override
-    @Transactional
-    public void remove(UUID chatRoomId) {
-        ChatRoomEntity entity = jpaRepository.findById(chatRoomId)
-                .orElseThrow(() -> new ChatRoomNotFoundException(chatRoomId));
-
-        entity.delete();
-        jpaRepository.save(entity);
     }
 }

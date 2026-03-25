@@ -1,5 +1,7 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
+import com.polarishb.pabal.messenger.domain.exception.MemberAlreadyActiveException;
+import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -76,10 +78,16 @@ public class ChatRoomMember {
     }
 
     public void leave(Instant leftAt) {
+        if (!isActive()) {
+            throw new MemberNotActiveException(this.userId);
+        }
         this.leftAt = leftAt;
     }
 
     public void rejoin(Instant joinedAt) {
+        if (isActive()) {
+            throw new MemberAlreadyActiveException(this.userId);
+        }
         this.leftAt = null;
         this.joinedAt = joinedAt;
     }

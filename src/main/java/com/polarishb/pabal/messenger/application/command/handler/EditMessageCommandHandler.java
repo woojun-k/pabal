@@ -53,6 +53,7 @@ public class EditMessageCommandHandler implements CommandHandler<EditMessageComm
         // 이벤트 발행
         eventPublisher.publishAfterCommit(
                 new MessageEditedEvent(
+                        command.tenantId(),
                         message.getId(),
                         message.getChatRoomId(),
                         message.getSenderId()

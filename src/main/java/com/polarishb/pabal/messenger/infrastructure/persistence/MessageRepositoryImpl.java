@@ -33,8 +33,8 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
-    public Optional<PersistedMessage> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
-        return readRepository.findByChatRoomIdAndId(chatRoomId, id);
+    public Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndId(UUID tenantId, UUID chatRoomId, UUID id) {
+        return readRepository.findByTenantIdAndChatRoomIdAndId(tenantId, chatRoomId, id);
     }
 
     @Override

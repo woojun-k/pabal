@@ -1,10 +1,11 @@
 package com.polarishb.pabal.messenger.domain.repository;
 
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 
 import java.util.List;
 
 public interface ChatRoomMemberWriteRepository {
-    void save(ChatRoomMember member);
-    void saveAll(List<ChatRoomMember> members);
+    PersistedChatRoomMember append(PersistedChatRoomMember persistedMember);
+    PersistedChatRoomMember update(PersistedChatRoomMember persistedMember);
+    List<PersistedChatRoomMember> appendAll(List<PersistedChatRoomMember> persistedMembers);
 }

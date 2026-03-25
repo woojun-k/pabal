@@ -6,7 +6,7 @@ import com.polarishb.pabal.messenger.application.command.input.DeleteMessageComm
 import com.polarishb.pabal.messenger.application.command.output.DeleteMessageResult;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageDeletedEvent;
-import com.polarishb.pabal.messenger.domain.exception.MessageEditForbiddenException;
+import com.polarishb.pabal.messenger.domain.exception.MessageDeleteForbiddenException;
 import com.polarishb.pabal.messenger.domain.exception.MessageNotFoundException;
 import com.polarishb.pabal.messenger.domain.model.entity.Message;
 import com.polarishb.pabal.messenger.domain.repository.MessageRepository;
@@ -36,7 +36,7 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
 
         // 권한 확인 (본인만 삭제 가능)
         if (!message.getSenderId().equals(command.requesterId())) {
-            throw new MessageEditForbiddenException(
+            throw new MessageDeleteForbiddenException(
                     command.requesterId(),
                     message.getSenderId()
             );
@@ -53,6 +53,7 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
         // 이벤트 발행
         eventPublisher.publishAfterCommit(
                 new MessageDeletedEvent(
+                        command.tenantId(),
                         message.getId(),
                         message.getChatRoomId(),
                         message.getSenderId()

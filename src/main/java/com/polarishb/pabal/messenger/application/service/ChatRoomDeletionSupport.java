@@ -2,10 +2,8 @@ package com.polarishb.pabal.messenger.application.service;
 
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
-import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
 import com.polarishb.pabal.messenger.domain.exception.UnauthorizedRoomDeletionException;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
-import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -35,18 +33,16 @@ public class ChatRoomDeletionSupport {
         // - 테넌트 관리자는 언제든지 삭제 가능
         // - 워크스페이스 관리자는 PENDING_DELETION일 때만 가능
 
-        // 현재: 채널 생성자 + PENDING_DELETION만 허용
+        // 현재: 채널 생성자만 허용
+        // 상태 전이(PENDING_DELETION 여부)는 ChatRoom 도메인 엔티티가 검증
         if (!room.getCreatedBy().equals(requesterId)) {
             throw new UnauthorizedRoomDeletionException(requesterId, room.getId());
-        }
-
-        if (room.getStatus() != RoomStatus.PENDING_DELETION) {
-            throw new RoomMustBePendingDeletionException(room.getId(), room.getStatus());
         }
     }
 
     public void scheduleForDeletion(PersistedChatRoom persistedRoom) {
         ChatRoom room = persistedRoom.chatRoom();
+        // TODO: 추후 default 혹은 현재 설정 값으로 불러와야함
         room.scheduleForDeletion(Instant.now());
         chatRoomRepository.update(persistedRoom);
     }

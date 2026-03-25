@@ -25,8 +25,8 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
     }
 
     @Override
-    public Optional<PersistedMessage> findByChatRoomIdAndId(UUID chatRoomId, UUID id) {
-        return jpaRepository.findByChatRoomIdAndId(chatRoomId, id)
+    public Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndId(UUID tenantId, UUID chatRoomId, UUID id) {
+        return jpaRepository.findByTenantIdAndChatRoomIdAndId(tenantId, chatRoomId, id)
                 .map(MessageEntity::toState)
                 .map(MessagePersistenceMapper::toPersisted);
     }

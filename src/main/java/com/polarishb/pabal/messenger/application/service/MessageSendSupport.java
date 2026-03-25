@@ -84,6 +84,7 @@ public class MessageSendSupport {
 
         eventPublisher.publishAfterCommit(
                 new MessageSentEvent(
+                        saved.state().tenantId(),
                         saved.state().id(),
                         saved.state().chatRoomId(),
                         saved.state().senderId()

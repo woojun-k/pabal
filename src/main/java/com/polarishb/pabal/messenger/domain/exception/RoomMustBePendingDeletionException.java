@@ -22,7 +22,7 @@ public class RoomMustBePendingDeletionException extends MessengerException {
                 MessengerErrorCode.INVALID_ROOM_STATUS.getMessage(),
                 Map.of(
                         "roomId", roomId.toString(),
-                        "roomStauts", roomStatus.toString()
+                        "roomStatus", roomStatus.toString()
                 )
         );
     }

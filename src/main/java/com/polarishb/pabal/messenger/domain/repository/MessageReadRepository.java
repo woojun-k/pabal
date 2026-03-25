@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public interface MessageReadRepository {
     Optional<PersistedMessage> findByTenantIdAndId(UUID tenantId, UUID id);
-    Optional<PersistedMessage> findByChatRoomIdAndId(UUID chatRoomId, UUID id);
+    Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndId(UUID tenantId, UUID chatRoomId, UUID id);
     Optional<PersistedMessage> findByChatRoomIdAndSenderIdAndClientMessageId(
             UUID chatRoomId,
             UUID senderId,

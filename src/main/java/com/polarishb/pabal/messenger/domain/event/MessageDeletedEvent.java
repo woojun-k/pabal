@@ -5,6 +5,7 @@ import com.polarishb.pabal.common.event.DomainEvent;
 import java.util.UUID;
 
 public record MessageDeletedEvent(
+    UUID tenantId,
     UUID messageId,
     UUID chatRoomId,
     UUID senderId
