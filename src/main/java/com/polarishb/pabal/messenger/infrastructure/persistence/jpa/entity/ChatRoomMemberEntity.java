@@ -14,11 +14,11 @@ import java.util.UUID;
 @Entity
 @Table(name = "chat_room_member",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"chatRoomId", "userId"})
+                @UniqueConstraint(name = "uk_chat_room_member", columnNames = {"chat_room_id", "user_id"})
         },
         indexes = {
-                @Index(name = "idx_user_chat_room", columnList = "userId,chatRoomId"),
-                @Index(name = "idx_active_members", columnList = "chatRoomId,leftAt")
+                @Index(name = "idx_member_user_room", columnList = "user_id, chat_room_id"),
+                @Index(name = "idx_member_room_left", columnList = "chat_room_id, left_at")
         }
 )
 @Getter
@@ -60,6 +60,9 @@ public class ChatRoomMemberEntity extends DeletableEntity {
         entity.lastReadAt = state.lastReadAt();
         entity.joinedAt = state.joinedAt();
         entity.leftAt = state.leftAt();
+
+        entity.setCreatedAt(state.createdAt());
+        entity.setUpdatedAt(state.updatedAt());
         return entity;
     }
 
@@ -73,6 +76,8 @@ public class ChatRoomMemberEntity extends DeletableEntity {
             this.lastReadAt,
             this.joinedAt,
             this.leftAt,
+            this.getCreatedAt(),
+            this.getUpdatedAt(),
             this.version
         );
     }
@@ -82,6 +87,7 @@ public class ChatRoomMemberEntity extends DeletableEntity {
         this.lastReadAt = state.lastReadAt();
         this.joinedAt = state.joinedAt();
         this.leftAt = state.leftAt();
+        this.setUpdatedAt(state.updatedAt());
     }
 
 }

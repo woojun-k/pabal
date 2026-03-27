@@ -15,10 +15,10 @@ import java.util.UUID;
 @Entity
 @Table(name = "message",
     uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"chat_room_id", "sender_id", "client_message_id"})
+        @UniqueConstraint(name = "uk_message_client_id", columnNames = {"chat_room_id", "sender_id", "client_message_id"})
     },
     indexes = {
-        @Index(name = "idx_chat_room_created", columnList = "chatRoomId,createdAt,id")
+        @Index(name = "idx_message_chat_room_created", columnList = "chat_room_id, created_at, id")
     }
 )
 @Getter

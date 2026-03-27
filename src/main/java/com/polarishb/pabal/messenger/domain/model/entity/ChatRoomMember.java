@@ -28,6 +28,9 @@ public class ChatRoomMember {
     private Instant joinedAt;
     private Instant leftAt;
 
+    private Instant createdAt;
+    private Instant updatedAt;
+
     public static ChatRoomMember create(
         UUID tenantId,
         UUID chatRoomId,
@@ -42,7 +45,9 @@ public class ChatRoomMember {
             null,
             null,
             joinedAt,
-            null
+            null,
+            joinedAt, // createdAt
+            joinedAt  // updatedAt
         );
     }
 
@@ -54,7 +59,9 @@ public class ChatRoomMember {
          UUID lastReadMessageId,
          Instant lastReadAt,
          Instant joinedAt,
-         Instant leftAt
+         Instant leftAt,
+         Instant createdAt,
+         Instant updatedAt
     ) {
         return new ChatRoomMember(
             id,
@@ -64,7 +71,9 @@ public class ChatRoomMember {
             lastReadMessageId,
             lastReadAt,
             joinedAt,
-            leftAt
+            leftAt,
+            createdAt,
+            updatedAt
         );
     }
 
@@ -75,6 +84,7 @@ public class ChatRoomMember {
     public void updateLastRead(UUID messageId, Instant readAt) {
         this.lastReadMessageId = messageId;
         this.lastReadAt = readAt;
+        this.updatedAt = readAt;
     }
 
     public void leave(Instant leftAt) {
@@ -82,6 +92,7 @@ public class ChatRoomMember {
             throw new MemberNotActiveException(this.userId);
         }
         this.leftAt = leftAt;
+        this.updatedAt = leftAt;
     }
 
     public void rejoin(Instant joinedAt) {
@@ -90,6 +101,7 @@ public class ChatRoomMember {
         }
         this.leftAt = null;
         this.joinedAt = joinedAt;
+        this.updatedAt = joinedAt;
     }
 
     public boolean isActive() {

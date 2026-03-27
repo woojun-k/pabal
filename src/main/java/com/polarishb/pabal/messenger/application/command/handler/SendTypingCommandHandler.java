@@ -8,6 +8,7 @@ import com.polarishb.pabal.messenger.contract.realtime.TypingEventPayload;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
 import com.polarishb.pabal.messenger.domain.exception.MemberNotInRoomException;
+import com.polarishb.pabal.messenger.domain.model.type.TypingStatus;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,11 +44,11 @@ public class SendTypingCommandHandler implements CommandHandler<SendTypingComman
             throw new MemberNotActiveException(command.userId());
         }
 
-        TypingEventPayload payload = switch (command.status()) {
-            case "STARTED" -> TypingEventPayload.started(command.userId(), Instant.now());
-            case "STOPPED" -> TypingEventPayload.stopped(command.userId(), Instant.now());
-            default -> throw new IllegalArgumentException("Unsupported typing status: " + command.status());
-        };
+        TypingEventPayload payload = new TypingEventPayload(
+                command.userId(),
+                command.status(),
+                Instant.now()
+        );
 
         chatRealtimePort.publishTyping(
                 command.tenantId(),

@@ -13,11 +13,13 @@ public enum MessengerErrorCode implements ErrorCode {
     ROOM_CANNOT_BE_DELETED("MSG400002", "채팅방을 삭제할 수 없는 타입입니다", 400),
     INVALID_ROOM_STATUS("MSG400003", "채팅방을 삭제할 수 없는 상태입니다", 400),
     INVALID_ROOM_STATUS_TRANSITION("MSG400004", "채팅방 상태를 변경할 수 없습니다", 400),
+    MESSAGE_ALREADY_DELETED("MSG400005", "이미 삭제된 메시지입니다", 400),
 
     // 404 Not Found
     CHAT_ROOM_NOT_FOUND("MSG404001", "채팅방을 찾을 수 없습니다", 404),
     MESSAGE_NOT_FOUND("MSG404002", "메시지를 찾을 수 없습니다", 404),
     MEMBER_NOT_FOUND("MSG404003", "채팅방에 없는 멤버입니다", 404),
+    DIRECT_CHAT_MAPPING_NOT_FOUND("MSG404004", "다이렉트 채팅 매핑을 찾을 수 없습니다", 404),
 
     // 403 Forbidden
     MEMBER_NOT_IN_ROOM("MSG403001", "채팅방의 멤버가 아닙니다", 403),

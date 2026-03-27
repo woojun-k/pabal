@@ -2,6 +2,8 @@ package com.polarishb.pabal.messenger.contract.persistence.directchatmapping;
 
 import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
 
+import java.time.Instant;
+
 public final class DirectChatMappingPersistenceMapper {
 
     private DirectChatMappingPersistenceMapper() {}
@@ -12,7 +14,9 @@ public final class DirectChatMappingPersistenceMapper {
                 state.tenantId(),
                 state.chatRoomId(),
                 state.userIdMin(),
-                state.userIdMax()
+                state.userIdMax(),
+                state.createdAt(),
+                state.updatedAt()
         );
     }
 
@@ -23,6 +27,8 @@ public final class DirectChatMappingPersistenceMapper {
                 mapping.getChatRoomId(),
                 mapping.getUserIdMin(),
                 mapping.getUserIdMax(),
+                mapping.getCreatedAt(),
+                mapping.getUpdatedAt(),
                 version
         );
     }

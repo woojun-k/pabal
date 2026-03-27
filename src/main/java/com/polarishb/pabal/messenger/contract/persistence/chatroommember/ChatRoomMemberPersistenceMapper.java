@@ -15,7 +15,9 @@ public final class ChatRoomMemberPersistenceMapper {
                 state.lastReadMessageId(),
                 state.lastReadAt(),
                 state.joinedAt(),
-                state.leftAt()
+                state.leftAt(),
+                state.createdAt(),
+                state.updatedAt()
         );
     }
 
@@ -29,6 +31,8 @@ public final class ChatRoomMemberPersistenceMapper {
                 member.getLastReadAt(),
                 member.getJoinedAt(),
                 member.getLeftAt(),
+                member.getCreatedAt(),
+                member.getUpdatedAt(),
                 version
         );
     }

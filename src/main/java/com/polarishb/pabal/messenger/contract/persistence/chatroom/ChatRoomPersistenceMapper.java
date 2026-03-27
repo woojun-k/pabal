@@ -19,7 +19,8 @@ public final class ChatRoomPersistenceMapper {
                 state.scheduledDeletionAt(),
                 state.lastMessageId(),
                 state.lastMessageAt(),
-                state.createdAt()
+                state.createdAt(),
+                state.updatedAt()
         );
     }
 
@@ -36,6 +37,7 @@ public final class ChatRoomPersistenceMapper {
                 chatRoom.getLastMessageId(),
                 chatRoom.getLastMessageAt(),
                 chatRoom.getCreatedAt(),
+                chatRoom.getUpdatedAt(),
                 version
         );
     }

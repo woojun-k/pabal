@@ -5,11 +5,11 @@ import com.polarishb.pabal.messenger.application.command.input.GetOrCreateDirect
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
 import com.polarishb.pabal.messenger.application.service.DirectRoomCreationService;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
+import com.polarishb.pabal.messenger.domain.exception.DirectChatMappingNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateDirectChatMappingException;
 import com.polarishb.pabal.messenger.domain.repository.DirectChatMappingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -22,7 +22,6 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
     private final DirectRoomCreationService directRoomCreationService;
 
     @Override
-    @Transactional
     public CreateRoomResult handle(GetOrCreateDirectRoomCommand command) {
 
         Optional<PersistedDirectChatMapping> existing = directChatMappingRepository
@@ -38,9 +37,7 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
         } catch (DuplicateDirectChatMappingException e) {
             PersistedDirectChatMapping persisted = directChatMappingRepository
                     .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId())
-                    .orElseThrow(() -> new IllegalStateException(
-                            "Direct chat mapping duplicate detected, but existing mapping was not found.", e
-                    ));
+                    .orElseThrow(DirectChatMappingNotFoundException::new);
 
             return new CreateRoomResult(persisted.mapping().getChatRoomId(), null);
         }

@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
+import com.polarishb.pabal.messenger.domain.exception.MessageAlreadyDeletedException;
 import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.model.type.MessageType;
 import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
@@ -51,7 +52,7 @@ public class Message {
                 MessageStatus.ACTIVE,
                 null,
                 createdAt,
-                null,
+                createdAt,
                 null
         );
     }
@@ -106,14 +107,14 @@ public class Message {
                 MessageStatus.ACTIVE,
                 replyToMessageId,
                 createdAt,
-                null,
+                createdAt,
                 null
         );
     }
 
     public void delete(Instant deletedAt) {
         if (this.status == MessageStatus.DELETED) {
-            throw new IllegalStateException("이미 삭제된 메시지입니다");
+            throw new MessageAlreadyDeletedException();
         }
         this.status = MessageStatus.DELETED;
         this.updatedAt = deletedAt;
@@ -122,7 +123,7 @@ public class Message {
 
     public void edit(String newContent, Instant updatedAt) {
         if (this.status == MessageStatus.DELETED) {
-            throw new IllegalStateException("삭제된 메시지는 수정할 수 없습니다");
+            throw new MessageAlreadyDeletedException();
         }
         this.content = new MessageContent(newContent);
         this.status = MessageStatus.EDITED;

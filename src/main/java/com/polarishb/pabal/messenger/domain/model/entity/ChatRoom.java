@@ -1,8 +1,6 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
-import com.polarishb.pabal.messenger.domain.exception.InvalidRoomStatusTransitionException;
 import com.polarishb.pabal.messenger.domain.exception.RoomCannotBeDeletedException;
-import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
@@ -39,7 +37,9 @@ public class ChatRoom {
 
     private UUID lastMessageId;
     private Instant lastMessageAt;
+    
     private Instant createdAt;
+    private Instant updatedAt;
 
     public static ChatRoom create(
         RoomType type,
@@ -60,7 +60,8 @@ public class ChatRoom {
             null,
             null,
             null,
-            createdAt
+            createdAt,
+            createdAt // updatedAt
         );
     }
 
@@ -75,7 +76,8 @@ public class ChatRoom {
             Instant scheduledDeletionAt,
             UUID lastMessageId,
             Instant lastMessageAt,
-            Instant createdAt
+            Instant createdAt,
+            Instant updatedAt
     ) {
         return new ChatRoom(
                 id,
@@ -88,7 +90,8 @@ public class ChatRoom {
                 scheduledDeletionAt,
                 lastMessageId,
                 lastMessageAt,
-                createdAt
+                createdAt,
+                updatedAt
         );
     }
 
@@ -97,6 +100,7 @@ public class ChatRoom {
         if (this.lastMessageAt == null) {
             this.lastMessageId = messageId;
             this.lastMessageAt = messageAt;
+            this.updatedAt = messageAt;
             return;
         }
 
@@ -104,6 +108,7 @@ public class ChatRoom {
         if (this.lastMessageAt.isBefore(messageAt)) {
             this.lastMessageId = messageId;
             this.lastMessageAt = messageAt;
+            this.updatedAt = messageAt;
             return;
         }
 
@@ -112,6 +117,7 @@ public class ChatRoom {
             this.lastMessageId.compareTo(messageId) < 0) {
             this.lastMessageId = messageId;
             this.lastMessageAt = messageAt;
+            this.updatedAt = messageAt;
         }
 
         // 더 오래된 메시지라면 무시
@@ -149,6 +155,7 @@ public class ChatRoom {
                 null,
                 null,
                 null,
+                createdAt,
                 createdAt
         );
     }
@@ -158,30 +165,20 @@ public class ChatRoom {
     }
 
     public void scheduleForDeletion(Instant now, int retentionDays) {
-        validateDeletableType();
-
-        if (this.status != RoomStatus.ACTIVE) {
-            throw new InvalidRoomStatusTransitionException(this.id, this.status, RoomStatus.PENDING_DELETION);
-        }
-
-        this.status = RoomStatus.PENDING_DELETION;
-        this.scheduledDeletionAt = now.plus(retentionDays, ChronoUnit.DAYS);
-    }
-
-    public void deleteImmediately() {
-        validateDeletableType();
-
-        if (this.status != RoomStatus.PENDING_DELETION) {
-            throw new RoomMustBePendingDeletionException(this.id, this.status);
-        }
-
-        this.status = RoomStatus.DELETED;
-        this.scheduledDeletionAt = null;
-    }
-
-    private void validateDeletableType() {
         if (this.type != RoomType.CHANNEL) {
             throw new RoomCannotBeDeletedException(this.type);
         }
+        this.status = RoomStatus.PENDING_DELETION;
+        this.scheduledDeletionAt = now.plus(retentionDays, ChronoUnit.DAYS);
+        this.updatedAt = now;
+    }
+
+    public void deleteImmediately() {
+        if (this.type != RoomType.CHANNEL) {
+            throw new RoomCannotBeDeletedException(this.type);
+        }
+        this.status = RoomStatus.DELETED;
+        this.scheduledDeletionAt = null;
+        this.updatedAt = Instant.now();
     }
 }

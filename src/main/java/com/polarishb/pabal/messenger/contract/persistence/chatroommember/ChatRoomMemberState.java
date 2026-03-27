@@ -12,5 +12,7 @@ public record ChatRoomMemberState(
     Instant lastReadAt,
     Instant joinedAt,
     Instant leftAt,
+    Instant createdAt,
+    Instant updatedAt,
     Long version
 ) {}

@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.api.command.ws;
 import com.polarishb.pabal.messenger.api.command.ws.request.TypingRequest;
 import com.polarishb.pabal.messenger.application.command.handler.SendTypingCommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.SendTypingCommand;
+import com.polarishb.pabal.messenger.domain.model.type.TypingStatus;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -28,7 +29,7 @@ public class ChatRealtimeCommandController {
                         request.tenantId(),
                         request.chatRoomId(),
                         extractUserId(principal),
-                        "STARTED"
+                        TypingStatus.STARTED
                 )
         );
     }
@@ -42,7 +43,7 @@ public class ChatRealtimeCommandController {
                         request.tenantId(),
                         request.chatRoomId(),
                         extractUserId(principal),
-                        "STOPPED"
+                        TypingStatus.STOPPED
                 )
         );
     }

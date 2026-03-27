@@ -14,6 +14,7 @@
     import com.polarishb.pabal.messenger.domain.repository.MessageRepository;
     import lombok.RequiredArgsConstructor;
     import org.springframework.stereotype.Component;
+    import org.springframework.transaction.annotation.Transactional;
 
     import java.time.Instant;
 
@@ -26,6 +27,7 @@
         private final MessageRepository messageRepository;
         private final DomainEventPublisher eventPublisher;
 
+        @Transactional
         public Void handle(MarkReadCommand command) {
             chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId())
                     .orElseThrow(() -> new ChatRoomNotFoundException(command.chatRoomId()));

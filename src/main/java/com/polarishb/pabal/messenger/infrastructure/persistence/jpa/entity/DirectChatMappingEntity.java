@@ -1,6 +1,6 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity;
 
-import com.polarishb.pabal.common.persistence.entity.base.BaseEntity;
+import com.polarishb.pabal.common.persistence.entity.base.UpdatableEntity;
 import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingState;
 import jakarta.persistence.*;
@@ -13,15 +13,15 @@ import java.util.UUID;
 @Entity
 @Table(name = "direct_chat_mapping",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"tenantId", "userIdMin", "userIdMax"})
+                @UniqueConstraint(name = "uk_direct_chat_mapping", columnNames = {"tenant_id", "user_id_min", "user_id_max"})
         },
         indexes = {
-                @Index(name = "idx_chat_rooms", columnList = "tenantId,chatRoomId")
+                @Index(name = "idx_direct_chat_rooms", columnList = "tenant_id, chat_room_id")
         }
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class DirectChatMappingEntity extends BaseEntity {
+public class DirectChatMappingEntity extends UpdatableEntity {
 
     @Id
     @UuidV7Generated(mode = UuidV7Generated.Mode.MONOTONIC)
@@ -50,6 +50,9 @@ public class DirectChatMappingEntity extends BaseEntity {
         entity.chatRoomId = state.chatRoomId();
         entity.userIdMin = state.userIdMin();
         entity.userIdMax = state.userIdMax();
+        
+        entity.setCreatedAt(state.createdAt());
+        entity.setUpdatedAt(state.updatedAt());
         return entity;
     }
 
@@ -60,12 +63,14 @@ public class DirectChatMappingEntity extends BaseEntity {
                 this.chatRoomId,
                 this.userIdMin,
                 this.userIdMax,
+                this.getCreatedAt(),
+                this.getUpdatedAt(),
                 this.version
         );
     }
 
     public void apply(DirectChatMappingState state) {
-        // Mapping is immutable in terms of user IDs, but we might update chatRoomId if needed (rare)
         this.chatRoomId = state.chatRoomId();
+        this.setUpdatedAt(state.updatedAt());
     }
 }

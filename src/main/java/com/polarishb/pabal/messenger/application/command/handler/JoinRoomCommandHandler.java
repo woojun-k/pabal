@@ -15,6 +15,7 @@ import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -27,6 +28,7 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final DomainEventPublisher eventPublisher;
 
+    @Transactional
     public Void handle(JoinRoomCommand command) {
         Optional<PersistedChatRoom> existChatRoom = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId());
 

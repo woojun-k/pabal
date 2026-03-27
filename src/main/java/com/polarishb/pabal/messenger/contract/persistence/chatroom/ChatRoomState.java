@@ -19,5 +19,6 @@ public record ChatRoomState(
     UUID lastMessageId,
     Instant lastMessageAt,
     Instant createdAt,
+    Instant updatedAt,
     Long version
 ) {}
