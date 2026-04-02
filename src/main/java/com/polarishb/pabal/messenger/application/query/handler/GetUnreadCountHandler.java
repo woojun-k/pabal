@@ -1,14 +1,56 @@
 package com.polarishb.pabal.messenger.application.query.handler;
 
+import com.polarishb.pabal.common.cqrs.QueryHandler;
 import com.polarishb.pabal.messenger.application.query.input.GetUnreadCountQuery;
+import com.polarishb.pabal.messenger.application.query.output.UnreadCountResult;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
+import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
+import com.polarishb.pabal.messenger.domain.exception.MemberNotInRoomException;
+import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberReadRepository;
+import com.polarishb.pabal.messenger.domain.repository.ChatRoomReadRepository;
+import com.polarishb.pabal.messenger.domain.repository.MessageReadRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
-public class GetUnreadCountHandler {
-    public int handle(GetUnreadCountQuery query) {
-        // TODO: Implement logic to get the unread message count for a user in a room
-        // 1. Validate query data
-        // 2. Load ChatRoomMember for the user and room
-        // 3. Query MessageRepository for messages after lastReadMessageId
-        // 4. Return the count
-        return 0; // Placeholder
+import java.time.Instant;
+
+@Component
+@RequiredArgsConstructor
+public class GetUnreadCountHandler implements QueryHandler<GetUnreadCountQuery, UnreadCountResult> {
+
+    private final ChatRoomReadRepository chatRoomReadRepository;
+    private final ChatRoomMemberReadRepository chatRoomMemberReadRepository;
+    private final MessageReadRepository messageReadRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public UnreadCountResult handle(GetUnreadCountQuery query) {
+        chatRoomReadRepository.findByTenantIdAndId(query.tenantId(), query.chatRoomId())
+                .orElseThrow(() -> new ChatRoomNotFoundException(query.chatRoomId()));
+
+        PersistedChatRoomMember member = chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(
+                query.tenantId(),
+                query.chatRoomId(),
+                query.userId()
+        ).orElseThrow(() -> new MemberNotInRoomException(query.userId()));
+
+        if (!member.member().isActive()) {
+            throw new MemberNotActiveException(query.userId());
+        }
+
+        Instant readThreshold = member.member().getLastReadAt() != null
+                ? member.member().getLastReadAt()
+                : member.member().getJoinedAt();
+
+        return new UnreadCountResult(
+                messageReadRepository.countUnreadInRoom(
+                        query.tenantId(),
+                        query.chatRoomId(),
+                        query.userId(),
+                        readThreshold
+                )
+        );
     }
 }

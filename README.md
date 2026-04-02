@@ -34,7 +34,7 @@
 ## 기술 스택
 
 *   **언어:** Java 25 (LTS)
-*   **프레임워크:** Spring 4.0.2
+*   **프레임워크:** Spring Boot 4.0.2
 *   **Persistence:** Spring Data JPA, Hibernate
 *   **데이터베이스:** PostgreSQL (예정), H2 Database (개발/테스트용)
 *   **빌드 도구:** Gradle 9.3.0

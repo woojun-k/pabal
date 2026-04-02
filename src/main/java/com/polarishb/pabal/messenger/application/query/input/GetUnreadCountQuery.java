@@ -1,21 +1,12 @@
 package com.polarishb.pabal.messenger.application.query.input;
 
+import com.polarishb.pabal.common.cqrs.Query;
+
 import java.util.UUID;
 
-public class GetUnreadCountQuery {
-    private final UUID chatRoomId;
-    private final UUID userId;
-
-    public GetUnreadCountQuery(UUID chatRoomId, UUID userId) {
-        this.chatRoomId = chatRoomId;
-        this.userId = userId;
-    }
-
-    public UUID getChatRoomId() {
-        return chatRoomId;
-    }
-
-    public UUID getUserId() {
-        return userId;
-    }
+public record GetUnreadCountQuery(
+        UUID tenantId,
+        UUID chatRoomId,
+        UUID userId
+) implements Query {
 }

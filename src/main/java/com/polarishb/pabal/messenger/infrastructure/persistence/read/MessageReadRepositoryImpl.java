@@ -2,12 +2,14 @@ package com.polarishb.pabal.messenger.infrastructure.persistence.read;
 
 import com.polarishb.pabal.messenger.contract.persistence.message.MessagePersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.repository.MessageReadRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.MessageReadJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -63,5 +65,16 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
                 )
                 .map(MessageEntity::toState)
                 .map(MessagePersistenceMapper::toPersisted);
+    }
+
+    @Override
+    public long countUnreadInRoom(UUID tenantId, UUID chatRoomId, UUID userId, Instant readThreshold) {
+        return jpaRepository.countUnreadInRoom(
+                tenantId,
+                chatRoomId,
+                userId,
+                MessageStatus.DELETED,
+                readThreshold
+        );
     }
 }

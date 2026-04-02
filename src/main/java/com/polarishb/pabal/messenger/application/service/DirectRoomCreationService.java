@@ -1,6 +1,7 @@
 package com.polarishb.pabal.messenger.application.service;
 
 import com.polarishb.pabal.messenger.application.command.input.GetOrCreateDirectRoomCommand;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
@@ -31,10 +32,11 @@ public class DirectRoomCreationService {
     private final DirectChatMappingRepository directChatMappingRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ClockPort clockPort;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID create(GetOrCreateDirectRoomCommand command) {
-        Instant now = Instant.now();
+        Instant now = clockPort.now();
 
         ChatRoom chatRoom = ChatRoom.createDirect(
                 command.roomName(),
@@ -56,7 +58,8 @@ public class DirectRoomCreationService {
                 command.tenantId(),
                 chatRoomId,
                 command.requesterId(),
-                command.participantId()
+                command.participantId(),
+                now
         );
 
         directChatMappingRepository.append(draft(mapping));

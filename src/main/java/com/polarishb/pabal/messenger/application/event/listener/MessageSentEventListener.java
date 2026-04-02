@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.application.event.listener;
 
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimePort;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.contract.realtime.MessageSentRealtimePayload;
@@ -9,11 +10,8 @@ import com.polarishb.pabal.messenger.domain.event.MessageSentEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageNotFoundException;
 import com.polarishb.pabal.messenger.domain.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
-
-import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
@@ -21,8 +19,9 @@ public class MessageSentEventListener {
 
     private final MessageRepository messageRepository;
     private final ChatRealtimePort chatRealtimePort;
+    private final ClockPort clockPort;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void handle(MessageSentEvent event) {
         PersistedMessage persisted = messageRepository.findByTenantIdAndId(
                 event.tenantId(),
@@ -41,7 +40,7 @@ public class MessageSentEventListener {
         chatRealtimePort.publishRoomEvent(
                 event.tenantId(),
                 event.chatRoomId(),
-                RoomEventEnvelope.of(RoomEventType.MESSAGE_SENT, payload, Instant.now())
+                RoomEventEnvelope.of(RoomEventType.MESSAGE_SENT, payload, clockPort.now())
         );
     }
 }

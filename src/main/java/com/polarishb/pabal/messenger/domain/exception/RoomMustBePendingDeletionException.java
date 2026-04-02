@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.domain.exception;
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,10 +21,20 @@ public class RoomMustBePendingDeletionException extends MessengerException {
         super(
                 MessengerErrorCode.INVALID_ROOM_STATUS,
                 MessengerErrorCode.INVALID_ROOM_STATUS.getMessage(),
-                Map.of(
-                        "roomId", roomId.toString(),
-                        "roomStatus", roomStatus.toString()
-                )
+                details(roomId, roomStatus)
         );
+    }
+
+    private static Map<String, Object> details(UUID roomId, RoomStatus roomStatus) {
+        Map<String, Object> details = new LinkedHashMap<>();
+
+        if (roomId != null) {
+            details.put("roomId", roomId.toString());
+        }
+        if (roomStatus != null) {
+            details.put("roomStatus", roomStatus.toString());
+        }
+
+        return Map.copyOf(details);
     }
 }

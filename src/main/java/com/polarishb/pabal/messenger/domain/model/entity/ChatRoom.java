@@ -1,6 +1,7 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
 import com.polarishb.pabal.messenger.domain.exception.RoomCannotBeDeletedException;
+import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
@@ -14,6 +15,7 @@ import lombok.Getter;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -173,12 +175,17 @@ public class ChatRoom {
         this.updatedAt = now;
     }
 
-    public void deleteImmediately() {
+    public void deleteImmediately(Instant deletedAt) {
         if (this.type != RoomType.CHANNEL) {
             throw new RoomCannotBeDeletedException(this.type);
         }
+        if (this.status != RoomStatus.PENDING_DELETION) {
+            throw new RoomMustBePendingDeletionException(this.id, this.status);
+        }
+
+        Instant transitionAt = Objects.requireNonNull(deletedAt);
         this.status = RoomStatus.DELETED;
         this.scheduledDeletionAt = null;
-        this.updatedAt = Instant.now();
+        this.updatedAt = transitionAt;
     }
 }

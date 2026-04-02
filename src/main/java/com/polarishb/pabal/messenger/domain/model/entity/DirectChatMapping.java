@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -27,13 +28,14 @@ public class DirectChatMapping {
             UUID tenantId,
             UUID chatRoomId,
             UUID userId1,
-            UUID userId2
+            UUID userId2,
+            Instant createdAt
     ) {
         int comparison = userId1.compareTo(userId2);
         UUID userIdMin = comparison < 0 ? userId1 : userId2;
         UUID userIdMax = comparison < 0 ? userId2 : userId1;
 
-        Instant now = Instant.now();
+        Instant now = Objects.requireNonNull(createdAt);
         return new DirectChatMapping(
                 null,
                 tenantId,

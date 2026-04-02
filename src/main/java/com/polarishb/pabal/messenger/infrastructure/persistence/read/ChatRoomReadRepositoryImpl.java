@@ -9,6 +9,8 @@ import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.ChatRoo
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,6 +32,14 @@ public class ChatRoomReadRepositoryImpl implements ChatRoomReadRepository {
         return jpaRepository.findByTenantIdAndId(tenantId, id)
                 .map(ChatRoomEntity::toState)
                 .map(ChatRoomPersistenceMapper::toPersisted);
+    }
+
+    @Override
+    public List<PersistedChatRoom> findAllByTenantIdAndIds(UUID tenantId, Collection<UUID> ids) {
+        return jpaRepository.findAllByTenantIdAndIdIn(tenantId, ids).stream()
+                .map(ChatRoomEntity::toState)
+                .map(ChatRoomPersistenceMapper::toPersisted)
+                .toList();
     }
 
     @Override
