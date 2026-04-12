@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.SendTypingCommand;
 import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimePort;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.contract.realtime.TypingEventPayload;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
@@ -15,8 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-
 @Component
 @RequiredArgsConstructor
 public class SendTypingCommandHandler implements CommandHandler<SendTypingCommand, Void> {
@@ -24,6 +23,7 @@ public class SendTypingCommandHandler implements CommandHandler<SendTypingComman
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final ChatRealtimePort chatRealtimePort;
+    private final ClockPort clockPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -47,7 +47,7 @@ public class SendTypingCommandHandler implements CommandHandler<SendTypingComman
         TypingEventPayload payload = new TypingEventPayload(
                 command.userId(),
                 command.status(),
-                Instant.now()
+                clockPort.now()
         );
 
         chatRealtimePort.publishTyping(

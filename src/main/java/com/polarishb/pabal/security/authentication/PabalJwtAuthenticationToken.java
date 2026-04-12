@@ -3,10 +3,11 @@ package com.polarishb.pabal.security.authentication;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.messaging.simp.user.DestinationUserNameProvider;
 
 import java.util.Collection;
 
-public class PabalJwtAuthenticationToken extends AbstractAuthenticationToken {
+public class PabalJwtAuthenticationToken extends AbstractAuthenticationToken implements DestinationUserNameProvider {
 
     private final PabalPrincipal principal;
     private final Jwt jwt;
@@ -39,5 +40,10 @@ public class PabalJwtAuthenticationToken extends AbstractAuthenticationToken {
     @Override
     public String getName() {
         return principal.getName();
+    }
+
+    @Override
+    public String getDestinationUserName() {
+        return principal.getDestinationUserName();
     }
 }

@@ -3,12 +3,14 @@ package com.polarishb.pabal.messenger.infrastructure.persistence.write;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingState;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
+import com.polarishb.pabal.messenger.domain.exception.DuplicateDirectChatMappingException;
 import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
 import com.polarishb.pabal.messenger.domain.repository.DirectChatMappingWriteRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.DirectChatMappingEntity;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.write.DirectChatMappingWriteJpaRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +27,12 @@ public class DirectChatMappingWriteRepositoryImpl implements DirectChatMappingWr
     @Transactional
     public PersistedDirectChatMapping append(PersistedDirectChatMapping persistedMapping) {
         DirectChatMappingState state = persistedMapping.state();
-        DirectChatMappingEntity saved = jpaRepository.save(DirectChatMappingEntity.fromNewState(state));
-        return DirectChatMappingPersistenceMapper.toPersisted(saved.toState());
+        try {
+            DirectChatMappingEntity saved = jpaRepository.save(DirectChatMappingEntity.fromNewState(state));
+            return DirectChatMappingPersistenceMapper.toPersisted(saved.toState());
+        } catch (DataIntegrityViolationException e) {
+            throw duplicateDirectMapping(e);
+        }
     }
 
     @Override
@@ -57,6 +63,14 @@ public class DirectChatMappingWriteRepositoryImpl implements DirectChatMappingWr
 
     @Override
     public void flush() {
-        jpaRepository.flush();
+        try {
+            jpaRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw duplicateDirectMapping(e);
+        }
+    }
+
+    private DuplicateDirectChatMappingException duplicateDirectMapping(DataIntegrityViolationException cause) {
+        return new DuplicateDirectChatMappingException(cause.getMessage(), cause);
     }
 }

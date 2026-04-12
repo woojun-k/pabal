@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.SendMessageCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
@@ -12,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Optional;
 
 @Component
@@ -20,6 +20,7 @@ import java.util.Optional;
 public class SendMessageCommandHandler implements CommandHandler<SendMessageCommand, SendMessageResult> {
 
     private final MessageSendSupport messageSendSupport;
+    private final ClockPort clockPort;
 
     @Override
     @Transactional
@@ -44,7 +45,7 @@ public class SendMessageCommandHandler implements CommandHandler<SendMessageComm
                 command.senderId(),
                 command.clientMessageId(),
                 command.content(),
-                Instant.now()
+                clockPort.now()
         );
 
         PersistedMessage saved = messageSendSupport.send(chatRoom, message);

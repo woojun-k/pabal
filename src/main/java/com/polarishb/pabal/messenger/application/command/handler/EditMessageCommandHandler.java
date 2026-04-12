@@ -4,6 +4,7 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.EditMessageCommand;
 import com.polarishb.pabal.messenger.application.command.output.EditMessageResult;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageEditedEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageEditForbiddenException;
@@ -14,14 +15,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-
 @Component
 @RequiredArgsConstructor
 public class EditMessageCommandHandler implements CommandHandler<EditMessageCommand, EditMessageResult> {
 
     private final MessageRepository messageRepository;
     private final DomainEventPublisher eventPublisher;
+    private final ClockPort clockPort;
 
     @Override
     @Transactional
@@ -43,7 +43,7 @@ public class EditMessageCommandHandler implements CommandHandler<EditMessageComm
         }
 
         // 메시지 수정
-        message.edit(command.newContent(), Instant.now());
+        message.edit(command.newContent(), clockPort.now());
 
         // 저장
         PersistedMessage updated = messageRepository.update(persisted);

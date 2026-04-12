@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.JoinRoomCommand;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
@@ -27,9 +28,11 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final DomainEventPublisher eventPublisher;
+    private final ClockPort clockPort;
 
     @Transactional
     public Void handle(JoinRoomCommand command) {
+        Instant now = clockPort.now();
         Optional<PersistedChatRoom> existChatRoom = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId());
 
         if (existChatRoom.isEmpty()) {
@@ -45,12 +48,12 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
             } else {
                 ChatRoomMember member =  existMember.get().member();
 
-                member.rejoin(Instant.now());
+                member.rejoin(now);
 
                 persistedMember = chatRoomMemberRepository.update(existMember.get());
             }
         } else {
-            ChatRoomMember member = ChatRoomMember.create(command.tenantId(), command.chatRoomId(), command.userId(), Instant.now());
+            ChatRoomMember member = ChatRoomMember.create(command.tenantId(), command.chatRoomId(), command.userId(), now);
 
             ChatRoomMemberState state = ChatRoomMemberPersistenceMapper.toState(member, null);
             PersistedChatRoomMember draft = new PersistedChatRoomMember(member, state);

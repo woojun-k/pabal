@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.LeaveRoomCommand;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.domain.event.MemberLeftEvent;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
@@ -15,8 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-
 @Component
 @RequiredArgsConstructor
 public class LeaveRoomCommandHandler implements CommandHandler<LeaveRoomCommand, Void> {
@@ -24,6 +23,7 @@ public class LeaveRoomCommandHandler implements CommandHandler<LeaveRoomCommand,
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final DomainEventPublisher eventPublisher;
+    private final ClockPort clockPort;
 
     @Override
     @Transactional
@@ -41,7 +41,7 @@ public class LeaveRoomCommandHandler implements CommandHandler<LeaveRoomCommand,
             throw new MemberNotActiveException(command.userId());
         }
 
-        member.leave(Instant.now());
+        member.leave(clockPort.now());
 
         chatRoomMemberRepository.update(persistedMember);
 

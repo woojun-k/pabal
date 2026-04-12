@@ -15,6 +15,15 @@ public class DuplicateDirectChatMappingException extends MessengerException {
         super(MessengerErrorCode.DUPLICATE_DIRECT_MAPPING, customMessage);
     }
 
+    public DuplicateDirectChatMappingException(String customMessage, Throwable cause) {
+        super(
+                MessengerErrorCode.DUPLICATE_DIRECT_MAPPING,
+                customMessage,
+                Map.of(),
+                cause
+        );
+    }
+
     public DuplicateDirectChatMappingException(UUID chatRoomId) {
         super(
                 MessengerErrorCode.DUPLICATE_DIRECT_MAPPING,

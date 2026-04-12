@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.CreateGroupRoomCommand;
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
@@ -22,11 +23,12 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
     private static final int MAX_DISPLAYED_MEMBERS = 3;
 
     private final ChatRoomCreationSupport creationSupport;
+    private final ClockPort clockPort;
 
     @Override
     @Transactional
     public CreateRoomResult handle(CreateGroupRoomCommand command) {
-        Instant now = Instant.now();
+        Instant now = clockPort.now();
 
         // 방 이름 결정
         String roomName = (command.roomName() != null)

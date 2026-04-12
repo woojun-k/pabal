@@ -4,6 +4,7 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.DeleteMessageCommand;
 import com.polarishb.pabal.messenger.application.command.output.DeleteMessageResult;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageDeletedEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageDeleteForbiddenException;
@@ -14,14 +15,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-
 @Component
 @RequiredArgsConstructor
 public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessageCommand, DeleteMessageResult> {
 
     private final MessageRepository messageRepository;
     private final DomainEventPublisher eventPublisher;
+    private final ClockPort clockPort;
 
     @Override
     @Transactional
@@ -43,7 +43,7 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
         }
 
         // 메시지 삭제
-        message.delete(Instant.now());
+        message.delete(clockPort.now());
 
         // 저장
         PersistedMessage updated = messageRepository.update(persisted);

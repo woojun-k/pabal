@@ -51,3 +51,12 @@ management:
   health:
     redis:
       enabled: true
+
+logging:
+  level:
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
+    org.springframework.security: DEBUG
+    com.polarishb.pabal.messenger.infrastructure.realtime.ws: TRACE
+    com.polarishb.pabal.messenger.infrastructure.config: TRACE
+    com.polarishb.pabal.security: TRACE

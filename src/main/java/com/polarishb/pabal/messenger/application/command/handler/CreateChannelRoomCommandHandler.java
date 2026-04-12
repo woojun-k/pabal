@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.CreateChannelRoomCommand;
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
+import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
@@ -18,11 +19,12 @@ import java.time.Instant;
 public class CreateChannelRoomCommandHandler implements CommandHandler<CreateChannelRoomCommand, CreateRoomResult> {
 
     private final ChatRoomCreationSupport creationSupport;
+    private final ClockPort clockPort;
 
     @Override
     @Transactional
     public CreateRoomResult handle(CreateChannelRoomCommand command) {
-        Instant now = Instant.now();
+        Instant now = clockPort.now();
 
         // 채널 이름 중복 검증 (워크스페이스 내에서 유니크해야 함)
         creationSupport.validateChannelNameUniqueness(

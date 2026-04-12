@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.application.port.out.realtime;
 
+import com.polarishb.pabal.messenger.contract.realtime.RoomSubscriptionRevokedRealtimePayload;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventEnvelope;
 import com.polarishb.pabal.messenger.contract.realtime.TypingEventPayload;
 
@@ -10,4 +11,6 @@ public interface ChatRealtimePort {
     void publishRoomEvent(UUID tenantId, UUID chatRoomId, RoomEventEnvelope event);
 
     void publishTyping(UUID tenantId, UUID chatRoomId, TypingEventPayload payload);
+
+    void publishSubscriptionRevocation(UUID tenantId, UUID userId, RoomSubscriptionRevokedRealtimePayload payload);
 }
