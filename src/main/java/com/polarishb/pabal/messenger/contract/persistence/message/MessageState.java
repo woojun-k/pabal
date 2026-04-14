@@ -12,6 +12,7 @@ public record MessageState(
     UUID chatRoomId,
     UUID senderId,
     UUID clientMessageId,
+    Long sequence,
     MessageType type,
     String content,
     MessageStatus status,

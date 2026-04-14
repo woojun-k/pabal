@@ -14,8 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-
 @Component
 @RequiredArgsConstructor
 public class GetUnreadCountHandler implements QueryHandler<GetUnreadCountQuery, UnreadCountResult> {
@@ -40,16 +38,16 @@ public class GetUnreadCountHandler implements QueryHandler<GetUnreadCountQuery, 
             throw new MemberNotActiveException(query.userId());
         }
 
-        Instant readThreshold = member.member().getLastReadAt() != null
-                ? member.member().getLastReadAt()
-                : member.member().getJoinedAt();
+        long lastReadSequence = member.member().getLastReadSequence() != null
+                ? member.member().getLastReadSequence()
+                : 0L;
 
         return new UnreadCountResult(
                 messageReadRepository.countUnreadInRoom(
                         query.tenantId(),
                         query.chatRoomId(),
                         query.userId(),
-                        readThreshold
+                        lastReadSequence
                 )
         );
     }

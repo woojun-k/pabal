@@ -43,12 +43,12 @@ class GetUnreadCountHandlerTest {
     private GetUnreadCountHandler getUnreadCountHandler;
 
     @Test
-    void handle_uses_last_read_at_as_threshold() {
+    void handle_uses_last_read_sequence_as_cursor() {
         UUID tenantId = UUID.randomUUID();
         UUID chatRoomId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-04-02T12:00:00Z");
-        Instant lastReadAt = createdAt.plusSeconds(30);
+        long lastReadSequence = 7L;
 
         PersistedChatRoom room = new PersistedChatRoom(
                 ChatRoom.reconstitute(
@@ -61,6 +61,7 @@ class GetUnreadCountHandlerTest {
                         RoomStatus.ACTIVE,
                         null,
                         null,
+                        12L,
                         null,
                         createdAt,
                         createdAt
@@ -75,6 +76,7 @@ class GetUnreadCountHandlerTest {
                         RoomStatus.ACTIVE,
                         null,
                         null,
+                        12L,
                         null,
                         createdAt,
                         createdAt,
@@ -88,11 +90,12 @@ class GetUnreadCountHandlerTest {
                 chatRoomId,
                 userId,
                 UUID.randomUUID(),
-                lastReadAt,
+                lastReadSequence,
+                createdAt.plusSeconds(30),
                 createdAt,
                 null,
                 createdAt,
-                lastReadAt
+                createdAt.plusSeconds(30)
         );
         PersistedChatRoomMember persistedMember = new PersistedChatRoomMember(
                 member,
@@ -102,11 +105,12 @@ class GetUnreadCountHandlerTest {
                         chatRoomId,
                         userId,
                         member.getLastReadMessageId(),
-                        lastReadAt,
+                        lastReadSequence,
+                        member.getLastReadAt(),
                         createdAt,
                         null,
                         createdAt,
-                        lastReadAt,
+                        member.getLastReadAt(),
                         0L
                 )
         );
@@ -114,7 +118,7 @@ class GetUnreadCountHandlerTest {
         when(chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId)).thenReturn(Optional.of(room));
         when(chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
                 .thenReturn(Optional.of(persistedMember));
-        when(messageReadRepository.countUnreadInRoom(tenantId, chatRoomId, userId, lastReadAt))
+        when(messageReadRepository.countUnreadInRoom(tenantId, chatRoomId, userId, lastReadSequence))
                 .thenReturn(4L);
 
         UnreadCountResult result = getUnreadCountHandler.handle(

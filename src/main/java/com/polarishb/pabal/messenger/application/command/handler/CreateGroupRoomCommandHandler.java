@@ -51,7 +51,8 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
                 saved.state().id(),
                 command.requesterId(),
                 command.participantIds(),
-                now
+                now,
+                saved.state().lastMessageSequence() != null ? saved.state().lastMessageSequence() : 0L
         );
 
         return new CreateRoomResult(saved.state().id(), roomName);

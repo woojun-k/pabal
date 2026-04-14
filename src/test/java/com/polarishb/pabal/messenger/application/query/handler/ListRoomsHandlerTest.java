@@ -53,16 +53,16 @@ class ListRoomsHandlerTest {
         PersistedChatRoomMember newerMembership = membership(tenantId, newerRoomId, userId, base);
         PersistedChatRoomMember olderMembership = membership(tenantId, olderRoomId, userId, base.minusSeconds(60));
 
-        PersistedChatRoom newerRoom = room(tenantId, newerRoomId, "newer", base.plusSeconds(30));
-        PersistedChatRoom olderRoom = room(tenantId, olderRoomId, "older", base.minusSeconds(30));
+        PersistedChatRoom newerRoom = room(tenantId, newerRoomId, "newer", 11L, base.plusSeconds(30));
+        PersistedChatRoom olderRoom = room(tenantId, olderRoomId, "older", 9L, base.minusSeconds(30));
 
         when(chatRoomMemberReadRepository.findAllActiveByTenantIdAndUserId(tenantId, userId))
                 .thenReturn(List.of(olderMembership, newerMembership));
         when(chatRoomReadRepository.findAllByTenantIdAndIds(tenantId, List.of(olderRoomId, newerRoomId)))
                 .thenReturn(List.of(olderRoom, newerRoom));
-        when(messageReadRepository.countUnreadInRoom(tenantId, olderRoomId, userId, olderMembership.member().getJoinedAt()))
+        when(messageReadRepository.countUnreadInRoom(tenantId, olderRoomId, userId, 0L))
                 .thenReturn(1L);
-        when(messageReadRepository.countUnreadInRoom(tenantId, newerRoomId, userId, newerMembership.member().getJoinedAt()))
+        when(messageReadRepository.countUnreadInRoom(tenantId, newerRoomId, userId, 0L))
                 .thenReturn(3L);
 
         List<RoomDto> result = listRoomsHandler.handle(new ListRoomsQuery(tenantId, userId));
@@ -80,6 +80,7 @@ class ListRoomsHandlerTest {
                 roomId,
                 userId,
                 null,
+                0L,
                 null,
                 joinedAt,
                 null,
@@ -95,6 +96,7 @@ class ListRoomsHandlerTest {
                         roomId,
                         userId,
                         null,
+                        0L,
                         null,
                         joinedAt,
                         null,
@@ -105,7 +107,7 @@ class ListRoomsHandlerTest {
         );
     }
 
-    private static PersistedChatRoom room(UUID tenantId, UUID roomId, String name, Instant lastMessageAt) {
+    private static PersistedChatRoom room(UUID tenantId, UUID roomId, String name, long lastMessageSequence, Instant lastMessageAt) {
         ChatRoom chatRoom = ChatRoom.reconstitute(
                 roomId,
                 RoomType.GROUP,
@@ -116,6 +118,7 @@ class ListRoomsHandlerTest {
                 RoomStatus.ACTIVE,
                 null,
                 UUID.randomUUID(),
+                lastMessageSequence,
                 lastMessageAt,
                 lastMessageAt.minusSeconds(60),
                 lastMessageAt
@@ -133,6 +136,7 @@ class ListRoomsHandlerTest {
                         RoomStatus.ACTIVE,
                         null,
                         chatRoom.getLastMessageId(),
+                        lastMessageSequence,
                         lastMessageAt,
                         lastMessageAt.minusSeconds(60),
                         lastMessageAt,

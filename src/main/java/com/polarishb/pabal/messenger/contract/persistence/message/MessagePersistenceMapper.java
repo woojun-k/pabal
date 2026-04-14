@@ -3,6 +3,8 @@ package com.polarishb.pabal.messenger.contract.persistence.message;
 import com.polarishb.pabal.messenger.domain.model.entity.Message;
 import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
 
+import java.util.Objects;
+
 public final class MessagePersistenceMapper {
 
     private MessagePersistenceMapper() {
@@ -15,6 +17,7 @@ public final class MessagePersistenceMapper {
                 state.chatRoomId(),
                 state.senderId(),
                 state.clientMessageId(),
+                state.sequence(),
                 state.type(),
                 new MessageContent(state.content()),
                 state.status(),
@@ -32,6 +35,7 @@ public final class MessagePersistenceMapper {
                 message.getChatRoomId(),
                 message.getSenderId(),
                 message.getClientMessageId(),
+                Objects.requireNonNull(message.getSequence(), "message.sequence must be assigned before persistence"),
                 message.getType(),
                 message.getContent().value(),
                 message.getStatus(),

@@ -13,12 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -47,7 +47,7 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
                         .distinct()
                         .toList()
         ).stream().collect(
-                java.util.stream.Collectors.toMap(
+                Collectors.toMap(
                         persistedRoom -> persistedRoom.state().id(),
                         Function.identity()
                 )
@@ -71,15 +71,15 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
             throw new ChatRoomNotFoundException(member.state().chatRoomId());
         }
 
-        Instant readThreshold = member.member().getLastReadAt() != null
-                ? member.member().getLastReadAt()
-                : member.member().getJoinedAt();
+        long lastReadSequence = member.member().getLastReadSequence() != null
+                ? member.member().getLastReadSequence()
+                : 0L;
 
         long unreadCount = messageReadRepository.countUnreadInRoom(
                 query.tenantId(),
                 room.state().id(),
                 query.userId(),
-                readThreshold
+                lastReadSequence
         );
 
         return new RoomDto(

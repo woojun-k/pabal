@@ -2,6 +2,7 @@ package com.polarishb.pabal.messenger.application.query.handler;
 
 import com.polarishb.pabal.messenger.application.query.input.ReadMessageQuery;
 import com.polarishb.pabal.messenger.application.query.output.MessageDto;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
@@ -66,6 +67,7 @@ class ReadMessageHandlerTest {
                 RoomStatus.ACTIVE,
                 null,
                 null,
+                0L,
                 null,
                 createdAt,
                 createdAt
@@ -78,6 +80,7 @@ class ReadMessageHandlerTest {
                 chatRoomId,
                 userId,
                 null,
+                0L,
                 null,
                 createdAt,
                 null,
@@ -92,6 +95,7 @@ class ReadMessageHandlerTest {
                         chatRoomId,
                         userId,
                         null,
+                        0L,
                         null,
                         createdAt,
                         null,
@@ -107,6 +111,7 @@ class ReadMessageHandlerTest {
                 chatRoomId,
                 userId,
                 clientMessageId,
+                1L,
                 MessageType.USER,
                 new MessageContent("hello"),
                 MessageStatus.ACTIVE,
@@ -123,6 +128,7 @@ class ReadMessageHandlerTest {
                         chatRoomId,
                         userId,
                         clientMessageId,
+                        1L,
                         MessageType.USER,
                         "hello",
                         MessageStatus.ACTIVE,
@@ -149,11 +155,11 @@ class ReadMessageHandlerTest {
         assertThat(result.status()).isEqualTo("ACTIVE");
     }
 
-    private static com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState nullSafeRoomState(
+    private static ChatRoomState nullSafeRoomState(
             ChatRoom room,
             Instant createdAt
     ) {
-        return new com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState(
+        return new ChatRoomState(
                 room.getId(),
                 room.getType(),
                 room.getName().valueOrNull(),
@@ -163,6 +169,7 @@ class ReadMessageHandlerTest {
                 room.getStatus(),
                 room.getScheduledDeletionAt(),
                 room.getLastMessageId(),
+                room.getLastMessageSequence(),
                 room.getLastMessageAt(),
                 createdAt,
                 createdAt,

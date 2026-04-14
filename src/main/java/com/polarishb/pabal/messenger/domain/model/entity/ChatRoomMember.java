@@ -23,6 +23,7 @@ public class ChatRoomMember {
     private UUID userId;
 
     private UUID lastReadMessageId;
+    private Long lastReadSequence;
     private Instant lastReadAt;
 
     private Instant joinedAt;
@@ -35,7 +36,8 @@ public class ChatRoomMember {
         UUID tenantId,
         UUID chatRoomId,
         UUID userId,
-        Instant joinedAt
+        Instant joinedAt,
+        long initialLastReadSequence
     ) {
         return new ChatRoomMember(
             null,
@@ -43,6 +45,7 @@ public class ChatRoomMember {
             chatRoomId,
             userId,
             null,
+            initialLastReadSequence,
             null,
             joinedAt,
             null,
@@ -57,6 +60,7 @@ public class ChatRoomMember {
          UUID chatRoomId,
          UUID userId,
          UUID lastReadMessageId,
+         Long lastReadSequence,
          Instant lastReadAt,
          Instant joinedAt,
          Instant leftAt,
@@ -69,6 +73,7 @@ public class ChatRoomMember {
             chatRoomId,
             userId,
             lastReadMessageId,
+            lastReadSequence,
             lastReadAt,
             joinedAt,
             leftAt,
@@ -77,12 +82,23 @@ public class ChatRoomMember {
         );
     }
 
-    public static ChatRoomMember join(UUID tenantId, UUID chatRoomId, UUID userId, Instant joinedAt) {
-        return create(tenantId, chatRoomId, userId, joinedAt);
+    public static ChatRoomMember join(
+            UUID tenantId,
+            UUID chatRoomId,
+            UUID userId,
+            Instant joinedAt,
+            long initialLastReadSequence
+    ) {
+        return create(tenantId, chatRoomId, userId, joinedAt, initialLastReadSequence);
     }
 
-    public void updateLastRead(UUID messageId, Instant readAt) {
+    public void updateLastRead(UUID messageId, long sequence, Instant readAt) {
+        if (this.lastReadSequence != null && sequence < this.lastReadSequence) {
+            return;
+        }
+
         this.lastReadMessageId = messageId;
+        this.lastReadSequence = sequence;
         this.lastReadAt = readAt;
         this.updatedAt = readAt;
     }
@@ -95,12 +111,15 @@ public class ChatRoomMember {
         this.updatedAt = leftAt;
     }
 
-    public void rejoin(Instant joinedAt) {
+    public void rejoin(Instant joinedAt, long baselineSequence) {
         if (isActive()) {
             throw new MemberAlreadyActiveException(this.userId);
         }
         this.leftAt = null;
         this.joinedAt = joinedAt;
+        this.lastReadMessageId = null;
+        this.lastReadSequence = baselineSequence;
+        this.lastReadAt = null;
         this.updatedAt = joinedAt;
     }
 

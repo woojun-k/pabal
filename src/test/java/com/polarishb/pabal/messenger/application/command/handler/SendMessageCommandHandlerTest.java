@@ -69,6 +69,7 @@ class SendMessageCommandHandlerTest {
                         RoomStatus.ACTIVE,
                         null,
                         null,
+                        0L,
                         null,
                         now,
                         now
@@ -83,6 +84,7 @@ class SendMessageCommandHandlerTest {
                         RoomStatus.ACTIVE,
                         null,
                         null,
+                        0L,
                         null,
                         now,
                         now,
@@ -96,6 +98,7 @@ class SendMessageCommandHandlerTest {
                         chatRoomId,
                         senderId,
                         null,
+                        0L,
                         null,
                         now,
                         null,
@@ -108,6 +111,7 @@ class SendMessageCommandHandlerTest {
                         chatRoomId,
                         senderId,
                         null,
+                        0L,
                         null,
                         now,
                         null,
@@ -123,6 +127,7 @@ class SendMessageCommandHandlerTest {
                         chatRoomId,
                         senderId,
                         clientMessageId,
+                        1L,
                         MessageType.USER,
                         new MessageContent("hello"),
                         MessageStatus.ACTIVE,
@@ -137,6 +142,7 @@ class SendMessageCommandHandlerTest {
                         chatRoomId,
                         senderId,
                         clientMessageId,
+                        1L,
                         MessageType.USER,
                         "hello",
                         MessageStatus.ACTIVE,
@@ -161,6 +167,7 @@ class SendMessageCommandHandlerTest {
         verify(messageSendSupport).send(any(PersistedChatRoom.class), messageCaptor.capture());
 
         assertThat(messageCaptor.getValue().getCreatedAt()).isEqualTo(now);
+        assertThat(messageCaptor.getValue().getSequence()).isNull();
         assertThat(result.createdAt()).isEqualTo(now);
     }
 }

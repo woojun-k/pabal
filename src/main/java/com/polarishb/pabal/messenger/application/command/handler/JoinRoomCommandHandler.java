@@ -33,11 +33,12 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
     @Transactional
     public Void handle(JoinRoomCommand command) {
         Instant now = clockPort.now();
-        Optional<PersistedChatRoom> existChatRoom = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId());
+        PersistedChatRoom chatRoom = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId())
+                .orElseThrow(() -> new ChatRoomNotFoundException(command.chatRoomId()));
 
-        if (existChatRoom.isEmpty()) {
-            throw new ChatRoomNotFoundException(command.chatRoomId());
-        }
+        long baselineSequence = chatRoom.state().lastMessageSequence() != null
+                ? chatRoom.state().lastMessageSequence()
+                : 0L;
 
         Optional<PersistedChatRoomMember> existMember = chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(command.tenantId(), command.chatRoomId(), command.userId());
         PersistedChatRoomMember persistedMember;
@@ -48,12 +49,18 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
             } else {
                 ChatRoomMember member =  existMember.get().member();
 
-                member.rejoin(now);
+                member.rejoin(now, baselineSequence);
 
                 persistedMember = chatRoomMemberRepository.update(existMember.get());
             }
         } else {
-            ChatRoomMember member = ChatRoomMember.create(command.tenantId(), command.chatRoomId(), command.userId(), now);
+            ChatRoomMember member = ChatRoomMember.create(
+                    command.tenantId(),
+                    command.chatRoomId(),
+                    command.userId(),
+                    now,
+                    baselineSequence
+            );
 
             ChatRoomMemberState state = ChatRoomMemberPersistenceMapper.toState(member, null);
             PersistedChatRoomMember draft = new PersistedChatRoomMember(member, state);

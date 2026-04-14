@@ -10,11 +10,11 @@ import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageSentEvent;
 import com.polarishb.pabal.messenger.domain.exception.*;
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
 import com.polarishb.pabal.messenger.domain.model.entity.Message;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
+import com.polarishb.pabal.messenger.domain.repository.ChatRoomSequenceRepository;
 import com.polarishb.pabal.messenger.domain.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,6 +31,7 @@ public class MessageSendSupport {
     private final MessageRepository messageRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomSequenceRepository chatRoomSequenceRepository;
     private final DomainEventPublisher eventPublisher;
 
     public PersistedChatRoom loadChatRoom(SendableCommand command) {
@@ -76,11 +77,21 @@ public class MessageSendSupport {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public PersistedMessage send(PersistedChatRoom persistedChatRoom, Message message) {
+        long sequence = chatRoomSequenceRepository.allocateNextMessageSequence(
+                persistedChatRoom.state().tenantId(),
+                persistedChatRoom.state().id()
+        );
+        message.assignSequence(sequence);
+
         PersistedMessage saved = messageRepository.append(draft(message));
 
-        ChatRoom chatRoom = persistedChatRoom.chatRoom();
-        chatRoom.updateLastMessage(saved.state().id(), saved.state().createdAt());
-        chatRoomRepository.update(persistedChatRoom);
+        chatRoomSequenceRepository.updateLastMessageSnapshot(
+                saved.state().tenantId(),
+                saved.state().chatRoomId(),
+                saved.state().id(),
+                saved.state().sequence(),
+                saved.state().createdAt()
+        );
 
         eventPublisher.publishAfterCommit(
                 new MessageSentEvent(

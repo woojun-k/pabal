@@ -25,6 +25,7 @@ public class Message {
     private UUID chatRoomId;
     private UUID senderId;
     private UUID clientMessageId;
+    private Long sequence;
     private MessageType type;
     private MessageContent content;
     private MessageStatus status;
@@ -47,6 +48,7 @@ public class Message {
                 chatRoomId,
                 senderId,
                 clientMessageId,
+                null,
                 MessageType.USER,
                 new MessageContent(content),
                 MessageStatus.ACTIVE,
@@ -63,6 +65,7 @@ public class Message {
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId,
+            Long sequence,
             MessageType type,
             MessageContent content,
             MessageStatus status,
@@ -77,6 +80,7 @@ public class Message {
                 chatRoomId,
                 senderId,
                 clientMessageId,
+                sequence,
                 type,
                 content,
                 status,
@@ -102,6 +106,7 @@ public class Message {
                 chatRoomId,
                 senderId,
                 clientMessageId,
+                null,
                 MessageType.USER,
                 new MessageContent(content),
                 MessageStatus.ACTIVE,
@@ -110,6 +115,12 @@ public class Message {
                 createdAt,
                 null
         );
+    }
+
+    public void assignSequence(long sequence) {
+        if (this.sequence == null || this.sequence < sequence) {
+            this.sequence = sequence;
+        }
     }
 
     public void delete(Instant deletedAt) {

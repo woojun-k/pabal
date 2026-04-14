@@ -1,12 +1,11 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read;
 
-import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
 import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
+import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,13 +31,13 @@ public interface MessageReadJpaRepository extends JpaRepository<MessageEntity, U
               and message.chatRoomId = :chatRoomId
               and message.senderId <> :userId
               and message.status <> :deletedStatus
-              and message.createdAt > :readThreshold
+              and message.sequence > :lastReadSequence
             """)
     long countUnreadInRoom(
             @Param("tenantId") UUID tenantId,
             @Param("chatRoomId") UUID chatRoomId,
             @Param("userId") UUID userId,
             @Param("deletedStatus") MessageStatus deletedStatus,
-            @Param("readThreshold") Instant readThreshold
+            @Param("lastReadSequence") long lastReadSequence
     );
 }

@@ -5,8 +5,10 @@ import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.MarkReadCommand;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageReadEvent;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
+import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
 import com.polarishb.pabal.messenger.domain.exception.MemberNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.MessageNotFoundException;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
@@ -37,13 +39,20 @@ public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, V
         PersistedChatRoomMember member = chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(command.tenantId(), command.chatRoomId(), command.userId())
                 .orElseThrow(() -> new MemberNotFoundException(command.userId()));
 
-        messageRepository.findByTenantIdAndChatRoomIdAndId(command.tenantId(), command.chatRoomId(), command.lastReadMessageId())
+        ChatRoomMember chatRoomMember = member.member();
+        if (!chatRoomMember.isActive()) {
+            throw new MemberNotActiveException(command.userId());
+        }
+
+        PersistedMessage lastReadMessage = messageRepository.findByTenantIdAndChatRoomIdAndId(command.tenantId(), command.chatRoomId(), command.lastReadMessageId())
                 .orElseThrow(() -> new MessageNotFoundException(command.lastReadMessageId()));
 
-        ChatRoomMember chatRoomMember = member.member();
-
         Instant readAt = clockPort.now();
-        chatRoomMember.updateLastRead(command.lastReadMessageId(), readAt);
+        chatRoomMember.updateLastRead(
+                command.lastReadMessageId(),
+                lastReadMessage.state().sequence(),
+                readAt
+        );
 
         chatRoomMemberRepository.update(member);
 

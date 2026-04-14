@@ -51,6 +51,9 @@ public class ChatRoomEntity extends DeletableEntity {
 
     private UUID lastMessageId;
 
+    @Column(nullable = false)
+    private Long lastMessageSequence;
+
     private Instant lastMessageAt;
 
     @Version
@@ -75,6 +78,7 @@ public class ChatRoomEntity extends DeletableEntity {
         entity.status = state.status();
         entity.scheduledDeletionAt = state.scheduledDeletionAt();
         entity.lastMessageId = state.lastMessageId();
+        entity.lastMessageSequence = state.lastMessageSequence() != null ? state.lastMessageSequence() : 0L;
         entity.lastMessageAt = state.lastMessageAt();
         
         entity.setCreatedAt(state.createdAt());
@@ -97,6 +101,7 @@ public class ChatRoomEntity extends DeletableEntity {
                 this.status,
                 this.scheduledDeletionAt,
                 this.lastMessageId,
+                this.lastMessageSequence,
                 this.lastMessageAt,
                 this.getCreatedAt(),
                 this.getUpdatedAt(),
@@ -108,8 +113,13 @@ public class ChatRoomEntity extends DeletableEntity {
         this.name = state.name();
         this.status = state.status();
         this.scheduledDeletionAt = state.scheduledDeletionAt();
-        this.lastMessageId = state.lastMessageId();
-        this.lastMessageAt = state.lastMessageAt();
+
+        Long incomingSequence = state.lastMessageSequence();
+        if (incomingSequence != null && (this.lastMessageSequence == null || incomingSequence >= this.lastMessageSequence)) {
+            this.lastMessageId = state.lastMessageId();
+            this.lastMessageSequence = incomingSequence;
+            this.lastMessageAt = state.lastMessageAt();
+        }
 
         Optional.ofNullable(state.channelSettings())
                 .ifPresent(settings -> {

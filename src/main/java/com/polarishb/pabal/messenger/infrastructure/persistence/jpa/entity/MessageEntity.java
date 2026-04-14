@@ -14,12 +14,14 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "message",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "uk_message_client_id", columnNames = {"chat_room_id", "sender_id", "client_message_id"})
-    },
-    indexes = {
-        @Index(name = "idx_message_chat_room_created", columnList = "chat_room_id, created_at, id")
-    }
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_message_client_id", columnNames = {"chat_room_id", "sender_id", "client_message_id"}),
+                @UniqueConstraint(name = "uk_message_room_sequence", columnNames = {"chat_room_id", "sequence"})
+        },
+        indexes = {
+                @Index(name = "idx_message_chat_room_created", columnList = "chat_room_id, created_at, id"),
+                @Index(name = "idx_message_chat_room_sequence", columnList = "chat_room_id, sequence")
+        }
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -40,6 +42,9 @@ public class MessageEntity extends DeletableEntity {
 
     @Column(nullable = false)
     private UUID clientMessageId;
+
+    @Column(nullable = false)
+    private Long sequence;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -65,6 +70,7 @@ public class MessageEntity extends DeletableEntity {
         entity.chatRoomId = state.chatRoomId();
         entity.senderId = state.senderId();
         entity.clientMessageId = state.clientMessageId();
+        entity.sequence = state.sequence();
         entity.type = state.type();
         entity.content = state.content();
         entity.status = state.status();
@@ -82,6 +88,7 @@ public class MessageEntity extends DeletableEntity {
                 this.chatRoomId,
                 this.senderId,
                 this.clientMessageId,
+                this.sequence,
                 this.type,
                 this.content,
                 this.status,
@@ -94,6 +101,7 @@ public class MessageEntity extends DeletableEntity {
     }
 
     public void apply(MessageState state) {
+        this.sequence = state.sequence();
         this.type = state.type();
         this.content = state.content();
         this.status = state.status();

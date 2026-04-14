@@ -47,9 +47,24 @@ public class DirectRoomCreationService {
         PersistedChatRoom savedRoom = chatRoomRepository.append(draft(chatRoom));
 
         UUID chatRoomId = savedRoom.state().id();
+        long initialLastReadSequence = savedRoom.state().lastMessageSequence() != null
+                ? savedRoom.state().lastMessageSequence()
+                : 0L;
 
-        ChatRoomMember member1 = ChatRoomMember.join(command.tenantId(), chatRoomId, command.requesterId(), now);
-        ChatRoomMember member2 = ChatRoomMember.join(command.tenantId(), chatRoomId, command.participantId(), now);
+        ChatRoomMember member1 = ChatRoomMember.join(
+                command.tenantId(),
+                chatRoomId,
+                command.requesterId(),
+                now,
+                initialLastReadSequence
+        );
+        ChatRoomMember member2 = ChatRoomMember.join(
+                command.tenantId(),
+                chatRoomId,
+                command.participantId(),
+                now,
+                initialLastReadSequence
+        );
 
         chatRoomMemberRepository.append(draft(member1));
         chatRoomMemberRepository.append(draft(member2));

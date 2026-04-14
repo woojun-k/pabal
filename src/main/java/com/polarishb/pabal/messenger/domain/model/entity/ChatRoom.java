@@ -38,6 +38,7 @@ public class ChatRoom {
     private Instant scheduledDeletionAt;
 
     private UUID lastMessageId;
+    private Long lastMessageSequence;
     private Instant lastMessageAt;
     
     private Instant createdAt;
@@ -61,6 +62,7 @@ public class ChatRoom {
             RoomStatus.ACTIVE,
             null,
             null,
+            0L,
             null,
             createdAt,
             createdAt // updatedAt
@@ -77,6 +79,7 @@ public class ChatRoom {
             RoomStatus status,
             Instant scheduledDeletionAt,
             UUID lastMessageId,
+            Long lastMessageSequence,
             Instant lastMessageAt,
             Instant createdAt,
             Instant updatedAt
@@ -91,38 +94,23 @@ public class ChatRoom {
                 status,
                 scheduledDeletionAt,
                 lastMessageId,
+                lastMessageSequence,
                 lastMessageAt,
                 createdAt,
                 updatedAt
         );
     }
 
-    public void updateLastMessage(UUID messageId, Instant messageAt) {
-        // 최초 메시지
-        if (this.lastMessageAt == null) {
-            this.lastMessageId = messageId;
-            this.lastMessageAt = messageAt;
-            this.updatedAt = messageAt;
+    public void updateLastMessage(UUID messageId, long messageSequence, Instant messageAt) {
+
+        if (this.lastMessageSequence != null && this.lastMessageSequence > messageSequence) {
             return;
         }
 
-        // 더 최근 메시지
-        if (this.lastMessageAt.isBefore(messageAt)) {
-            this.lastMessageId = messageId;
-            this.lastMessageAt = messageAt;
-            this.updatedAt = messageAt;
-            return;
-        }
-
-        // 동일한 시간이라면 UUID 비교 (v7 monotonic)
-        if (this.lastMessageAt.equals(messageAt) &&
-            this.lastMessageId.compareTo(messageId) < 0) {
-            this.lastMessageId = messageId;
-            this.lastMessageAt = messageAt;
-            this.updatedAt = messageAt;
-        }
-
-        // 더 오래된 메시지라면 무시
+        this.lastMessageId = messageId;
+        this.lastMessageSequence = messageSequence;
+        this.lastMessageAt = messageAt;
+        this.updatedAt = messageAt;
     }
 
     public static ChatRoom createDirect(String nameOrNull, UUID createdBy, UUID tenantId, Instant createdAt) {
@@ -156,6 +144,7 @@ public class ChatRoom {
                 RoomStatus.ACTIVE,
                 null,
                 null,
+                0L,
                 null,
                 createdAt,
                 createdAt

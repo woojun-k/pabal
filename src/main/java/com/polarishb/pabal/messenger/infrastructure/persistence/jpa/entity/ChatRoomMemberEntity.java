@@ -39,6 +39,7 @@ public class ChatRoomMemberEntity extends DeletableEntity {
     private UUID userId;
 
     private UUID lastReadMessageId;
+    private Long lastReadSequence;
     private Instant lastReadAt;
 
     @Column(nullable = false)
@@ -57,6 +58,7 @@ public class ChatRoomMemberEntity extends DeletableEntity {
         entity.chatRoomId = state.chatRoomId();
         entity.userId = state.userId();
         entity.lastReadMessageId = state.lastReadMessageId();
+        entity.lastReadSequence = state.lastReadSequence();
         entity.lastReadAt = state.lastReadAt();
         entity.joinedAt = state.joinedAt();
         entity.leftAt = state.leftAt();
@@ -73,6 +75,7 @@ public class ChatRoomMemberEntity extends DeletableEntity {
             this.chatRoomId,
             this.userId,
             this.lastReadMessageId,
+            this.lastReadSequence,
             this.lastReadAt,
             this.joinedAt,
             this.leftAt,
@@ -83,8 +86,13 @@ public class ChatRoomMemberEntity extends DeletableEntity {
     }
 
     public void apply(ChatRoomMemberState state) {
-        this.lastReadMessageId = state.lastReadMessageId();
-        this.lastReadAt = state.lastReadAt();
+        Long incomingSequence = state.lastReadSequence();
+        if (incomingSequence != null && (this.lastReadSequence == null || incomingSequence >= this.lastReadSequence)) {
+            this.lastReadMessageId = state.lastReadMessageId();
+            this.lastReadSequence = incomingSequence;
+            this.lastReadAt = state.lastReadAt();
+        }
+
         this.joinedAt = state.joinedAt();
         this.leftAt = state.leftAt();
         this.setUpdatedAt(state.updatedAt());

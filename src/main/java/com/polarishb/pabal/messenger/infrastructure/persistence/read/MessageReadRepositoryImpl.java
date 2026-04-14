@@ -9,7 +9,6 @@ import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.Message
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -68,13 +67,13 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
     }
 
     @Override
-    public long countUnreadInRoom(UUID tenantId, UUID chatRoomId, UUID userId, Instant readThreshold) {
+    public long countUnreadInRoom(UUID tenantId, UUID chatRoomId, UUID userId, long lastReadSequence) {
         return jpaRepository.countUnreadInRoom(
                 tenantId,
                 chatRoomId,
                 userId,
                 MessageStatus.DELETED,
-                readThreshold
+                lastReadSequence
         );
     }
 }

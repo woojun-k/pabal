@@ -17,6 +17,7 @@ public record ChatRoomState(
     RoomStatus status,
     Instant scheduledDeletionAt,
     UUID lastMessageId,
+    Long lastMessageSequence,
     Instant lastMessageAt,
     Instant createdAt,
     Instant updatedAt,

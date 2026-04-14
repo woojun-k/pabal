@@ -39,10 +39,23 @@ public class ChatRoomCreationSupport {
         return chatRoomRepository.append(draft(chatRoom));
     }
 
-    public void addMembers(UUID tenantId, UUID chatRoomId, UUID requesterId, List<UUID> participantIds, Instant joinedAt) {
+    public void addMembers(
+            UUID tenantId,
+            UUID chatRoomId,
+            UUID requesterId,
+            List<UUID> participantIds,
+            Instant joinedAt,
+            long initialLastReadSequence
+    ) {
         List<PersistedChatRoomMember> members = Stream.concat(Stream.of(requesterId), participantIds.stream())
                 .distinct()
-                .map(memberId -> draft(ChatRoomMember.join(tenantId, chatRoomId, memberId, joinedAt)))
+                .map(memberId -> draft(ChatRoomMember.join(
+                        tenantId,
+                        chatRoomId,
+                        memberId,
+                        joinedAt,
+                        initialLastReadSequence
+                )))
                 .toList();
 
         if (members.isEmpty()) {

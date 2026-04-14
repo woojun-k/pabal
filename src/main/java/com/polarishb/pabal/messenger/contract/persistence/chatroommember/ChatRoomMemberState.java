@@ -9,6 +9,7 @@ public record ChatRoomMemberState(
     UUID chatRoomId,
     UUID userId,
     UUID lastReadMessageId,
+    Long lastReadSequence,
     Instant lastReadAt,
     Instant joinedAt,
     Instant leftAt,

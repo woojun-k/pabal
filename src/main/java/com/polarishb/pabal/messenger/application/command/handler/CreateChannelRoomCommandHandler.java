@@ -53,7 +53,8 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
                 saved.state().id(),
                 command.requesterId(),
                 command.participantIds(),
-                now
+                now,
+                saved.state().lastMessageSequence() != null ? saved.state().lastMessageSequence() : 0L
         );
 
         return new CreateRoomResult(saved.state().id(), saved.state().name());

@@ -52,4 +52,20 @@ class ChatRoomTest {
         assertThat(room.getScheduledDeletionAt()).isNull();
         assertThat(room.getUpdatedAt()).isEqualTo(deletedAt);
     }
+
+    @Test
+    void updateLastMessage_keeps_highest_sequence() {
+        Instant createdAt = Instant.parse("2026-04-02T00:00:00Z");
+        ChatRoom room = ChatRoom.createGroup("team", UUID.randomUUID(), UUID.randomUUID(), createdAt);
+
+        UUID firstMessageId = UUID.randomUUID();
+        UUID secondMessageId = UUID.randomUUID();
+
+        room.updateLastMessage(firstMessageId, 10L, createdAt.plusSeconds(10));
+        room.updateLastMessage(secondMessageId, 9L, createdAt.plusSeconds(20));
+
+        assertThat(room.getLastMessageId()).isEqualTo(firstMessageId);
+        assertThat(room.getLastMessageSequence()).isEqualTo(10L);
+        assertThat(room.getLastMessageAt()).isEqualTo(createdAt.plusSeconds(10));
+    }
 }
