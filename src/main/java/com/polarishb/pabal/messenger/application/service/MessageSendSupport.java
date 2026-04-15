@@ -35,10 +35,13 @@ public class MessageSendSupport {
     private final DomainEventPublisher eventPublisher;
 
     public PersistedChatRoom loadChatRoom(SendableCommand command) {
-        return chatRoomRepository.findByTenantIdAndId(
+        PersistedChatRoom persistedChatRoom = chatRoomRepository.findByTenantIdAndId(
                 command.tenantId(),
                 command.chatRoomId()
         ).orElseThrow(() -> new ChatRoomNotFoundException(command.chatRoomId()));
+
+        persistedChatRoom.chatRoom().validateCanSend();
+        return persistedChatRoom;
     }
 
     public PersistedChatRoomMember loadSenderMember(SendableCommand command) {

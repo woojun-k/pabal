@@ -1,6 +1,7 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
 import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
+import com.polarishb.pabal.messenger.domain.exception.RoomOperationNotAllowedException;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +52,32 @@ class ChatRoomTest {
         assertThat(room.getStatus()).isEqualTo(RoomStatus.DELETED);
         assertThat(room.getScheduledDeletionAt()).isNull();
         assertThat(room.getUpdatedAt()).isEqualTo(deletedAt);
+    }
+
+    @Test
+    void pending_deletion_room_blocks_send_read_subscribe_and_join() {
+        Instant createdAt = Instant.parse("2026-04-02T00:00:00Z");
+        ChatRoom room = ChatRoom.createChannel(
+                "general",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                false,
+                "team room",
+                createdAt
+        );
+
+        room.scheduleForDeletion(createdAt.plusSeconds(60));
+
+        assertThat(room.canSend()).isFalse();
+        assertThat(room.canRead()).isFalse();
+        assertThat(room.canSubscribe()).isFalse();
+        assertThat(room.canJoin()).isFalse();
+
+        assertThatThrownBy(room::validateCanSend).isInstanceOf(RoomOperationNotAllowedException.class);
+        assertThatThrownBy(room::validateCanRead).isInstanceOf(RoomOperationNotAllowedException.class);
+        assertThatThrownBy(room::validateCanSubscribe).isInstanceOf(RoomOperationNotAllowedException.class);
+        assertThatThrownBy(room::validateCanJoin).isInstanceOf(RoomOperationNotAllowedException.class);
     }
 
     @Test

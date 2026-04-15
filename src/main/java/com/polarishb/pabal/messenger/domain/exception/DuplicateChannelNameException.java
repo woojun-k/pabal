@@ -3,7 +3,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class DuplicateChannelNameException extends MessengerException {
@@ -19,8 +18,10 @@ public class DuplicateChannelNameException extends MessengerException {
         super(
                 MessengerErrorCode.DUPLICATE_CHANNEL_NAME,
                 MessengerErrorCode.DUPLICATE_CHANNEL_NAME.getMessage(),
-                Map.of("workspaceId", workspaceId.toString(),
-                        "channelName", channelName.valueOrNull())
+                payload(
+                        entry("workspaceId", workspaceId),
+                        entry("channelName", channelName == null ? null : channelName.valueOrNull())
+                )
         );
     }
 }

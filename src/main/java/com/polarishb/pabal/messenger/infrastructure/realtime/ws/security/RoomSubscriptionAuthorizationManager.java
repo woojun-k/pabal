@@ -1,7 +1,10 @@
 package com.polarishb.pabal.messenger.infrastructure.realtime.ws.security;
 
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
+import com.polarishb.pabal.messenger.domain.repository.ChatRoomReadRepository;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
@@ -26,6 +29,7 @@ public class RoomSubscriptionAuthorizationManager implements AuthorizationManage
             "^/topic/tenants/([0-9a-fA-F\\-]+)/chat-rooms/([0-9a-fA-F\\-]+)/(events|typing)$"
     );
 
+    private final ChatRoomReadRepository chatRoomReadRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     @Override
@@ -64,10 +68,17 @@ public class RoomSubscriptionAuthorizationManager implements AuthorizationManage
             return new AuthorizationDecision(false);
         }
 
+        PersistedChatRoom room = chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId)
+                .orElse(null);
+
+        if (room == null || !room.chatRoom().canSubscribe()) {
+            return new AuthorizationDecision(false);
+        }
+
         boolean granted = chatRoomMemberRepository
                 .findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId)
                 .map(PersistedChatRoomMember::member)
-                .map(member -> member.isActive())
+                .map(ChatRoomMember::isActive)
                 .orElse(false);
 
         return new AuthorizationDecision(granted);

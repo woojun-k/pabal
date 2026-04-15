@@ -2,7 +2,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class MessageDeleteForbiddenException extends MessengerException {
@@ -19,9 +18,9 @@ public class MessageDeleteForbiddenException extends MessengerException {
         super(
                 MessengerErrorCode.MESSAGE_DELETE_FORBIDDEN,
                 MessengerErrorCode.MESSAGE_DELETE_FORBIDDEN.getMessage(),
-                Map.of(
-                        "requesterId", requesterId.toString(),
-                        "senderId", senderId.toString()
+                payload(
+                        entry("requesterId", requesterId),
+                        entry("senderId", senderId)
                 )
         );
     }

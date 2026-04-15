@@ -2,6 +2,8 @@ package com.polarishb.pabal.messenger.domain.model.entity;
 
 import com.polarishb.pabal.messenger.domain.exception.RoomCannotBeDeletedException;
 import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
+import com.polarishb.pabal.messenger.domain.exception.RoomOperationNotAllowedException;
+import com.polarishb.pabal.messenger.domain.model.type.RoomAccessOperation;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
@@ -149,6 +151,44 @@ public class ChatRoom {
                 createdAt,
                 createdAt
         );
+    }
+
+    public boolean canSend() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public boolean canRead() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public boolean canSubscribe() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public boolean canJoin() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public void validateCanSend() {
+        validateOperationAllowed(RoomAccessOperation.SEND);
+    }
+
+    public void validateCanRead() {
+        validateOperationAllowed(RoomAccessOperation.READ);
+    }
+
+    public void validateCanSubscribe() {
+        validateOperationAllowed(RoomAccessOperation.SUBSCRIBE);
+    }
+
+    public void validateCanJoin() {
+        validateOperationAllowed(RoomAccessOperation.JOIN);
+    }
+
+    private void validateOperationAllowed(RoomAccessOperation operation) {
+        if (this.status != RoomStatus.ACTIVE) {
+            throw new RoomOperationNotAllowedException(this.id, this.status, operation);
+        }
     }
 
     public void scheduleForDeletion(Instant now) {

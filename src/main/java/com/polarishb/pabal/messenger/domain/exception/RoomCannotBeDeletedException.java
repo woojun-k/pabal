@@ -3,8 +3,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 
-import java.util.Map;
-
 public class RoomCannotBeDeletedException extends MessengerException {
 
     public RoomCannotBeDeletedException() {
@@ -19,7 +17,7 @@ public class RoomCannotBeDeletedException extends MessengerException {
         super(
                 MessengerErrorCode.ROOM_CANNOT_BE_DELETED,
                 MessengerErrorCode.ROOM_CANNOT_BE_DELETED.getMessage(),
-                Map.of("roomType", type.toString())
+                payload(entry("roomType", type))
         );
     }
 }

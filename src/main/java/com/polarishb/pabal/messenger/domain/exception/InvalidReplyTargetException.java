@@ -2,7 +2,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class InvalidReplyTargetException extends MessengerException {
@@ -19,9 +18,9 @@ public class InvalidReplyTargetException extends MessengerException {
         super(
                 MessengerErrorCode.INVALID_REPLY_TARGET,
                 MessengerErrorCode.INVALID_REPLY_TARGET.getMessage(),
-                Map.of(
-                    "targetId", targetId.toString(),
-                    "chatRoomId", chatRoomId.toString()
+                payload(
+                        entry("targetId", targetId),
+                        entry("chatRoomId", chatRoomId)
                 )
         );
     }

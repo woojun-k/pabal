@@ -18,7 +18,7 @@ public class DeleteRoomImmediatelyCommandHandler implements CommandHandler<Delet
     @Transactional
     public Void handle(DeleteRoomImmediatelyCommand command) {
 
-        PersistedChatRoom persistedRoom = chatRoomDeletionSupport.loadRoom(command.tenantId(), command.roomId());
+        PersistedChatRoom persistedRoom = chatRoomDeletionSupport.loadRoom(command.tenantId(), command.chatRoomId());
 
         chatRoomDeletionSupport.validateImmediateDeletionPermission(persistedRoom.chatRoom(), command.requesterId());
 

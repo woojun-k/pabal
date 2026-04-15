@@ -2,7 +2,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class UnauthorizedRoomDeletionException extends MessengerException {
@@ -19,9 +18,9 @@ public class UnauthorizedRoomDeletionException extends MessengerException {
         super(
                 MessengerErrorCode.ROOM_DELETE_FORBIDDEN,
                 MessengerErrorCode.ROOM_DELETE_FORBIDDEN.getMessage(),
-                Map.of(
-                        "requesterId", requesterId.toString(),
-                        "roomId", roomId.toString()
+                payload(
+                        entry("requesterId", requesterId),
+                        entry("roomId", roomId)
                 )
         );
     }

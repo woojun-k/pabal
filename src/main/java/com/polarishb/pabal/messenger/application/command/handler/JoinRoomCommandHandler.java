@@ -33,11 +33,13 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
     @Transactional
     public Void handle(JoinRoomCommand command) {
         Instant now = clockPort.now();
-        PersistedChatRoom chatRoom = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId())
+        PersistedChatRoom persistedChatRoom = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId())
                 .orElseThrow(() -> new ChatRoomNotFoundException(command.chatRoomId()));
 
-        long baselineSequence = chatRoom.state().lastMessageSequence() != null
-                ? chatRoom.state().lastMessageSequence()
+        persistedChatRoom.chatRoom().validateCanJoin();
+
+        long baselineSequence = persistedChatRoom.state().lastMessageSequence() != null
+                ? persistedChatRoom.state().lastMessageSequence()
                 : 0L;
 
         Optional<PersistedChatRoomMember> existMember = chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(command.tenantId(), command.chatRoomId(), command.userId());

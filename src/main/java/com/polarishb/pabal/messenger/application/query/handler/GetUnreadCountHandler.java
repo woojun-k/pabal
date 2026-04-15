@@ -3,6 +3,7 @@ package com.polarishb.pabal.messenger.application.query.handler;
 import com.polarishb.pabal.common.cqrs.QueryHandler;
 import com.polarishb.pabal.messenger.application.query.input.GetUnreadCountQuery;
 import com.polarishb.pabal.messenger.application.query.output.UnreadCountResult;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
@@ -25,8 +26,10 @@ public class GetUnreadCountHandler implements QueryHandler<GetUnreadCountQuery, 
     @Override
     @Transactional(readOnly = true)
     public UnreadCountResult handle(GetUnreadCountQuery query) {
-        chatRoomReadRepository.findByTenantIdAndId(query.tenantId(), query.chatRoomId())
+        PersistedChatRoom room = chatRoomReadRepository.findByTenantIdAndId(query.tenantId(), query.chatRoomId())
                 .orElseThrow(() -> new ChatRoomNotFoundException(query.chatRoomId()));
+
+        room.chatRoom().validateCanRead();
 
         PersistedChatRoomMember member = chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(
                 query.tenantId(),

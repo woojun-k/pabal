@@ -3,6 +3,7 @@ package com.polarishb.pabal.common.exception;
 import com.polarishb.pabal.common.exception.code.ErrorCode;
 import lombok.Getter;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Getter
@@ -26,5 +27,29 @@ public abstract class GlobalException extends RuntimeException {
         super(message, cause);
         this.errorCode = errorCode;
         this.payload = payload == null ? Map.of() : payload;
+    }
+
+    protected static PayloadEntry entry(String key, Object value) {
+        return new PayloadEntry(key, value);
+    }
+
+    protected static Map<String, Object> payload(PayloadEntry... entries) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+
+        if (entries == null) {
+            return payload;
+        }
+
+        for (PayloadEntry entry : entries) {
+            if (entry == null || entry.key() == null) {
+                continue;
+            }
+            payload.put(entry.key(), entry.value());
+        }
+
+        return payload;
+    }
+
+    protected record PayloadEntry(String key, Object value) {
     }
 }

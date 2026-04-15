@@ -6,6 +6,6 @@ import java.util.UUID;
 
 public record ScheduleRoomDeletionCommand(
     UUID tenantId,
-    UUID roomId,
+    UUID chatRoomId,
     UUID requesterId
 ) implements Command {}

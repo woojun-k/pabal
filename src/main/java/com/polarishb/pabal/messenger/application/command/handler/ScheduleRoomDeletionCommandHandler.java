@@ -18,7 +18,7 @@ public class ScheduleRoomDeletionCommandHandler implements CommandHandler<Schedu
     @Transactional
     public Void handle(ScheduleRoomDeletionCommand command) {
 
-        PersistedChatRoom persistedRoom = chatRoomDeletionSupport.loadRoom(command.tenantId(), command.roomId());
+        PersistedChatRoom persistedRoom = chatRoomDeletionSupport.loadRoom(command.tenantId(), command.chatRoomId());
 
         chatRoomDeletionSupport.validateScheduleDeletionPermission(persistedRoom.chatRoom(), command.requesterId());
 

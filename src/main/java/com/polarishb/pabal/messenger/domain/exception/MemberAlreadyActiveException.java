@@ -2,7 +2,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class MemberAlreadyActiveException extends MessengerException {
@@ -19,7 +18,7 @@ public class MemberAlreadyActiveException extends MessengerException {
         super(
                 MessengerErrorCode.MEMBER_ALREADY_ACTIVE,
                 MessengerErrorCode.MEMBER_ALREADY_ACTIVE.getMessage(),
-                Map.of("userId", userId.toString())
+                payload(entry("userId", userId))
         );
     }
 

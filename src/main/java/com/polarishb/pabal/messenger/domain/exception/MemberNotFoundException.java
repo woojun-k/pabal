@@ -2,7 +2,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class MemberNotFoundException extends MessengerException {
@@ -19,7 +18,7 @@ public class MemberNotFoundException extends MessengerException {
         super(
                 MessengerErrorCode.MEMBER_NOT_FOUND,
                 MessengerErrorCode.MEMBER_NOT_FOUND.getMessage(),
-                Map.of("userId", userId.toString())
+                payload(entry("userId", userId))
         );
     }
 }

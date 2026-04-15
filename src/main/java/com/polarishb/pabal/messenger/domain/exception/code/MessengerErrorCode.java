@@ -27,6 +27,7 @@ public enum MessengerErrorCode implements ErrorCode {
     MESSAGE_EDIT_FORBIDDEN("MSG403003", "메시지를 수정할 권한이 없습니다", 403),
     ROOM_DELETE_FORBIDDEN("MSG403004", "채팅방을 삭제할 권한이 없습니다", 403),
     MESSAGE_DELETE_FORBIDDEN("MSG403005", "메시지를 삭제할 권한이 없습니다", 403),
+    ROOM_OPERATION_NOT_ALLOWED("MSG403006", "현재 채팅방 상태에서는 이 작업을 수행할 수 없습니다", 403),
 
     // 409 Conflict
     DUPLICATE_MESSAGE("MSG409001", "이미 전송된 메시지입니다", 409),

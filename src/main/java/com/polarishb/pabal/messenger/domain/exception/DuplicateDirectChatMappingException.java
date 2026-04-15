@@ -2,7 +2,6 @@ package com.polarishb.pabal.messenger.domain.exception;
 
 import com.polarishb.pabal.messenger.domain.exception.code.MessengerErrorCode;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class DuplicateDirectChatMappingException extends MessengerException {
@@ -19,7 +18,7 @@ public class DuplicateDirectChatMappingException extends MessengerException {
         super(
                 MessengerErrorCode.DUPLICATE_DIRECT_MAPPING,
                 customMessage,
-                Map.of(),
+                payload(),
                 cause
         );
     }
@@ -28,7 +27,7 @@ public class DuplicateDirectChatMappingException extends MessengerException {
         super(
                 MessengerErrorCode.DUPLICATE_DIRECT_MAPPING,
                 MessengerErrorCode.DUPLICATE_DIRECT_MAPPING.getMessage(),
-                Map.of("chatRoomId", chatRoomId.toString())
+                payload(entry("chatRoomId", chatRoomId))
         );
     }
 }

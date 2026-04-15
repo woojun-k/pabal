@@ -3,9 +3,7 @@ package com.polarishb.pabal.messenger.api.command.http.response;
 import java.time.Instant;
 import java.util.UUID;
 
-public record SendMessageResponse(
+public record DeleteMessageResponse(
     UUID messageId,
-    UUID clientMessageId,
-    Instant createdAt,
-    boolean duplicated
+    Instant deletedAt
 ) {}

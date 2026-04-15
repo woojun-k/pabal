@@ -4,6 +4,7 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.MarkReadCommand;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageReadEvent;
@@ -33,8 +34,10 @@ public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, V
 
     @Transactional
     public Void handle(MarkReadCommand command) {
-        chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId())
+        PersistedChatRoom room = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId())
                 .orElseThrow(() -> new ChatRoomNotFoundException(command.chatRoomId()));
+
+        room.chatRoom().validateCanRead();
 
         PersistedChatRoomMember member = chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(command.tenantId(), command.chatRoomId(), command.userId())
                 .orElseThrow(() -> new MemberNotFoundException(command.userId()));

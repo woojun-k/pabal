@@ -3,9 +3,8 @@ package com.polarishb.pabal.messenger.api.command.http.response;
 import java.time.Instant;
 import java.util.UUID;
 
-public record SendMessageResponse(
+public record EditMessageResponse(
     UUID messageId,
-    UUID clientMessageId,
-    Instant createdAt,
-    boolean duplicated
+    String content,
+    Instant updatedAt
 ) {}
