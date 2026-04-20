@@ -1,12 +1,15 @@
 package com.polarishb.pabal.messenger.api.query.mapper;
 
 import com.polarishb.pabal.messenger.api.query.http.response.MessageResponse;
+import com.polarishb.pabal.messenger.api.query.http.response.MessagePageResponse;
 import com.polarishb.pabal.messenger.api.query.http.response.RoomResponse;
 import com.polarishb.pabal.messenger.api.query.http.response.UnreadCountResponse;
 import com.polarishb.pabal.messenger.application.query.input.GetUnreadCountQuery;
+import com.polarishb.pabal.messenger.application.query.input.ListMessagesQuery;
 import com.polarishb.pabal.messenger.application.query.input.ListRoomsQuery;
 import com.polarishb.pabal.messenger.application.query.input.ReadMessageQuery;
 import com.polarishb.pabal.messenger.application.query.output.MessageDto;
+import com.polarishb.pabal.messenger.application.query.output.MessagePageDto;
 import com.polarishb.pabal.messenger.application.query.output.RoomDto;
 import com.polarishb.pabal.messenger.application.query.output.UnreadCountResult;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;

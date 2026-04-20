@@ -1,7 +1,9 @@
 package com.polarishb.pabal.messenger.application.query.handler;
 
 import com.polarishb.pabal.messenger.application.query.input.ReadMessageQuery;
+import com.polarishb.pabal.messenger.application.query.mapper.MessageQueryMapper;
 import com.polarishb.pabal.messenger.application.query.output.MessageDto;
+import com.polarishb.pabal.messenger.application.service.ChatRoomReadAccessSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
@@ -19,9 +21,9 @@ import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.MessageReadRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -44,8 +46,20 @@ class ReadMessageHandlerTest {
     @Mock
     private MessageReadRepository messageReadRepository;
 
-    @InjectMocks
     private ReadMessageHandler readMessageHandler;
+
+    @BeforeEach
+    void setUp() {
+        ChatRoomReadAccessSupport chatRoomReadAccessSupport = new ChatRoomReadAccessSupport(
+                chatRoomReadRepository,
+                chatRoomMemberReadRepository
+        );
+        readMessageHandler = new ReadMessageHandler(
+                messageReadRepository,
+                new MessageQueryMapper(),
+                chatRoomReadAccessSupport
+        );
+    }
 
     @Test
     void handle_returns_message_for_active_member() {

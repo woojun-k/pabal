@@ -2,6 +2,7 @@ package com.polarishb.pabal.messenger.application.query.handler;
 
 import com.polarishb.pabal.messenger.application.query.input.GetUnreadCountQuery;
 import com.polarishb.pabal.messenger.application.query.output.UnreadCountResult;
+import com.polarishb.pabal.messenger.application.service.ChatRoomReadAccessSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
@@ -14,9 +15,9 @@ import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.MessageReadRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -39,8 +40,16 @@ class GetUnreadCountHandlerTest {
     @Mock
     private MessageReadRepository messageReadRepository;
 
-    @InjectMocks
     private GetUnreadCountHandler getUnreadCountHandler;
+
+    @BeforeEach
+    void setUp() {
+        ChatRoomReadAccessSupport chatRoomReadAccessSupport = new ChatRoomReadAccessSupport(
+                chatRoomReadRepository,
+                chatRoomMemberReadRepository
+        );
+        getUnreadCountHandler = new GetUnreadCountHandler(messageReadRepository, chatRoomReadAccessSupport);
+    }
 
     @Test
     void handle_uses_last_read_sequence_as_cursor() {
