@@ -10,6 +10,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -65,20 +66,19 @@ public class MessageEntity extends DeletableEntity {
 
     public static MessageEntity fromNewState(MessageState state) {
         MessageEntity entity = new MessageEntity();
-        entity.id = state.id();
-        entity.tenantId = state.tenantId();
-        entity.chatRoomId = state.chatRoomId();
-        entity.senderId = state.senderId();
-        entity.clientMessageId = state.clientMessageId();
-        entity.sequence = state.sequence();
-        entity.type = state.type();
-        entity.content = state.content();
-        entity.status = state.status();
-        entity.replyToMessageId = state.replyToMessageId();
-        entity.setCreatedAt(state.createdAt());
-        entity.setUpdatedAt(state.updatedAt());
-        entity.setDeletedAt(state.deletedAt());
+        entity.applyNewState(state);
         return entity;
+    }
+
+    private void applyNewState(MessageState state) {
+        Objects.requireNonNull(state);
+        this.id = state.id();
+        this.tenantId = state.tenantId();
+        this.chatRoomId = state.chatRoomId();
+        this.senderId = state.senderId();
+        this.clientMessageId = state.clientMessageId();
+        apply(state);
+        setCreatedAt(state.createdAt());
     }
 
     public MessageState toState() {
@@ -101,12 +101,13 @@ public class MessageEntity extends DeletableEntity {
     }
 
     public void apply(MessageState state) {
+        Objects.requireNonNull(state);
         this.sequence = state.sequence();
         this.type = state.type();
         this.content = state.content();
         this.status = state.status();
         this.replyToMessageId = state.replyToMessageId();
-        this.setUpdatedAt(state.updatedAt());
-        this.setDeletedAt(state.deletedAt());
+        setUpdatedAt(state.updatedAt());
+        setDeletedAt(state.deletedAt());
     }
 }

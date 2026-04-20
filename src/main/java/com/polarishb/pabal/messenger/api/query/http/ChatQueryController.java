@@ -1,18 +1,19 @@
 package com.polarishb.pabal.messenger.api.query.http;
 
+import com.polarishb.pabal.messenger.api.query.http.response.MessagePageResponse;
 import com.polarishb.pabal.messenger.api.query.http.response.MessageResponse;
 import com.polarishb.pabal.messenger.api.query.http.response.RoomResponse;
 import com.polarishb.pabal.messenger.api.query.http.response.UnreadCountResponse;
 import com.polarishb.pabal.messenger.api.query.mapper.ChatQueryMapper;
 import com.polarishb.pabal.messenger.application.query.handler.GetUnreadCountHandler;
+import com.polarishb.pabal.messenger.application.query.handler.ListMessagesHandler;
 import com.polarishb.pabal.messenger.application.query.handler.ListRoomsHandler;
 import com.polarishb.pabal.messenger.application.query.handler.ReadMessageHandler;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,6 +25,7 @@ public class ChatQueryController {
 
     private final ChatQueryMapper chatQueryMapper;
     private final ListRoomsHandler listRoomsHandler;
+    private final ListMessagesHandler listMessagesHandler;
     private final ReadMessageHandler readMessageHandler;
     private final GetUnreadCountHandler getUnreadCountHandler;
 
@@ -32,6 +34,20 @@ public class ChatQueryController {
         return listRoomsHandler.handle(chatQueryMapper.toListRoomsQuery(authentication)).stream()
                 .map(chatQueryMapper::toRoomResponse)
                 .toList();
+    }
+
+    @GetMapping("/chat-rooms/{chatRoomId}/messages")
+    public MessagePageResponse listMessages(
+            @PathVariable UUID chatRoomId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(100) Integer size,
+            Authentication authentication
+    ) {
+        return chatQueryMapper.toMessagePageResponse(
+                listMessagesHandler.handle(
+                        chatQueryMapper.toListMessagesQuery(chatRoomId, cursor, size, authentication)
+                )
+        );
     }
 
     @GetMapping("/chat-rooms/{chatRoomId}/messages/{messageId}")

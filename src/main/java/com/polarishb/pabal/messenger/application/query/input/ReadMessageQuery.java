@@ -9,5 +9,4 @@ public record ReadMessageQuery(
         UUID chatRoomId,
         UUID messageId,
         UUID userId
-) implements Query {
-}
+) implements Query {}

@@ -17,7 +17,6 @@ import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.model.type.MessageType;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
-import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
 import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -120,39 +119,23 @@ class SendMessageCommandHandlerTest {
                         0L
                 )
         );
-        PersistedMessage saved = new PersistedMessage(
-                Message.reconstitute(
-                        messageId,
-                        tenantId,
-                        chatRoomId,
-                        senderId,
-                        clientMessageId,
-                        1L,
-                        MessageType.USER,
-                        new MessageContent("hello"),
-                        MessageStatus.ACTIVE,
-                        null,
-                        now,
-                        now,
-                        null
-                ),
-                new MessageState(
-                        messageId,
-                        tenantId,
-                        chatRoomId,
-                        senderId,
-                        clientMessageId,
-                        1L,
-                        MessageType.USER,
-                        "hello",
-                        MessageStatus.ACTIVE,
-                        null,
-                        now,
-                        now,
-                        null,
-                        0L
-                )
+        MessageState savedState = new MessageState(
+                messageId,
+                tenantId,
+                chatRoomId,
+                senderId,
+                clientMessageId,
+                1L,
+                MessageType.USER,
+                "hello",
+                MessageStatus.ACTIVE,
+                null,
+                now,
+                now,
+                null,
+                0L
         );
+        PersistedMessage saved = new PersistedMessage(Message.reconstitute(savedState.snapshot()), savedState);
 
         when(clockPort.now()).thenReturn(now);
         when(messageSendSupport.loadChatRoom(command)).thenReturn(chatRoom);

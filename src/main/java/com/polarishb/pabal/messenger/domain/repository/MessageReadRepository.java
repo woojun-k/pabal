@@ -2,6 +2,7 @@ package com.polarishb.pabal.messenger.domain.repository;
 
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +19,12 @@ public interface MessageReadRepository {
             UUID chatRoomId,
             UUID senderId,
             UUID clientMessageId
+    );
+    List<PersistedMessage> findByTenantIdAndChatRoomIdBeforeSequence(
+            UUID tenantId,
+            UUID chatRoomId,
+            Long cursor,
+            int limit
     );
     long countUnreadInRoom(
             UUID tenantId,

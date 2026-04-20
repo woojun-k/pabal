@@ -15,7 +15,6 @@ import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.model.type.MessageType;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
-import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
 import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomReadRepository;
@@ -105,7 +104,7 @@ class ReadMessageHandlerTest {
                 )
         );
 
-        Message message = Message.reconstitute(
+        MessageState messageState = new MessageState(
                 messageId,
                 tenantId,
                 chatRoomId,
@@ -113,32 +112,16 @@ class ReadMessageHandlerTest {
                 clientMessageId,
                 1L,
                 MessageType.USER,
-                new MessageContent("hello"),
+                "hello",
                 MessageStatus.ACTIVE,
                 null,
                 createdAt,
                 createdAt,
-                null
+                null,
+                0L
         );
-        PersistedMessage persistedMessage = new PersistedMessage(
-                message,
-                new MessageState(
-                        messageId,
-                        tenantId,
-                        chatRoomId,
-                        userId,
-                        clientMessageId,
-                        1L,
-                        MessageType.USER,
-                        "hello",
-                        MessageStatus.ACTIVE,
-                        null,
-                        createdAt,
-                        createdAt,
-                        null,
-                        0L
-                )
-        );
+        Message message = Message.reconstitute(messageState.snapshot());
+        PersistedMessage persistedMessage = new PersistedMessage(message, messageState);
 
         when(chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId))
                 .thenReturn(Optional.of(persistedRoom));

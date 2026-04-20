@@ -123,6 +123,12 @@ public class ChatRoomMember {
         this.updatedAt = joinedAt;
     }
 
+    public void validateActive() {
+        if (!isActive()) {
+            throw new MemberNotActiveException(this.userId);
+        }
+    }
+
     public boolean isActive() {
         return this.leftAt == null;
     }

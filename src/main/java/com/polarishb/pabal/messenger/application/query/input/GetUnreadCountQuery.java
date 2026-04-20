@@ -8,5 +8,4 @@ public record GetUnreadCountQuery(
         UUID tenantId,
         UUID chatRoomId,
         UUID userId
-) implements Query {
-}
+) implements Query {}

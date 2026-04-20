@@ -24,6 +24,22 @@ public class ChatQueryMapper {
         return new ListRoomsQuery(principal.tenantId(), principal.userId());
     }
 
+    public ListMessagesQuery toListMessagesQuery(
+            UUID chatRoomId,
+            Long cursor,
+            Integer size,
+            Authentication authentication
+    ) {
+        PabalPrincipal principal = extractPrincipal(authentication);
+        return new ListMessagesQuery(
+                principal.tenantId(),
+                chatRoomId,
+                principal.userId(),
+                cursor,
+                size != null ? size : 50
+        );
+    }
+
     public ReadMessageQuery toReadMessageQuery(UUID chatRoomId, UUID messageId, Authentication authentication) {
         PabalPrincipal principal = extractPrincipal(authentication);
         return new ReadMessageQuery(principal.tenantId(), chatRoomId, messageId, principal.userId());
@@ -59,6 +75,16 @@ public class ChatQueryMapper {
                 message.createdAt(),
                 message.updatedAt(),
                 message.deletedAt()
+        );
+    }
+
+    public MessagePageResponse toMessagePageResponse(MessagePageDto page) {
+        return new MessagePageResponse(
+                page.messages().stream()
+                        .map(this::toMessageResponse)
+                        .toList(),
+                page.nextCursor(),
+                page.hasNext()
         );
     }
 

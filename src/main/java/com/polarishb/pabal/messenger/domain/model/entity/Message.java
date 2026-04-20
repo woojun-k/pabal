@@ -1,6 +1,7 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
 import com.polarishb.pabal.messenger.domain.exception.MessageAlreadyDeletedException;
+import com.polarishb.pabal.messenger.domain.model.snapshot.MessageSnapshot;
 import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.model.type.MessageType;
 import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
@@ -10,6 +11,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -59,22 +61,27 @@ public class Message {
         );
     }
 
-    public static Message reconstitute(
-            UUID id,
-            UUID tenantId,
-            UUID chatRoomId,
-            UUID senderId,
-            UUID clientMessageId,
-            Long sequence,
-            MessageType type,
-            MessageContent content,
-            MessageStatus status,
-            UUID replyToMessageId,
-            Instant createdAt,
-            Instant updatedAt,
-            Instant deletedAt
-    ) {
+    public static Message reconstitute(MessageSnapshot snapshot) {
+        Objects.requireNonNull(snapshot);
         return new Message(
+                snapshot.id(),
+                snapshot.tenantId(),
+                snapshot.chatRoomId(),
+                snapshot.senderId(),
+                snapshot.clientMessageId(),
+                snapshot.sequence(),
+                snapshot.type(),
+                snapshot.content(),
+                snapshot.status(),
+                snapshot.replyToMessageId(),
+                snapshot.createdAt(),
+                snapshot.updatedAt(),
+                snapshot.deletedAt()
+        );
+    }
+
+    public MessageSnapshot snapshot() {
+        return new MessageSnapshot(
                 id,
                 tenantId,
                 chatRoomId,

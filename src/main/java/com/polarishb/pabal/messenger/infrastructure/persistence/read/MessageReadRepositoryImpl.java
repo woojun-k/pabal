@@ -7,8 +7,11 @@ import com.polarishb.pabal.messenger.domain.repository.MessageReadRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.MessageReadJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,6 +67,34 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
                 )
                 .map(MessageEntity::toState)
                 .map(MessagePersistenceMapper::toPersisted);
+    }
+
+    @Override
+    public List<PersistedMessage> findByTenantIdAndChatRoomIdBeforeSequence(
+            UUID tenantId,
+            UUID chatRoomId,
+            Long cursor,
+            int limit
+    ) {
+        PageRequest pageable = PageRequest.of(
+                0,
+                limit,
+                Sort.by(Sort.Direction.DESC, "sequence")
+        );
+
+        List<MessageEntity> messages = cursor == null
+                ? jpaRepository.findByTenantIdAndChatRoomIdOrderBySequenceDesc(tenantId, chatRoomId, pageable)
+                : jpaRepository.findByTenantIdAndChatRoomIdAndSequenceLessThan(
+                tenantId,
+                chatRoomId,
+                cursor,
+                pageable
+        );
+
+        return messages.stream()
+                .map(MessageEntity::toState)
+                .map(MessagePersistenceMapper::toPersisted)
+                .toList();
     }
 
     @Override

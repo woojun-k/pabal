@@ -4,7 +4,10 @@ import com.polarishb.pabal.common.cqrs.Query;
 
 import java.util.UUID;
 
-public record ListRoomsQuery(
-        UUID tenantId,
-        UUID userId
+public record ListMessagesQuery(
+    UUID tenantId,
+    UUID chatRoomId,
+    UUID userId,
+    Long cursor,
+    int size
 ) implements Query {}
