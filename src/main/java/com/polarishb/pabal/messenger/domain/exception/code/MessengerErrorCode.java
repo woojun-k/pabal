@@ -14,6 +14,7 @@ public enum MessengerErrorCode implements ErrorCode {
     INVALID_ROOM_STATUS("MSG400003", "채팅방을 삭제할 수 없는 상태입니다", 400),
     INVALID_ROOM_STATUS_TRANSITION("MSG400004", "채팅방 상태를 변경할 수 없습니다", 400),
     MESSAGE_ALREADY_DELETED("MSG400005", "이미 삭제된 메시지입니다", 400),
+    INVALID_DIRECT_CHAT_PARTICIPANTS("MSG400006", "다이렉트 채팅은 서로 다른 사용자 간에만 생성할 수 있습니다", 400),
 
     // 404 Not Found
     CHAT_ROOM_NOT_FOUND("MSG404001", "채팅방을 찾을 수 없습니다", 404),

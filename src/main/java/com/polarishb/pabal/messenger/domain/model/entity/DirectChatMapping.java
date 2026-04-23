@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
+import com.polarishb.pabal.messenger.domain.exception.InvalidDirectChatParticipantsException;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -31,6 +32,8 @@ public class DirectChatMapping {
             UUID userId2,
             Instant createdAt
     ) {
+        validateParticipants(userId1, userId2);
+
         int comparison = userId1.compareTo(userId2);
         UUID userIdMin = comparison < 0 ? userId1 : userId2;
         UUID userIdMax = comparison < 0 ? userId2 : userId1;
@@ -45,6 +48,14 @@ public class DirectChatMapping {
                 now,
                 now
         );
+    }
+
+    public static void validateParticipants(UUID requesterId, UUID participantId) {
+        UUID requiredRequesterId = Objects.requireNonNull(requesterId);
+        UUID requiredParticipantId = Objects.requireNonNull(participantId);
+        if (requiredRequesterId.equals(requiredParticipantId)) {
+            throw new InvalidDirectChatParticipantsException(requiredRequesterId, requiredParticipantId);
+        }
     }
 
     public static DirectChatMapping reconstitute(

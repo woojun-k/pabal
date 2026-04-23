@@ -7,6 +7,7 @@ import com.polarishb.pabal.messenger.application.service.DirectRoomCreationServi
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
 import com.polarishb.pabal.messenger.domain.exception.DirectChatMappingNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateDirectChatMappingException;
+import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
 import com.polarishb.pabal.messenger.domain.repository.DirectChatMappingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
 
     @Override
     public GetOrCreateDirectRoomResult handle(GetOrCreateDirectRoomCommand command) {
+        DirectChatMapping.validateParticipants(command.requesterId(), command.participantId());
 
         Optional<PersistedDirectChatMapping> existing = directChatMappingRepository
                 .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId());

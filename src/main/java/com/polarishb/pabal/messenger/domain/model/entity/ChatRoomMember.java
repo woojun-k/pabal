@@ -92,15 +92,24 @@ public class ChatRoomMember {
         return create(tenantId, chatRoomId, userId, joinedAt, initialLastReadSequence);
     }
 
-    public void updateLastRead(UUID messageId, long sequence, Instant readAt) {
-        if (this.lastReadSequence != null && sequence < this.lastReadSequence) {
-            return;
+    public boolean updateLastRead(UUID messageId, long sequence, Instant readAt) {
+        if (isStaleLastReadSequence(sequence)) {
+            return false;
         }
 
         this.lastReadMessageId = messageId;
         this.lastReadSequence = sequence;
         this.lastReadAt = readAt;
         this.updatedAt = readAt;
+        return true;
+    }
+
+    public boolean wouldAdvanceLastReadCursorTo(long sequence) {
+        return this.lastReadSequence == null || sequence > this.lastReadSequence;
+    }
+
+    private boolean isStaleLastReadSequence(long sequence) {
+        return this.lastReadSequence != null && sequence < this.lastReadSequence;
     }
 
     public void leave(Instant leftAt) {

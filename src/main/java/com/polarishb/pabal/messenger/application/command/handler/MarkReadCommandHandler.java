@@ -50,22 +50,33 @@ public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, V
         PersistedMessage lastReadMessage = messageRepository.findByTenantIdAndChatRoomIdAndId(command.tenantId(), command.chatRoomId(), command.lastReadMessageId())
                 .orElseThrow(() -> new MessageNotFoundException(command.lastReadMessageId()));
 
+        long lastReadSequence = lastReadMessage.state().sequence();
+        boolean readCursorAdvanced = chatRoomMember.wouldAdvanceLastReadCursorTo(lastReadSequence);
+
         Instant readAt = clockPort.now();
-        chatRoomMember.updateLastRead(
+        boolean lastReadUpdated = chatRoomMember.updateLastRead(
                 command.lastReadMessageId(),
-                lastReadMessage.state().sequence(),
+                lastReadSequence,
                 readAt
         );
 
+        if (!lastReadUpdated) {
+            return null;
+        }
+
         chatRoomMemberRepository.update(member);
+
+        if (!readCursorAdvanced) {
+            return null;
+        }
 
         eventPublisher.publishAfterCommit(
             new MessageReadEvent(
                 command.tenantId(),
                 command.chatRoomId(),
                 command.userId(),
-                command.lastReadMessageId(),
-                readAt
+                chatRoomMember.getLastReadMessageId(),
+                chatRoomMember.getLastReadAt()
             )
         );
 
