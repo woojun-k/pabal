@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
+import com.polarishb.pabal.messenger.domain.exception.InvalidRoomStatusTransitionException;
 import com.polarishb.pabal.messenger.domain.exception.RoomCannotBeDeletedException;
 import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
 import com.polarishb.pabal.messenger.domain.exception.RoomOperationNotAllowedException;
@@ -199,6 +200,14 @@ public class ChatRoom {
         if (this.type != RoomType.CHANNEL) {
             throw new RoomCannotBeDeletedException(this.type);
         }
+        if (this.status != RoomStatus.ACTIVE) {
+            throw new InvalidRoomStatusTransitionException(
+                    this.id,
+                    this.status,
+                    RoomStatus.PENDING_DELETION
+            );
+        }
+
         this.status = RoomStatus.PENDING_DELETION;
         this.scheduledDeletionAt = now.plus(retentionDays, ChronoUnit.DAYS);
         this.updatedAt = now;
