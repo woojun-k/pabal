@@ -1,105 +1,229 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
-import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
+import com.polarishb.pabal.messenger.domain.exception.InvalidRoomStatusTransitionException;
+import com.polarishb.pabal.messenger.domain.exception.RoomCannotBeDeletedException;
+import com.polarishb.pabal.messenger.domain.exception.RoomMustBePendingDeletionException;
+import com.polarishb.pabal.messenger.domain.exception.RoomOperationNotAllowedException;
+import com.polarishb.pabal.messenger.domain.model.type.RoomAccessOperation;
+import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
-import jakarta.persistence.*;
+import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
+import com.polarishb.pabal.messenger.domain.model.vo.ChannelSettings;
+import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
+import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 import lombok.AccessLevel;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import java.util.UUID;
 
-@Entity
-@Table(name = "chat_room")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ChatRoom {
 
-    @Id
-    @UuidV7Generated(mode = UuidV7Generated.Mode.MONOTONIC)
-    private UUID uuid;
+    private static final int DEFAULT_RETENTION_DAYS = 30;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @EqualsAndHashCode.Include
+    private UUID id;
     private RoomType type;
-
-    private String name;
-
-    @Column(nullable = false)
+    private RoomName name;
     private UUID createdBy;
-
-    private Instant lastMessageAt;
-
-    private UUID lastMessageId;
-
-    @Column(nullable = false)
     private UUID tenantId;
 
-    // ---- channel ---- //
-    private UUID workspaceId;
+    private ChannelSettings channelSettings;
 
-    private boolean isPrivate;
+    private RoomStatus status;
+    private Instant scheduledDeletionAt;
 
-    private String topic;
-
-    private String description;
-
-    @Column(nullable = false, updatable = false)
+    private UUID lastMessageId;
+    private Long lastMessageSequence;
+    private Instant lastMessageAt;
+    
     private Instant createdAt;
+    private Instant updatedAt;
 
-    private Instant deletedAt;
-
-    @Builder
-    private ChatRoom(RoomType type, String name, UUID createdBy, UUID tenantId, UUID workspaceId) {
-        this.type = type;
-        this.name = name;
-        this.createdBy = createdBy;
-        this.tenantId = tenantId;
-        this.workspaceId = workspaceId;
-        this.createdAt = Instant.now();
+    public static ChatRoom create(
+        RoomType type,
+        RoomName name,
+        UUID createdBy,
+        UUID tenantId,
+        ChannelSettings channelSettings,
+        Instant createdAt
+    ) {
+        return new ChatRoom(
+            null,
+            type,
+            name,
+            createdBy,
+            tenantId,
+            channelSettings,
+            RoomStatus.ACTIVE,
+            null,
+            null,
+            0L,
+            null,
+            createdAt,
+            createdAt // updatedAt
+        );
     }
 
-    public static ChatRoom createDirect(UUID userId, UUID tenantId) {
-        return ChatRoom.builder()
-                .type(RoomType.DIRECT)
-                .createdBy(userId)
-                .tenantId(tenantId)
-                .build();
+    public static ChatRoom reconstitute(
+            UUID id,
+            RoomType type,
+            RoomName name,
+            UUID createdBy,
+            UUID tenantId,
+            ChannelSettings channelSettings,
+            RoomStatus status,
+            Instant scheduledDeletionAt,
+            UUID lastMessageId,
+            Long lastMessageSequence,
+            Instant lastMessageAt,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        return new ChatRoom(
+                id,
+                type,
+                name,
+                createdBy,
+                tenantId,
+                channelSettings,
+                status,
+                scheduledDeletionAt,
+                lastMessageId,
+                lastMessageSequence,
+                lastMessageAt,
+                createdAt,
+                updatedAt
+        );
     }
 
-    public static ChatRoom createGroup(UUID userId, UUID tenantId) {
-        return ChatRoom.builder()
-                .type(RoomType.GROUP)
-                .createdBy(userId)
-                .tenantId(tenantId)
-                .build();
-    }
+    public void updateLastMessage(UUID messageId, long messageSequence, Instant messageAt) {
 
-    public static ChatRoom createGroupWithName(String name, UUID userId, UUID tenantId) {
-        return ChatRoom.builder()
-                .type(RoomType.GROUP)
-                .name(name)
-                .createdBy(userId)
-                .tenantId(tenantId)
-                .build();
-    }
-
-    public static ChatRoom createChannel(String name, UUID userId, UUID tenantId, UUID workspaceId) {
-        return ChatRoom.builder()
-                .type(RoomType.CHANNEL)
-                .name(name)
-                .createdBy(userId)
-                .tenantId(tenantId)
-                .workspaceId(workspaceId)
-                .build();
-    }
-
-    public void delete() {
-        if (this.deletedAt != null) {
-            throw new IllegalStateException("이미 삭제된 채팅입니다");
+        if (this.lastMessageSequence != null && this.lastMessageSequence > messageSequence) {
+            return;
         }
-        this.deletedAt = Instant.now();
+
+        this.lastMessageId = messageId;
+        this.lastMessageSequence = messageSequence;
+        this.lastMessageAt = messageAt;
+        this.updatedAt = messageAt;
+    }
+
+    public static ChatRoom createDirect(String nameOrNull, UUID createdBy, UUID tenantId, Instant createdAt) {
+        return create(RoomType.DIRECT, new OptionalName(nameOrNull), createdBy, tenantId, null, createdAt);
+    }
+
+    public static ChatRoom createGroup(String nameOrNull, UUID createdBy, UUID tenantId, Instant createdAt) {
+        return create(RoomType.GROUP, new OptionalName(nameOrNull), createdBy, tenantId,  null, createdAt);
+    }
+
+    public static ChatRoom createChannel(
+            String name,
+            UUID createdBy,
+            UUID tenantId,
+            UUID workspaceId,
+            boolean isPrivate,
+            String description,
+            Instant createdAt
+    ) {
+        ChannelSettings settings = ChannelSettings.create(workspaceId)
+                .withPrivacy(isPrivate)
+                .withDescription(description);
+
+        return new ChatRoom(
+                null,
+                RoomType.CHANNEL,
+                new ChannelName(name),
+                createdBy,
+                tenantId,
+                settings,
+                RoomStatus.ACTIVE,
+                null,
+                null,
+                0L,
+                null,
+                createdAt,
+                createdAt
+        );
+    }
+
+    public boolean canSend() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public boolean canRead() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public boolean canSubscribe() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public boolean canJoin() {
+        return this.status == RoomStatus.ACTIVE;
+    }
+
+    public void validateCanSend() {
+        validateOperationAllowed(RoomAccessOperation.SEND);
+    }
+
+    public void validateCanRead() {
+        validateOperationAllowed(RoomAccessOperation.READ);
+    }
+
+    public void validateCanSubscribe() {
+        validateOperationAllowed(RoomAccessOperation.SUBSCRIBE);
+    }
+
+    public void validateCanJoin() {
+        validateOperationAllowed(RoomAccessOperation.JOIN);
+    }
+
+    private void validateOperationAllowed(RoomAccessOperation operation) {
+        if (this.status != RoomStatus.ACTIVE) {
+            throw new RoomOperationNotAllowedException(this.id, this.status, operation);
+        }
+    }
+
+    public void scheduleForDeletion(Instant now) {
+        scheduleForDeletion(now, DEFAULT_RETENTION_DAYS);
+    }
+
+    public void scheduleForDeletion(Instant now, int retentionDays) {
+        if (this.type != RoomType.CHANNEL) {
+            throw new RoomCannotBeDeletedException(this.type);
+        }
+        if (this.status != RoomStatus.ACTIVE) {
+            throw new InvalidRoomStatusTransitionException(
+                    this.id,
+                    this.status,
+                    RoomStatus.PENDING_DELETION
+            );
+        }
+
+        this.status = RoomStatus.PENDING_DELETION;
+        this.scheduledDeletionAt = now.plus(retentionDays, ChronoUnit.DAYS);
+        this.updatedAt = now;
+    }
+
+    public void deleteImmediately(Instant deletedAt) {
+        if (this.type != RoomType.CHANNEL) {
+            throw new RoomCannotBeDeletedException(this.type);
+        }
+        if (this.status != RoomStatus.PENDING_DELETION) {
+            throw new RoomMustBePendingDeletionException(this.id, this.status);
+        }
+
+        Instant transitionAt = Objects.requireNonNull(deletedAt);
+        this.status = RoomStatus.DELETED;
+        this.scheduledDeletionAt = null;
+        this.updatedAt = transitionAt;
     }
 }

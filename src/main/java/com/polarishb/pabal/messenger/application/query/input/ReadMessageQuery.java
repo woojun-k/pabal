@@ -1,21 +1,12 @@
 package com.polarishb.pabal.messenger.application.query.input;
 
+import com.polarishb.pabal.common.cqrs.Query;
+
 import java.util.UUID;
 
-public class ReadMessageQuery {
-    private UUID messageId;
-    private UUID userId; // User requesting to read the message (for permissions)
-
-    public ReadMessageQuery(UUID messageId, UUID userId) {
-        this.messageId = messageId;
-        this.userId = userId;
-    }
-
-    public UUID getMessageId() {
-        return messageId;
-    }
-
-    public UUID getUserId() {
-        return userId;
-    }
-}
+public record ReadMessageQuery(
+        UUID tenantId,
+        UUID chatRoomId,
+        UUID messageId,
+        UUID userId
+) implements Query {}

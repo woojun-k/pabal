@@ -1,85 +1,141 @@
 package com.polarishb.pabal.messenger.domain.model.entity;
 
-import jakarta.persistence.*;
+import com.polarishb.pabal.messenger.domain.exception.MemberAlreadyActiveException;
+import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
 import lombok.AccessLevel;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "chat_room_member",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"chatRoomId", "userId"})
-    },
-    indexes = {
-        @Index(name = "idx_user_chat_room", columnList = "userId,chatRoomId"),
-        @Index(name = "idx_active_members", columnList = "chatRoomId,leftAt")
-    }
-)
+
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ChatRoomMember {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID uuid;
-
-    @Column(nullable = false)
+    @EqualsAndHashCode.Include
+    private UUID id;
+    private UUID tenantId;
     private UUID chatRoomId;
-
-    @Column(nullable = false)
     private UUID userId;
 
     private UUID lastReadMessageId;
+    private Long lastReadSequence;
     private Instant lastReadAt;
 
-    @Column(nullable = false)
     private Instant joinedAt;
-
     private Instant leftAt;
 
-    @Column(nullable = false, updatable = false)
     private Instant createdAt;
-
     private Instant updatedAt;
 
-    @Builder
-    private ChatRoomMember(UUID chatRoomId, UUID userId) {
-        this.chatRoomId = chatRoomId;
-        this.userId = userId;
-        Instant now = Instant.now();
-        this.joinedAt = now;
-        this.createdAt = now;
+    public static ChatRoomMember create(
+        UUID tenantId,
+        UUID chatRoomId,
+        UUID userId,
+        Instant joinedAt,
+        long initialLastReadSequence
+    ) {
+        return new ChatRoomMember(
+            null,
+            tenantId,
+            chatRoomId,
+            userId,
+            null,
+            initialLastReadSequence,
+            null,
+            joinedAt,
+            null,
+            joinedAt, // createdAt
+            joinedAt  // updatedAt
+        );
     }
 
-    public static ChatRoomMember join(UUID chatRoomId, UUID userId) {
-        return ChatRoomMember.builder()
-            .chatRoomId(chatRoomId)
-            .userId(userId)
-            .build();
+    public static ChatRoomMember reconstitute(
+         UUID id,
+         UUID tenantId,
+         UUID chatRoomId,
+         UUID userId,
+         UUID lastReadMessageId,
+         Long lastReadSequence,
+         Instant lastReadAt,
+         Instant joinedAt,
+         Instant leftAt,
+         Instant createdAt,
+         Instant updatedAt
+    ) {
+        return new ChatRoomMember(
+            id,
+            tenantId,
+            chatRoomId,
+            userId,
+            lastReadMessageId,
+            lastReadSequence,
+            lastReadAt,
+            joinedAt,
+            leftAt,
+            createdAt,
+            updatedAt
+        );
     }
 
-    public void updateLastRead(UUID messageId) {
+    public static ChatRoomMember join(
+            UUID tenantId,
+            UUID chatRoomId,
+            UUID userId,
+            Instant joinedAt,
+            long initialLastReadSequence
+    ) {
+        return create(tenantId, chatRoomId, userId, joinedAt, initialLastReadSequence);
+    }
+
+    public boolean updateLastRead(UUID messageId, long sequence, Instant readAt) {
+        if (isStaleLastReadSequence(sequence)) {
+            return false;
+        }
+
         this.lastReadMessageId = messageId;
-        Instant now = Instant.now();
-        this.lastReadAt = now;
-        this.updatedAt = now;
+        this.lastReadSequence = sequence;
+        this.lastReadAt = readAt;
+        this.updatedAt = readAt;
+        return true;
     }
 
-    public void leave() {
-        Instant now = Instant.now();
-        this.leftAt = now;
-        this.updatedAt = now;
+    public boolean wouldAdvanceLastReadCursorTo(long sequence) {
+        return this.lastReadSequence == null || sequence > this.lastReadSequence;
     }
 
-    public void rejoin() {
+    private boolean isStaleLastReadSequence(long sequence) {
+        return this.lastReadSequence != null && sequence < this.lastReadSequence;
+    }
+
+    public void leave(Instant leftAt) {
+        if (!isActive()) {
+            throw new MemberNotActiveException(this.userId);
+        }
+        this.leftAt = leftAt;
+        this.updatedAt = leftAt;
+    }
+
+    public void rejoin(Instant joinedAt, long baselineSequence) {
+        if (isActive()) {
+            throw new MemberAlreadyActiveException(this.userId);
+        }
         this.leftAt = null;
-        Instant now = Instant.now();
-        this.joinedAt = now;
-        this.updatedAt = now;
+        this.joinedAt = joinedAt;
+        this.lastReadMessageId = null;
+        this.lastReadSequence = baselineSequence;
+        this.lastReadAt = null;
+        this.updatedAt = joinedAt;
+    }
+
+    public void validateActive() {
+        if (!isActive()) {
+            throw new MemberNotActiveException(this.userId);
+        }
     }
 
     public boolean isActive() {

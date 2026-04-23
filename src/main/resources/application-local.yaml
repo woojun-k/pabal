@@ -1,0 +1,62 @@
+spring:
+
+  datasource:
+    url: jdbc:h2:mem:pabal_local;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  docker:
+    compose:
+      enabled: true
+      file: compose.local.yaml
+      lifecycle-management: start-and-stop
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    show-sql: true
+    open-in-view: false
+
+  sql:
+    init:
+      mode: never
+
+pabal:
+  security:
+    jwt:
+      issuer-uri: local-dev
+      audience: pabal-api
+      user-id-claim: uid
+      tenant-id-claim: tenant_id
+      principal-claim: sub
+      local-secret: 01234567890123456789012345678901
+
+  websocket:
+    relay:
+      enabled: false
+    endpoint:
+      path: /websocket
+      allowed-origin-patterns:
+        - http://localhost:5173
+        - http://localhost:3000
+        - http://127.0.0.1:5173
+        - http://127.0.0.1:3000
+      sock-js-enabled: true
+
+management:
+  health:
+    redis:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
+    org.springframework.security: DEBUG
+    com.polarishb.pabal.messenger.infrastructure.realtime.ws: TRACE
+    com.polarishb.pabal.messenger.infrastructure.config: TRACE
+    com.polarishb.pabal.security: TRACE

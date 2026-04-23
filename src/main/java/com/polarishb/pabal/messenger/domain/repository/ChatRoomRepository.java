@@ -1,14 +1,16 @@
 package com.polarishb.pabal.messenger.domain.repository;
 
-import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
-import org.springframework.stereotype.Repository;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
+import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 
 import java.util.Optional;
 import java.util.UUID;
 
-@Repository
 public interface ChatRoomRepository {
-    ChatRoom save(ChatRoom chatRoom);
-    Optional<ChatRoom> findById(UUID uuid);
-    void delete(ChatRoom chatRoom);
+    PersistedChatRoom append(PersistedChatRoom chatRoom);
+    PersistedChatRoom update(PersistedChatRoom chatRoom);
+    Optional<PersistedChatRoom> findById(UUID id);
+    Optional<PersistedChatRoom> findByTenantIdAndId(UUID tenantId, UUID id);
+    Optional<PersistedChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name);
+    Optional<PersistedChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName);
 }

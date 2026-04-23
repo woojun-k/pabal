@@ -1,0 +1,19 @@
+package com.polarishb.pabal.messenger.contract.persistence.chatroommember;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record ChatRoomMemberState(
+    UUID id,
+    UUID tenantId,
+    UUID chatRoomId,
+    UUID userId,
+    UUID lastReadMessageId,
+    Long lastReadSequence,
+    Instant lastReadAt,
+    Instant joinedAt,
+    Instant leftAt,
+    Instant createdAt,
+    Instant updatedAt,
+    Long version
+) {}

@@ -106,7 +106,7 @@ public final class UuidV7 {
     private static void ensureV7(UUID u) {
         if (u.variant() != 2 || u.version() != 7) {
             throw new IllegalArgumentException(
-                    "Not a RFC4122-variant UUIDv7: " + u.toString()
+                    "Not a RFC4122-variant UUIDv7: " + u
             );
         }
     }

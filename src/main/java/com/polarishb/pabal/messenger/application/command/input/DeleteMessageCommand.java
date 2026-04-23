@@ -1,21 +1,11 @@
 package com.polarishb.pabal.messenger.application.command.input;
 
+import com.polarishb.pabal.common.cqrs.Command;
+
 import java.util.UUID;
 
 public record DeleteMessageCommand(
+    UUID tenantId,
     UUID messageId,
-    UUID requestorId // User requesting the deletion
-) {
-    public DeleteMessageCommand(UUID messageId, UUID requestorId) {
-        this.messageId = messageId;
-        this.requestorId = requestorId;
-    }
-
-    public UUID getMessageId() {
-        return messageId;
-    }
-
-    public UUID getRequestorId() {
-        return requestorId;
-    }
-}
+    UUID requesterId
+) implements Command {}

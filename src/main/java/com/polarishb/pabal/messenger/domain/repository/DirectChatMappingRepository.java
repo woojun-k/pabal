@@ -1,13 +1,13 @@
 package com.polarishb.pabal.messenger.domain.repository;
 
-import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
-import org.springframework.stereotype.Repository;
+import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
 
 import java.util.Optional;
 import java.util.UUID;
 
-@Repository
 public interface DirectChatMappingRepository {
-    DirectChatMapping save(DirectChatMapping mapping);
-    Optional<DirectChatMapping> findByUserIds(UUID userId1, UUID userId2);
+    PersistedDirectChatMapping append(PersistedDirectChatMapping mapping);
+    PersistedDirectChatMapping update(PersistedDirectChatMapping mapping);
+    void flush();
+    Optional<PersistedDirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2);
 }
