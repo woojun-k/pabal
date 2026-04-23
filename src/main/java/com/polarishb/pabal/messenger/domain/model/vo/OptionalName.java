@@ -4,7 +4,7 @@ import com.polarishb.pabal.common.exception.InvalidInputException;
 
 public record OptionalName(String value) implements RoomName {
 
-    private static final int MAX_LENGTH = 50;
+    public static final int MAX_LENGTH = 50;
 
     public OptionalName {
         if (value != null) {

@@ -5,23 +5,34 @@ import com.polarishb.pabal.common.exception.code.CommonErrorCode;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +54,93 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         return ResponseEntity
                 .status(statusCode)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<ApiError> handleBindException(
+            BindException e,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = toApiError(
+                HttpStatus.BAD_REQUEST,
+                request.getRequestURI(),
+                currentTraceId(),
+                bindExceptionDetails(e)
+        );
+        logApiError(e, apiError);
+
+        return ResponseEntity
+                .badRequest()
+                .body(apiError);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiError> handleConstraintViolationException(
+            ConstraintViolationException e,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = toApiError(
+                HttpStatus.BAD_REQUEST,
+                request.getRequestURI(),
+                currentTraceId(),
+                constraintViolationDetails(e)
+        );
+        logApiError(e, apiError);
+
+        return ResponseEntity
+                .badRequest()
+                .body(apiError);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDeniedException(
+            AccessDeniedException e,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = toApiError(
+                HttpStatus.FORBIDDEN,
+                request.getRequestURI(),
+                currentTraceId()
+        );
+        logApiError(e, apiError);
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiError> handleObjectOptimisticLockingFailureException(
+            ObjectOptimisticLockingFailureException e,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = toApiError(
+                HttpStatus.CONFLICT,
+                request.getRequestURI(),
+                currentTraceId()
+        );
+        logApiError(e, apiError);
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolationException(
+            DataIntegrityViolationException e,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = toApiError(
+                HttpStatus.CONFLICT,
+                request.getRequestURI(),
+                currentTraceId()
+        );
+        logApiError(e, apiError);
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
                 .body(apiError);
     }
 
@@ -78,6 +176,42 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        ApiError apiError = toApiError(
+                HttpStatus.BAD_REQUEST,
+                requestPath(request),
+                currentTraceId(),
+                validationDetails(ex)
+        );
+        logApiError(ex, apiError);
+
+        return handleExceptionInternal(ex, apiError, headers, HttpStatus.BAD_REQUEST, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        ApiError apiError = toApiError(
+                HttpStatus.BAD_REQUEST,
+                requestPath(request),
+                currentTraceId(),
+                handlerMethodValidationDetails(ex)
+        );
+        logApiError(ex, apiError);
+
+        return handleExceptionInternal(ex, apiError, headers, HttpStatus.BAD_REQUEST, request);
+    }
+
+    @Override
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception ex,
             Object body,
@@ -85,6 +219,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode statusCode,
             WebRequest request
     ) {
+        if (body instanceof ApiError apiError) {
+            return new ResponseEntity<>(apiError, headers, statusCode);
+        }
+
         ApiError apiError = toApiError(
                 statusCode,
                 requestPath(request),
@@ -92,7 +230,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 validationDetails(ex)
         );
         logApiError(ex, apiError);
-        return super.handleExceptionInternal(ex, apiError, headers, statusCode, request);
+
+        return new ResponseEntity<>(apiError, headers, statusCode);
     }
 
     private HttpExceptionResponse resolveHttpExceptionResponse(Exception e) {
@@ -211,14 +350,84 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     private List<ApiErrorDetail> validationDetails(Exception e) {
-        if (!(e instanceof BindException bindException)) {
-            return List.of();
+        if (e instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
+            return methodArgumentNotValidException.getBindingResult()
+                    .getAllErrors()
+                    .stream()
+                    .map(this::toApiErrorDetail)
+                    .toList();
         }
 
-        return bindException.getAllErrors()
+        if (e instanceof BindException bindException) {
+            return bindException.getAllErrors()
+                    .stream()
+                    .map(this::toApiErrorDetail)
+                    .toList();
+        }
+
+        if (e instanceof ConstraintViolationException constraintViolationException) {
+            return constraintViolationException.getConstraintViolations()
+                    .stream()
+                    .map(this::toApiErrorDetail)
+                    .toList();
+        }
+
+        return List.of();
+    }
+
+    private List<ApiErrorDetail> bindExceptionDetails(BindException e) {
+        return e.getAllErrors()
                 .stream()
                 .map(this::toApiErrorDetail)
                 .toList();
+    }
+
+    private List<ApiErrorDetail> constraintViolationDetails(ConstraintViolationException e) {
+        return e.getConstraintViolations()
+                .stream()
+                .map(this::toApiErrorDetail)
+                .toList();
+    }
+
+    private List<ApiErrorDetail> handlerMethodValidationDetails(HandlerMethodValidationException e) {
+        List<ApiErrorDetail> details = new ArrayList<>();
+
+        for (ParameterErrors errors : e.getBeanResults()) {
+            for (FieldError fieldError : errors.getFieldErrors()) {
+                details.add(new ApiErrorDetail(
+                        fieldError.getField(),
+                        resolveValidationReason(fieldError)
+                ));
+            }
+
+            for (ObjectError objectError : errors.getGlobalErrors()) {
+                details.add(new ApiErrorDetail(
+                        errors.getObjectName(),
+                        resolveValidationReason(objectError)
+                ));
+            }
+        }
+
+        for (ParameterValidationResult result : e.getValueResults()) {
+            String field = result.getMethodParameter().getParameterName();
+            String resolvedField = (field == null || field.isBlank()) ? "request" : field;
+
+            for (MessageSourceResolvable error : result.getResolvableErrors()) {
+                details.add(new ApiErrorDetail(
+                        resolvedField,
+                        resolveValidationReason(error)
+                ));
+            }
+        }
+
+        for (MessageSourceResolvable error : e.getCrossParameterValidationResults()) {
+            details.add(new ApiErrorDetail(
+                    "request",
+                    resolveValidationReason(error)
+            ));
+        }
+
+        return details;
     }
 
     private ApiErrorDetail toApiErrorDetail(ObjectError error) {
@@ -235,7 +444,44 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
     }
 
+    private ApiErrorDetail toApiErrorDetail(ConstraintViolation<?> violation) {
+        return new ApiErrorDetail(
+                resolveConstraintViolationField(violation),
+                resolveConstraintViolationReason(violation)
+        );
+    }
+
+    private String resolveConstraintViolationField(ConstraintViolation<?> violation) {
+        String path = violation.getPropertyPath() == null ? null : violation.getPropertyPath().toString();
+        if (path == null || path.isBlank()) {
+            return "request";
+        }
+
+        int index = path.lastIndexOf('.');
+        if (index < 0 || index == path.length() - 1) {
+            return path;
+        }
+
+        return path.substring(index + 1);
+    }
+
+    private String resolveConstraintViolationReason(ConstraintViolation<?> violation) {
+        if (violation.getMessage() != null && !violation.getMessage().isBlank()) {
+            return violation.getMessage();
+        }
+
+        return "Invalid value";
+    }
+
     private String resolveValidationReason(ObjectError error) {
+        if (error.getDefaultMessage() != null && !error.getDefaultMessage().isBlank()) {
+            return error.getDefaultMessage();
+        }
+
+        return "Invalid value";
+    }
+
+    private String resolveValidationReason(MessageSourceResolvable error) {
         if (error.getDefaultMessage() != null && !error.getDefaultMessage().isBlank()) {
             return error.getDefaultMessage();
         }

@@ -7,12 +7,18 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Scope;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -21,11 +27,13 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,14 +54,14 @@ class GlobalExceptionHandlerTest {
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new TestController())
+                .standaloneSetup(new TestController(validator))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
     }
 
     @Test
-    void handleException_preserves_validation_bad_request_status() throws Exception {
+    void handleMethodArgumentNotValid_returns_bad_request_with_details() throws Exception {
         try (Scope ignored = otelSpan().makeCurrent()) {
             mockMvc.perform(
                             post("/validated")
@@ -78,14 +86,67 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleException_includes_bind_exception_details() throws Exception {
+    void handleBindException_returns_bad_request_with_details() throws Exception {
         mockMvc.perform(get("/bind").param("name", ""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.code").value("CMN002"))
+                .andExpect(jsonPath("$.message").value("잘못된 입력입니다"))
                 .andExpect(jsonPath("$.path").value("/bind"))
                 .andExpect(jsonPath("$.details[0].field").value("name"))
                 .andExpect(jsonPath("$.details[0].reason").value("name is required"));
+    }
+
+    @Test
+    void handleHandlerMethodValidationException_returns_bad_request_with_details() throws Exception {
+        mockMvc.perform(get("/method-validation").param("name", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value("CMN002"))
+                .andExpect(jsonPath("$.message").value("잘못된 입력입니다"))
+                .andExpect(jsonPath("$.path").value("/method-validation"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].reason").value("name is required"));
+    }
+
+    @Test
+    void handleConstraintViolationException_returns_bad_request_with_details() throws Exception {
+        mockMvc.perform(get("/constraint"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value("CMN002"))
+                .andExpect(jsonPath("$.message").value("잘못된 입력입니다"))
+                .andExpect(jsonPath("$.path").value("/constraint"))
+                .andExpect(jsonPath("$.details[0].field").value("name"))
+                .andExpect(jsonPath("$.details[0].reason").value("name is required"));
+    }
+
+    @Test
+    void handleAccessDeniedException_returns_forbidden() throws Exception {
+        mockMvc.perform(get("/denied"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.code").value("CMN004"))
+                .andExpect(jsonPath("$.path").value("/denied"))
+                .andExpect(jsonPath("$.details").doesNotExist());
+    }
+
+    @Test
+    void handleObjectOptimisticLockingFailureException_returns_conflict() throws Exception {
+        mockMvc.perform(get("/optimistic-lock"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.code").value("HTTP409"))
+                .andExpect(jsonPath("$.path").value("/optimistic-lock"));
+    }
+
+    @Test
+    void handleDataIntegrityViolationException_returns_conflict() throws Exception {
+        mockMvc.perform(get("/data-integrity"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.code").value("HTTP409"))
+                .andExpect(jsonPath("$.path").value("/data-integrity"));
     }
 
     @Test
@@ -141,12 +202,44 @@ class GlobalExceptionHandlerTest {
     @RestController
     private static class TestController {
 
+        private final Validator validator;
+
+        private TestController(Validator validator) {
+            this.validator = validator;
+        }
+
         @PostMapping("/validated")
         void validated(@Valid @RequestBody TestRequest request) {
         }
 
         @GetMapping("/bind")
         void bind(@Valid @ModelAttribute TestForm form) {
+        }
+
+        @GetMapping("/method-validation")
+        void methodValidation(@RequestParam @NotBlank(message = "name is required") String name) {
+        }
+
+        @GetMapping("/constraint")
+        void constraint() {
+            TestRequest request = new TestRequest("");
+            Set<ConstraintViolation<TestRequest>> violations = validator.validate(request);
+            throw new ConstraintViolationException(violations);
+        }
+
+        @GetMapping("/denied")
+        void denied() {
+            throw new AccessDeniedException("forbidden");
+        }
+
+        @GetMapping("/optimistic-lock")
+        void optimisticLock() {
+            throw new ObjectOptimisticLockingFailureException(TestEntity.class, 1L);
+        }
+
+        @GetMapping("/data-integrity")
+        void dataIntegrity() {
+            throw new DataIntegrityViolationException("duplicate key");
         }
 
         @GetMapping("/missing")
@@ -190,6 +283,9 @@ class GlobalExceptionHandlerTest {
         public void setName(String name) {
             this.name = name;
         }
+    }
+
+    private static class TestEntity {
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)

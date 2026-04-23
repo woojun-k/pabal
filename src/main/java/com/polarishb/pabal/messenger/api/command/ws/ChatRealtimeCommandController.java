@@ -5,6 +5,7 @@ import com.polarishb.pabal.messenger.application.command.handler.SendTypingComma
 import com.polarishb.pabal.messenger.application.command.input.SendTypingCommand;
 import com.polarishb.pabal.messenger.domain.model.type.TypingStatus;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,7 +22,7 @@ public class ChatRealtimeCommandController {
     private final SendTypingCommandHandler sendTypingCommandHandler;
 
     @MessageMapping("/chat.typing.start")
-    public void typingStart(TypingRequest request, Principal principal) {
+    public void typingStart(@Valid TypingRequest request, Principal principal) {
         validateTenant(request.tenantId(), principal);
 
         sendTypingCommandHandler.handle(
@@ -35,7 +36,7 @@ public class ChatRealtimeCommandController {
     }
 
     @MessageMapping("/chat.typing.stop")
-    public void typingStop(TypingRequest request, Principal principal) {
+    public void typingStop(@Valid TypingRequest request, Principal principal) {
         validateTenant(request.tenantId(), principal);
 
         sendTypingCommandHandler.handle(

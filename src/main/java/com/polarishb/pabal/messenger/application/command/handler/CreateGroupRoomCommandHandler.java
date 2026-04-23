@@ -7,20 +7,16 @@ import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
+import com.polarishb.pabal.messenger.domain.policy.RoomNameFormatter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
 public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroupRoomCommand, CreateRoomResult> {
-
-    private static final int MAX_DISPLAYED_MEMBERS = 3;
 
     private final ChatRoomCreationSupport creationSupport;
     private final ClockPort clockPort;
@@ -33,7 +29,7 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
         // 방 이름 결정
         String roomName = (command.roomName() != null)
                 ? command.roomName()
-                : generateRoomName(command.participantIds(), command.requesterId());
+                : RoomNameFormatter.formatGroupRoomName(command.requesterId(), command.participantIds());
 
         // ChatRoom 생성
         ChatRoom chatRoom = ChatRoom.createGroup(
@@ -56,24 +52,5 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
         );
 
         return new CreateRoomResult(saved.state().id(), roomName);
-    }
-
-    private String generateRoomName(List<UUID> participantIds, UUID requesterId) {
-
-        // 전체 멤버 리스트 (requester + participants)
-        List<String> all = Stream.concat(Stream.of(requesterId), participantIds.stream())
-                .distinct()
-                .sorted()
-                .map(UUID::toString)
-                .toList();
-
-        // 이름 생성
-        if (all.size() <= MAX_DISPLAYED_MEMBERS) {
-            return String.join(", ", all);
-        }
-
-        String displayed = String.join(", ", all.subList(0, MAX_DISPLAYED_MEMBERS));
-        int remaining = all.size() - MAX_DISPLAYED_MEMBERS;
-        return displayed + " 외 " + remaining + "명";
     }
 }
