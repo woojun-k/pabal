@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,10 +61,17 @@ class ListRoomsHandlerTest {
                 .thenReturn(List.of(olderMembership, newerMembership));
         when(chatRoomReadRepository.findAllByTenantIdAndIds(tenantId, List.of(olderRoomId, newerRoomId)))
                 .thenReturn(List.of(olderRoom, newerRoom));
-        when(messageReadRepository.countUnreadInRoom(tenantId, olderRoomId, userId, 0L))
-                .thenReturn(1L);
-        when(messageReadRepository.countUnreadInRoom(tenantId, newerRoomId, userId, 0L))
-                .thenReturn(3L);
+        when(messageReadRepository.countUnreadByRooms(
+                tenantId,
+                userId,
+                Map.of(
+                        olderRoomId, 0L,
+                        newerRoomId, 0L
+                )
+        )).thenReturn(Map.of(
+                olderRoomId, 1L,
+                newerRoomId, 3L
+        ));
 
         List<RoomDto> result = listRoomsHandler.handle(new ListRoomsQuery(tenantId, userId));
 

@@ -10,6 +10,5 @@ public interface ChatRoomMemberRepository {
     PersistedChatRoomMember append(PersistedChatRoomMember member);
     List<PersistedChatRoomMember> appendAll(List<PersistedChatRoomMember> members);
     PersistedChatRoomMember update(PersistedChatRoomMember member);
-    Optional<PersistedChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId);
     Optional<PersistedChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId);
 }

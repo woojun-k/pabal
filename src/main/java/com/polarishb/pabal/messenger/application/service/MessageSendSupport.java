@@ -78,6 +78,11 @@ public class MessageSendSupport {
                 );
     }
 
+    public PersistedMessage loadDuplicate(SendableCommand command) {
+        return findDuplicate(command)
+                .orElseThrow(() -> new MessageNotFoundException(command.clientMessageId()));
+    }
+
     @Transactional(propagation = Propagation.MANDATORY)
     public PersistedMessage send(PersistedChatRoom persistedChatRoom, Message message) {
         long sequence = chatRoomSequenceRepository.allocateNextMessageSequence(

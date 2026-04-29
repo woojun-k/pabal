@@ -10,6 +10,7 @@ import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoo
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
 import com.polarishb.pabal.messenger.domain.model.entity.Message;
@@ -31,6 +32,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -152,5 +154,113 @@ class SendMessageCommandHandlerTest {
         assertThat(messageCaptor.getValue().getCreatedAt()).isEqualTo(now);
         assertThat(messageCaptor.getValue().getSequence()).isNull();
         assertThat(result.createdAt()).isEqualTo(now);
+    }
+
+    @Test
+    void handle_returns_duplicate_result_when_insert_races_with_existing_client_message() {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID clientMessageId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-04-02T12:00:00Z");
+
+        SendMessageCommand command = new SendMessageCommand(tenantId, senderId, chatRoomId, clientMessageId, "hello");
+
+        PersistedChatRoom chatRoom = new PersistedChatRoom(
+                ChatRoom.reconstitute(
+                        chatRoomId,
+                        RoomType.GROUP,
+                        new OptionalName("team"),
+                        senderId,
+                        tenantId,
+                        null,
+                        RoomStatus.ACTIVE,
+                        null,
+                        null,
+                        0L,
+                        null,
+                        now,
+                        now
+                ),
+                new ChatRoomState(
+                        chatRoomId,
+                        RoomType.GROUP,
+                        "team",
+                        senderId,
+                        tenantId,
+                        null,
+                        RoomStatus.ACTIVE,
+                        null,
+                        null,
+                        0L,
+                        null,
+                        now,
+                        now,
+                        0L
+                )
+        );
+        PersistedChatRoomMember member = new PersistedChatRoomMember(
+                ChatRoomMember.reconstitute(
+                        UUID.randomUUID(),
+                        tenantId,
+                        chatRoomId,
+                        senderId,
+                        null,
+                        0L,
+                        null,
+                        now,
+                        null,
+                        now,
+                        now
+                ),
+                new ChatRoomMemberState(
+                        UUID.randomUUID(),
+                        tenantId,
+                        chatRoomId,
+                        senderId,
+                        null,
+                        0L,
+                        null,
+                        now,
+                        null,
+                        now,
+                        now,
+                        0L
+                )
+        );
+        MessageState duplicateState = new MessageState(
+                messageId,
+                tenantId,
+                chatRoomId,
+                senderId,
+                clientMessageId,
+                1L,
+                MessageType.USER,
+                "hello",
+                MessageStatus.ACTIVE,
+                null,
+                now,
+                now,
+                null,
+                0L
+        );
+        PersistedMessage duplicate = new PersistedMessage(Message.reconstitute(duplicateState.snapshot()), duplicateState);
+        SendMessageResult duplicateResult = new SendMessageResult(messageId, clientMessageId, now, true);
+
+        when(clockPort.now()).thenReturn(now);
+        when(messageSendSupport.loadChatRoom(command)).thenReturn(chatRoom);
+        when(messageSendSupport.loadSenderMember(command)).thenReturn(member);
+        when(messageSendSupport.findDuplicate(command)).thenReturn(Optional.empty());
+        when(messageSendSupport.send(any(PersistedChatRoom.class), any(Message.class)))
+                .thenThrow(new DuplicateMessageException());
+        when(messageSendSupport.loadDuplicate(command)).thenReturn(duplicate);
+        when(messageSendSupport.toDuplicateResult(duplicate)).thenReturn(duplicateResult);
+
+        SendMessageResult result = sendMessageCommandHandler.handle(command);
+
+        assertThat(result).isEqualTo(duplicateResult);
+        verify(messageSendSupport).loadDuplicate(command);
+        verify(messageSendSupport, never()).toSentResult(any());
     }
 }

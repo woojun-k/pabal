@@ -71,6 +71,8 @@ dependencies {
     // - 추후 persistence / cache-access 계층으로 나누기 쉬운 영역
     // =====================================================
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
+
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
 
@@ -95,7 +97,7 @@ dependencies {
     // - 추후 profile 또는 infra-runtime 의존성으로 분리 가능
     // =====================================================
     runtimeOnly("org.postgresql:postgresql")
-    runtimeOnly("com.h2database:h2")
+    runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
     // =====================================================
     // 코드 생성 / 컴파일 보조
@@ -113,6 +115,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation(platform("org.testcontainers:testcontainers-bom:$testcontainersVersion"))
     testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:testcontainers")
 
     // =====================================================
@@ -139,7 +142,6 @@ dependencies {
     // 테스트 런타임 전용
     // - 테스트 실행 시에만 필요한 런타임 구성요소
     // =====================================================
-    testRuntimeOnly("com.h2database:h2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

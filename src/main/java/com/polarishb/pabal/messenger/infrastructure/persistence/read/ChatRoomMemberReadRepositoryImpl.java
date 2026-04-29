@@ -19,13 +19,6 @@ public class ChatRoomMemberReadRepositoryImpl implements ChatRoomMemberReadRepos
     private final ChatRoomMemberReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<PersistedChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId) {
-        return jpaRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
-                .map(ChatRoomMemberEntity::toState)
-                .map(ChatRoomMemberPersistenceMapper::toPersisted);
-    }
-
-    @Override
     public Optional<PersistedChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
         return jpaRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId)
                 .map(ChatRoomMemberEntity::toState)

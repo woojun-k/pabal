@@ -13,7 +13,7 @@ public abstract class UpdatableEntity extends BaseEntity {
     @Column(nullable = false)
     private Instant updatedAt;
 
-    protected final void setUpdatedAt(Instant updatedAt) {
+    protected void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
 }

@@ -29,11 +29,6 @@ public class ChatRoomRepositoryImpl implements ChatRoomRepository {
     }
 
     @Override
-    public Optional<PersistedChatRoom> findById(UUID id) {
-        return readRepository.findById(id);
-    }
-
-    @Override
     public Optional<PersistedChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
         return readRepository.findByTenantIdAndId(tenantId, id);
     }
@@ -41,10 +36,5 @@ public class ChatRoomRepositoryImpl implements ChatRoomRepository {
     @Override
     public Optional<PersistedChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name) {
         return readRepository.findByTenantIdAndWorkspaceIdAndName(tenantId, workspaceId, name);
-    }
-
-    @Override
-    public Optional<PersistedChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName) {
-        return readRepository.findByWorkspaceIdAndName(workspaceId, chatRoomName);
     }
 }

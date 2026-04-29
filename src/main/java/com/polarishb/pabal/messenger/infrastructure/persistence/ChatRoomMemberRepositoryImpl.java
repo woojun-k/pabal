@@ -34,11 +34,6 @@ public class ChatRoomMemberRepositoryImpl implements ChatRoomMemberRepository {
     }
 
     @Override
-    public Optional<PersistedChatRoomMember> findByChatRoomIdAndUserId(UUID chatRoomId, UUID userId) {
-        return readRepository.findByChatRoomIdAndUserId(chatRoomId, userId);
-    }
-
-    @Override
     public Optional<PersistedChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
         return readRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId);
     }

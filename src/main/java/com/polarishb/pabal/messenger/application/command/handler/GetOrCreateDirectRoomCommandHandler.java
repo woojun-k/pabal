@@ -7,7 +7,6 @@ import com.polarishb.pabal.messenger.application.service.DirectRoomCreationServi
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
 import com.polarishb.pabal.messenger.domain.exception.DirectChatMappingNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateDirectChatMappingException;
-import com.polarishb.pabal.messenger.domain.model.entity.DirectChatMapping;
 import com.polarishb.pabal.messenger.domain.repository.DirectChatMappingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -24,24 +23,23 @@ public class GetOrCreateDirectRoomCommandHandler implements CommandHandler<GetOr
 
     @Override
     public GetOrCreateDirectRoomResult handle(GetOrCreateDirectRoomCommand command) {
-        DirectChatMapping.validateParticipants(command.requesterId(), command.participantId());
 
         Optional<PersistedDirectChatMapping> existing = directChatMappingRepository
                 .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId());
 
         if (existing.isPresent()) {
-            return new GetOrCreateDirectRoomResult(existing.get().mapping().getChatRoomId(), null);
+            return new GetOrCreateDirectRoomResult(existing.get().mapping().getChatRoomId());
         }
 
         try {
             UUID chatRoomId = directRoomCreationService.create(command);
-            return new GetOrCreateDirectRoomResult(chatRoomId, null);
+            return new GetOrCreateDirectRoomResult(chatRoomId);
         } catch (DuplicateDirectChatMappingException e) {
             PersistedDirectChatMapping persisted = directChatMappingRepository
                     .findByTenantIdAndUserIds(command.tenantId(), command.requesterId(), command.participantId())
                     .orElseThrow(DirectChatMappingNotFoundException::new);
 
-            return new GetOrCreateDirectRoomResult(persisted.mapping().getChatRoomId(), null);
+            return new GetOrCreateDirectRoomResult(persisted.mapping().getChatRoomId());
         }
     }
 }

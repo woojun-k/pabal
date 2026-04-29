@@ -8,6 +8,7 @@ import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.entity.Message;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -48,7 +49,11 @@ public class SendMessageCommandHandler implements CommandHandler<SendMessageComm
                 clockPort.now()
         );
 
-        PersistedMessage saved = messageSendSupport.send(chatRoom, message);
-        return messageSendSupport.toSentResult(saved);
+        try {
+            PersistedMessage saved = messageSendSupport.send(chatRoom, message);
+            return messageSendSupport.toSentResult(saved);
+        } catch (DuplicateMessageException e) {
+            return messageSendSupport.toDuplicateResult(messageSendSupport.loadDuplicate(command));
+        }
     }
 }

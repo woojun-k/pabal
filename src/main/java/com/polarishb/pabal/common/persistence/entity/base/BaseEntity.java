@@ -13,7 +13,7 @@ public abstract class BaseEntity {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected final void setCreatedAt(Instant createdAt) {
+    protected void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 }

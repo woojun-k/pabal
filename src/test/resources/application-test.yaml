@@ -1,17 +1,15 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:pabal_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
   sql:
     init:
       mode: never
@@ -19,28 +17,28 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/auth/realms/pabal
-          jwk-set-uri: http://localhost:8080/auth/realms/pabal/protocol/openid-connect/certs
+          issuer-uri: ${PABAL_TEST_OAUTH2_ISSUER_URI:http://localhost:8080/auth/realms/pabal}
+          jwk-set-uri: ${PABAL_TEST_OAUTH2_JWK_SET_URI:http://localhost:8080/auth/realms/pabal/protocol/openid-connect/certs}
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${PABAL_TEST_REDIS_HOST:localhost}
+      port: ${PABAL_TEST_REDIS_PORT:6379}
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${PABAL_TEST_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      group-id: test-group
-      auto-offset-reset: earliest
+      group-id: ${PABAL_TEST_KAFKA_CONSUMER_GROUP_ID:test-group}
+      auto-offset-reset: ${PABAL_TEST_KAFKA_AUTO_OFFSET_RESET:earliest}
 
 pabal:
   security:
     jwt:
-      issuer-uri: "http://localhost:8080/auth/realms/pabal"
-      audience: "pabal-client"
-      user-id-claim: "sub"
-      tenant-id-claim: "tenant_id"
-      principal-claim: "preferred_username"
-      clock-skew: 60s
-      local-secret: 01234567890123456789012345678901
+      issuer-uri: ${PABAL_TEST_JWT_ISSUER_URI:http://localhost:8080/auth/realms/pabal}
+      audience: ${PABAL_TEST_JWT_AUDIENCE:pabal-client}
+      user-id-claim: ${PABAL_TEST_JWT_USER_ID_CLAIM:sub}
+      tenant-id-claim: ${PABAL_TEST_JWT_TENANT_ID_CLAIM:tenant_id}
+      principal-claim: ${PABAL_TEST_JWT_PRINCIPAL_CLAIM:preferred_username}
+      clock-skew: ${PABAL_TEST_JWT_CLOCK_SKEW:60s}
+      local-secret: ${PABAL_TEST_JWT_LOCAL_SECRET:01234567890123456789012345678901}
   websocket:
     endpoint:
       path: "/ws"
@@ -49,15 +47,15 @@ pabal:
       sock-js-enabled: true
     relay:
       enabled: false
-      host: "localhost"
-      port: 61613
-      client-login: "guest"
-      client-passcode: "guest"
-      system-login: "guest"
-      system-passcode: "guest"
-      virtual-host: "/"
-      system-heartbeat-send-interval: 10000
-      system-heartbeat-receive-interval: 10000
+      host: ${PABAL_TEST_STOMP_RELAY_HOST:localhost}
+      port: ${PABAL_TEST_STOMP_RELAY_PORT:61613}
+      client-login: ${PABAL_TEST_STOMP_CLIENT_LOGIN:guest}
+      client-passcode: ${PABAL_TEST_STOMP_CLIENT_PASSCODE:guest}
+      system-login: ${PABAL_TEST_STOMP_SYSTEM_LOGIN:guest}
+      system-passcode: ${PABAL_TEST_STOMP_SYSTEM_PASSCODE:guest}
+      virtual-host: ${PABAL_TEST_STOMP_VIRTUAL_HOST:/}
+      system-heartbeat-send-interval: ${PABAL_TEST_STOMP_SYSTEM_HEARTBEAT_SEND_INTERVAL:10000}
+      system-heartbeat-receive-interval: ${PABAL_TEST_STOMP_SYSTEM_HEARTBEAT_RECEIVE_INTERVAL:10000}
 
 logging:
   level:

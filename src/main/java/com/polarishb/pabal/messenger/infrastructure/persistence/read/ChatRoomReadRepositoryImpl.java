@@ -21,13 +21,6 @@ public class ChatRoomReadRepositoryImpl implements ChatRoomReadRepository {
     private final ChatRoomReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<PersistedChatRoom> findById(UUID id) {
-        return jpaRepository.findById(id)
-                .map(ChatRoomEntity::toState)
-                .map(ChatRoomPersistenceMapper::toPersisted);
-    }
-
-    @Override
     public Optional<PersistedChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
         return jpaRepository.findByTenantIdAndId(tenantId, id)
                 .map(ChatRoomEntity::toState)
@@ -44,14 +37,11 @@ public class ChatRoomReadRepositoryImpl implements ChatRoomReadRepository {
 
     @Override
     public Optional<PersistedChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name) {
-        return jpaRepository.findByTenantIdAndWorkspaceIdAndName(tenantId, workspaceId, name.valueOrNull())
-                .map(ChatRoomEntity::toState)
-                .map(ChatRoomPersistenceMapper::toPersisted);
-    }
-
-    @Override
-    public Optional<PersistedChatRoom> findByWorkspaceIdAndName(UUID workspaceId, String chatRoomName) {
-        return jpaRepository.findByWorkspaceIdAndName(workspaceId, chatRoomName)
+        return jpaRepository.findActiveChannelByTenantIdAndWorkspaceIdAndNameIgnoreCase(
+                        tenantId,
+                        workspaceId,
+                        name.valueOrNull()
+                )
                 .map(ChatRoomEntity::toState)
                 .map(ChatRoomPersistenceMapper::toPersisted);
     }

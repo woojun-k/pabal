@@ -11,14 +11,7 @@ import lombok.NoArgsConstructor;
 import java.util.UUID;
 
 @Entity
-@Table(name = "direct_chat_mapping",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_direct_chat_mapping", columnNames = {"tenant_id", "user_id_min", "user_id_max"})
-        },
-        indexes = {
-                @Index(name = "idx_direct_chat_rooms", columnList = "tenant_id, chat_room_id")
-        }
-)
+@Table(name = "direct_chat_mapping")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DirectChatMappingEntity extends UpdatableEntity {

@@ -1,5 +1,51 @@
 services:
   redis:
-    image: redis:7.2-alpine
+    image: redis:8.6-alpine
+    container_name: pabal-redis
     ports:
-      - "6379:6379"
+      - "${PABAL_REDIS_PORT:-6379}:6379"
+    command: redis-server --save 60 1000 --appendonly yes
+    volumes:
+      - pabal-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:18.3
+    container_name: pabal-postgres
+    ports:
+      - "${PABAL_POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${PABAL_POSTGRES_DB}
+      POSTGRES_USER: ${PABAL_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PABAL_POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - pabal-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PABAL_POSTGRES_USER} -d ${PABAL_POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.151.0
+    container_name: pabal-otel-collector
+    command: [ "--config=/etc/otelcol-contrib/config.yaml" ]
+    ports:
+      - "${PABAL_OTEL_HTTP_PORT:-4318}:4318"
+      - "${PABAL_OTEL_GRPC_PORT:-4317}:4317"
+    volumes:
+      - ./docker/otel/otel-collector.local.yaml:/etc/otelcol-contrib/config.yaml:ro
+    healthcheck:
+      test: [ "CMD", "/otelcol-contrib", "--version" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pabal-postgres-data:
+  pabal-redis-data:

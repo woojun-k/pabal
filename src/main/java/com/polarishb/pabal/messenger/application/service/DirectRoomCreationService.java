@@ -36,8 +36,6 @@ public class DirectRoomCreationService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID create(GetOrCreateDirectRoomCommand command) {
-        DirectChatMapping.validateParticipants(command.requesterId(), command.participantId());
-
         Instant now = clockPort.now();
 
         ChatRoom chatRoom = ChatRoom.createDirect(

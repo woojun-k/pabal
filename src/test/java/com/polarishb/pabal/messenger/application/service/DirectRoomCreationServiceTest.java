@@ -39,14 +39,13 @@ class DirectRoomCreationServiceTest {
     void create_rejects_self_direct_room_request_before_member_inserts() {
         UUID tenantId = UUID.randomUUID();
         UUID requesterId = UUID.randomUUID();
-        GetOrCreateDirectRoomCommand command = new GetOrCreateDirectRoomCommand(
+
+        assertThatThrownBy(() -> new GetOrCreateDirectRoomCommand(
                 tenantId,
                 requesterId,
                 requesterId,
                 "self"
-        );
-
-        assertThatThrownBy(() -> service.create(command))
+        ))
                 .isInstanceOf(InvalidDirectChatParticipantsException.class);
 
         verifyNoInteractions(

@@ -1,22 +1,25 @@
 spring:
-
   datasource:
-    url: jdbc:h2:mem:pabal_local;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://localhost:${PABAL_POSTGRES_PORT:5432}/${PABAL_POSTGRES_DB:pabal}
+    driver-class-name: org.postgresql.Driver
+    username: ${PABAL_POSTGRES_USER}
+    password: ${PABAL_POSTGRES_PASSWORD}
   docker:
     compose:
       enabled: true
       file: compose.local.yaml
       lifecycle-management: start-and-stop
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
     show-sql: true
     open-in-view: false
@@ -33,7 +36,7 @@ pabal:
       user-id-claim: uid
       tenant-id-claim: tenant_id
       principal-claim: sub
-      local-secret: 01234567890123456789012345678901
+      local-secret: ${PABAL_JWT_LOCAL_SECRET}
 
   websocket:
     relay:
@@ -60,3 +63,5 @@ logging:
     com.polarishb.pabal.messenger.infrastructure.realtime.ws: TRACE
     com.polarishb.pabal.messenger.infrastructure.config: TRACE
     com.polarishb.pabal.security: TRACE
+    org.flywaydb: DEBUG
+    org.springframework.boot.flyway: DEBUG

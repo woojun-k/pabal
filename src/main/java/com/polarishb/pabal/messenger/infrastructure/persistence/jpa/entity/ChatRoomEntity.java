@@ -16,15 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "chat_room",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_chat_room_channel_name",
-                        columnNames = {"tenant_id", "workspace_id", "name"}
-                )
-        }
-)
+@Table(name = "chat_room")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ChatRoomEntity extends DeletableEntity {

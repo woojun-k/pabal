@@ -210,8 +210,7 @@ public class ChatCommandMapper {
 
     public GetOrCreateDirectRoomResponse toGetOrCreateDirectRoomResponse(GetOrCreateDirectRoomResult result) {
         return new GetOrCreateDirectRoomResponse(
-                result.chatRoomId(),
-                result.roomName()
+                result.chatRoomId()
         );
     }
 

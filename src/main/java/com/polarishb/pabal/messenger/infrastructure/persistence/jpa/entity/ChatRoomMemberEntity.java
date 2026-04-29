@@ -12,15 +12,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "chat_room_member",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_chat_room_member", columnNames = {"chat_room_id", "user_id"})
-        },
-        indexes = {
-                @Index(name = "idx_member_user_room", columnList = "user_id, chat_room_id"),
-                @Index(name = "idx_member_room_left", columnList = "chat_room_id, left_at")
-        }
-)
+@Table(name = "chat_room_member")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ChatRoomMemberEntity extends DeletableEntity {

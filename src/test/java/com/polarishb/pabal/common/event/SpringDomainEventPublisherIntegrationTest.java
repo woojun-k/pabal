@@ -1,6 +1,7 @@
 package com.polarishb.pabal.common.event;
 
 import com.polarishb.pabal.PabalApplication;
+import com.polarishb.pabal.support.AbstractPostgresIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -22,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(classes = PabalApplication.class)
 @Import(SpringDomainEventPublisherIntegrationTest.TestConfig.class)
 @ActiveProfiles("test")
-class SpringDomainEventPublisherIntegrationTest {
+@Testcontainers
+class SpringDomainEventPublisherIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private DomainEventPublisher domainEventPublisher;

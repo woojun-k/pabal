@@ -40,12 +40,14 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
             return List.of();
         }
 
+        List<UUID> roomIds = memberships.stream()
+                .map(member -> member.state().chatRoomId())
+                .distinct()
+                .toList();
+
         Map<UUID, PersistedChatRoom> roomsById = chatRoomReadRepository.findAllByTenantIdAndIds(
                 query.tenantId(),
-                memberships.stream()
-                        .map(member -> member.state().chatRoomId())
-                        .distinct()
-                        .toList()
+                roomIds
         ).stream().collect(
                 Collectors.toMap(
                         persistedRoom -> persistedRoom.state().id(),
@@ -53,8 +55,24 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
                 )
         );
 
+        Map<UUID, Long> lastReadSequenceByRoomId = memberships.stream()
+                .collect(Collectors.toMap(
+                        member -> member.state().chatRoomId(),
+                        member -> member.member().getLastReadSequence() != null
+                                ? member.member().getLastReadSequence()
+                                : 0L,
+                        Math::max
+                ));
+
+        Map<UUID, Long> unreadCountsByRoomId =
+                messageReadRepository.countUnreadByRooms(
+                        query.tenantId(),
+                        query.userId(),
+                        lastReadSequenceByRoomId
+                );
+
         return memberships.stream()
-                .map(member -> toRoomDto(query, member, roomsById))
+                .map(member -> toRoomDto(member, roomsById, unreadCountsByRoomId))
                 .sorted(Comparator
                         .comparing(RoomDto::lastMessageAt, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(RoomDto::joinedAt, Comparator.reverseOrder()))
@@ -62,25 +80,18 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
     }
 
     private RoomDto toRoomDto(
-            ListRoomsQuery query,
             PersistedChatRoomMember member,
-            Map<UUID, PersistedChatRoom> roomsById
+            Map<UUID, PersistedChatRoom> roomsById,
+            Map<UUID, Long> unreadCountsByRoomId
     ) {
-        PersistedChatRoom room = roomsById.get(member.state().chatRoomId());
+        UUID chatRoomId = member.state().chatRoomId();
+
+        PersistedChatRoom room = roomsById.get(chatRoomId);
         if (room == null) {
-            throw new ChatRoomNotFoundException(member.state().chatRoomId());
+            throw new ChatRoomNotFoundException(chatRoomId);
         }
 
-        long lastReadSequence = member.member().getLastReadSequence() != null
-                ? member.member().getLastReadSequence()
-                : 0L;
-
-        long unreadCount = messageReadRepository.countUnreadInRoom(
-                query.tenantId(),
-                room.state().id(),
-                query.userId(),
-                lastReadSequence
-        );
+        long unreadCount = unreadCountsByRoomId.getOrDefault(chatRoomId, 0L);
 
         return new RoomDto(
                 room.state().id(),

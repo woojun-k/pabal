@@ -38,19 +38,6 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
-    public Optional<PersistedMessage> findByChatRoomIdAndSenderIdAndClientMessageId(
-            UUID chatRoomId,
-            UUID senderId,
-            UUID clientMessageId
-    ) {
-        return readRepository.findByChatRoomIdAndSenderIdAndClientMessageId(
-                chatRoomId,
-                senderId,
-                clientMessageId
-        );
-    }
-
-    @Override
     public Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
             UUID tenantId,
             UUID chatRoomId,

@@ -14,16 +14,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Entity
-@Table(name = "message",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_message_client_id", columnNames = {"chat_room_id", "sender_id", "client_message_id"}),
-                @UniqueConstraint(name = "uk_message_room_sequence", columnNames = {"chat_room_id", "sequence"})
-        },
-        indexes = {
-                @Index(name = "idx_message_chat_room_created", columnList = "chat_room_id, created_at, id"),
-                @Index(name = "idx_message_chat_room_sequence", columnList = "chat_room_id, sequence")
-        }
-)
+@Table(name = "message")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MessageEntity extends DeletableEntity {

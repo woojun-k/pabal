@@ -31,14 +31,13 @@ class GetOrCreateDirectRoomCommandHandlerTest {
     void handle_rejects_self_direct_room_request_before_repository_lookup_or_creation() {
         UUID tenantId = UUID.randomUUID();
         UUID requesterId = UUID.randomUUID();
-        GetOrCreateDirectRoomCommand command = new GetOrCreateDirectRoomCommand(
+
+        assertThatThrownBy(() -> new GetOrCreateDirectRoomCommand(
                 tenantId,
                 requesterId,
                 requesterId,
                 "self"
-        );
-
-        assertThatThrownBy(() -> handler.handle(command))
+        ))
                 .isInstanceOf(InvalidDirectChatParticipantsException.class);
 
         verifyNoInteractions(directChatMappingRepository, directRoomCreationService);

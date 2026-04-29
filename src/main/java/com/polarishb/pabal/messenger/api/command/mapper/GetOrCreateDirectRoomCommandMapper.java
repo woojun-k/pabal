@@ -27,8 +27,7 @@ public class GetOrCreateDirectRoomCommandMapper {
 
     public GetOrCreateDirectRoomResponse toGetOrCreateDirectRoomResponse(GetOrCreateDirectRoomResult result) {
         return new GetOrCreateDirectRoomResponse(
-                result.chatRoomId(),
-                result.roomName()
+                result.chatRoomId()
         );
     }
 

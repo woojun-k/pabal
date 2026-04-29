@@ -446,7 +446,7 @@ class ChatCommandControllerTest {
         UUID chatRoomId = UUID.randomUUID();
 
         when(getOrCreateDirectRoomCommandHandler.handle(any(GetOrCreateDirectRoomCommand.class)))
-                .thenReturn(new GetOrCreateDirectRoomResult(chatRoomId, "direct room"));
+                .thenReturn(new GetOrCreateDirectRoomResult(chatRoomId));
 
         Authentication authentication = authentication(tenantId, userId);
 
@@ -462,8 +462,7 @@ class ChatCommandControllerTest {
                                         """.formatted(participantId))
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.chatRoomId").value(chatRoomId.toString()))
-                .andExpect(jsonPath("$.roomName").value("direct room"));
+                .andExpect(jsonPath("$.chatRoomId").value(chatRoomId.toString()));
 
         ArgumentCaptor<GetOrCreateDirectRoomCommand> commandCaptor = ArgumentCaptor.forClass(GetOrCreateDirectRoomCommand.class);
         verify(getOrCreateDirectRoomCommandHandler).handle(commandCaptor.capture());

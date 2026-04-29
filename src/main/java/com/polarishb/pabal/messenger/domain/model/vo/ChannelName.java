@@ -2,6 +2,8 @@ package com.polarishb.pabal.messenger.domain.model.vo;
 
 import com.polarishb.pabal.common.exception.InvalidInputException;
 
+import java.util.Locale;
+
 public record ChannelName(String value) implements RoomName {
 
     private static final int MAX_LENGTH = 50;
@@ -22,6 +24,8 @@ public record ChannelName(String value) implements RoomName {
                     "채널 이름은 한글, 영문, 숫자, 언더스코어, 하이픈만 사용 가능합니다"
             );
         }
+
+        value = value.toLowerCase(Locale.ROOT);
     }
 
     @Override
