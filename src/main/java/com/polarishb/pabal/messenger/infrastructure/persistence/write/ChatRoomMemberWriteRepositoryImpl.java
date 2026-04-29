@@ -11,6 +11,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -23,7 +24,7 @@ public class ChatRoomMemberWriteRepositoryImpl implements ChatRoomMemberWriteRep
     private final ChatRoomMemberWriteJpaRepository jpaRepository;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedChatRoomMember append(PersistedChatRoomMember persistedMember) {
         ChatRoomMemberState state = persistedMember.state();
         ChatRoomMemberEntity saved = jpaRepository.save(ChatRoomMemberEntity.fromNewState(state));
@@ -31,7 +32,7 @@ public class ChatRoomMemberWriteRepositoryImpl implements ChatRoomMemberWriteRep
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public List<PersistedChatRoomMember> appendAll(List<PersistedChatRoomMember> members) {
         List<ChatRoomMemberEntity> entities = members.stream()
                 .map(m -> ChatRoomMemberEntity.fromNewState(m.state()))
@@ -45,7 +46,7 @@ public class ChatRoomMemberWriteRepositoryImpl implements ChatRoomMemberWriteRep
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedChatRoomMember update(PersistedChatRoomMember persistedMember) {
         ChatRoomMemberState currentState = persistedMember.state();
         ChatRoomMember member = persistedMember.member();

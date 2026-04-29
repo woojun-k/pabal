@@ -4,9 +4,9 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.SendReplyCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
+import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
+import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.entity.Message;
@@ -21,17 +21,18 @@ import java.util.Optional;
 public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand, SendMessageResult> {
 
     private final MessageSendSupport messageSendSupport;
+    private final ChatRoomAccessSupport chatRoomAccessSupport;
     private final ClockPort clockPort;
 
     @Override
     @Transactional
     public SendMessageResult handle(SendReplyCommand command) {
 
-        // 컨텍스트 로드
-        PersistedChatRoom chatRoom = messageSendSupport.loadChatRoom(command);
-
-        PersistedChatRoomMember member = messageSendSupport.loadSenderMember(command);
-        messageSendSupport.validateMemberActive(member.member(), command.senderId());
+        ChatRoomAccess access = chatRoomAccessSupport.loadSendableActiveMember(
+                command.tenantId(),
+                command.chatRoomId(),
+                command.senderId()
+        );
 
         // 답글 로드
         PersistedMessage replyTarget = messageSendSupport.loadReplyTarget(
@@ -63,7 +64,7 @@ public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand,
         );
 
         try {
-            PersistedMessage saved = messageSendSupport.send(chatRoom, message);
+            PersistedMessage saved = messageSendSupport.send(access.room(), message);
             return messageSendSupport.toSentResult(saved);
         } catch (DuplicateMessageException e) {
             return messageSendSupport.toDuplicateResult(messageSendSupport.loadDuplicate(command));

@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
@@ -24,7 +25,7 @@ public class DirectChatMappingWriteRepositoryImpl implements DirectChatMappingWr
     private final DirectChatMappingWriteJpaRepository jpaRepository;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedDirectChatMapping append(PersistedDirectChatMapping persistedMapping) {
         DirectChatMappingState state = persistedMapping.state();
         try {
@@ -36,7 +37,7 @@ public class DirectChatMappingWriteRepositoryImpl implements DirectChatMappingWr
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedDirectChatMapping update(PersistedDirectChatMapping persistedMapping) {
         DirectChatMappingState currentState = persistedMapping.state();
         DirectChatMapping mapping = persistedMapping.mapping();
@@ -62,6 +63,7 @@ public class DirectChatMappingWriteRepositoryImpl implements DirectChatMappingWr
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void flush() {
         try {
             jpaRepository.flush();

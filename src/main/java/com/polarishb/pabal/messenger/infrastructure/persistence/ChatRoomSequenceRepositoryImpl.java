@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
@@ -37,7 +38,7 @@ public class ChatRoomSequenceRepositoryImpl implements ChatRoomSequenceRepositor
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public long allocateNextMessageSequence(UUID tenantId, UUID chatRoomId) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("tenantId", tenantId)
@@ -57,7 +58,7 @@ public class ChatRoomSequenceRepositoryImpl implements ChatRoomSequenceRepositor
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void updateLastMessageSnapshot(
             UUID tenantId,
             UUID chatRoomId,

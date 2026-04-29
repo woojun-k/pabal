@@ -4,14 +4,8 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.SendTypingCommand;
 import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimePort;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
 import com.polarishb.pabal.messenger.contract.realtime.TypingEventPayload;
-import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
-import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
-import com.polarishb.pabal.messenger.domain.exception.MemberNotInRoomException;
-import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
-import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SendTypingCommandHandler implements CommandHandler<SendTypingCommand, Void> {
 
-    private final ChatRoomRepository chatRoomRepository;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomAccessSupport chatRoomAccessSupport;
     private final ChatRealtimePort chatRealtimePort;
     private final ClockPort clockPort;
 
@@ -29,22 +22,11 @@ public class SendTypingCommandHandler implements CommandHandler<SendTypingComman
     @Transactional(readOnly = true)
     public Void handle(SendTypingCommand command) {
 
-        PersistedChatRoom room = chatRoomRepository.findByTenantIdAndId(
-                command.tenantId(),
-                command.chatRoomId()
-        ).orElseThrow(() -> new ChatRoomNotFoundException(command.chatRoomId()));
-
-        room.chatRoom().validateCanSend();
-
-        PersistedChatRoomMember member = chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(
+        chatRoomAccessSupport.loadSendableActiveMember(
                 command.tenantId(),
                 command.chatRoomId(),
                 command.userId()
-        ).orElseThrow(() -> new MemberNotInRoomException(command.userId()));
-
-        if (!member.member().isActive()) {
-            throw new MemberNotActiveException(command.userId());
-        }
+        );
 
         TypingEventPayload payload = new TypingEventPayload(
                 command.userId(),

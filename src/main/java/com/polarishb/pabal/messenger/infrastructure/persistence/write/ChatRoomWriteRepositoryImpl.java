@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
@@ -26,7 +27,7 @@ public class ChatRoomWriteRepositoryImpl implements ChatRoomWriteRepository {
     private final ChatRoomWriteJpaRepository jpaRepository;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedChatRoom append(PersistedChatRoom persistedChatRoom) {
         ChatRoomState state = persistedChatRoom.state();
         try {
@@ -38,7 +39,7 @@ public class ChatRoomWriteRepositoryImpl implements ChatRoomWriteRepository {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedChatRoom update(PersistedChatRoom persistedChatRoom) {
         ChatRoomState currentState = persistedChatRoom.state();
         ChatRoom chatRoom = persistedChatRoom.chatRoom();

@@ -4,16 +4,15 @@ import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.JoinRoomCommand;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
+import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.domain.event.MemberJoinedEvent;
-import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
 import com.polarishb.pabal.messenger.domain.exception.MemberAlreadyActiveException;
 import com.polarishb.pabal.messenger.domain.model.entity.ChatRoomMember;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
-import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,18 +24,18 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, Void> {
 
-    private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomAccessSupport chatRoomAccessSupport;
     private final DomainEventPublisher eventPublisher;
     private final ClockPort clockPort;
 
     @Transactional
     public Void handle(JoinRoomCommand command) {
         Instant now = clockPort.now();
-        PersistedChatRoom persistedChatRoom = chatRoomRepository.findByTenantIdAndId(command.tenantId(), command.chatRoomId())
-                .orElseThrow(() -> new ChatRoomNotFoundException(command.chatRoomId()));
-
-        persistedChatRoom.chatRoom().validateCanJoin();
+        PersistedChatRoom persistedChatRoom = chatRoomAccessSupport.loadJoinableRoom(
+                command.tenantId(),
+                command.chatRoomId()
+        );
 
         long baselineSequence = persistedChatRoom.state().lastMessageSequence() != null
                 ? persistedChatRoom.state().lastMessageSequence()

@@ -3,6 +3,8 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.MarkReadCommand;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
+import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
+import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
@@ -19,7 +21,6 @@ import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import com.polarishb.pabal.messenger.domain.repository.ChatRoomMemberRepository;
-import com.polarishb.pabal.messenger.domain.repository.ChatRoomRepository;
 import com.polarishb.pabal.messenger.domain.repository.MessageRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,10 +46,10 @@ class MarkReadCommandHandlerTest {
     private ChatRoomMemberRepository chatRoomMemberRepository;
 
     @Mock
-    private ChatRoomRepository chatRoomRepository;
+    private MessageRepository messageRepository;
 
     @Mock
-    private MessageRepository messageRepository;
+    private ChatRoomAccessSupport chatRoomAccessSupport;
 
     @Mock
     private DomainEventPublisher eventPublisher;
@@ -82,9 +83,8 @@ class MarkReadCommandHandlerTest {
         PersistedMessage lastReadMessage = persistedMessage(tenantId, chatRoomId, userId, lastReadMessageId, 9L, createdAt);
         MarkReadCommand command = new MarkReadCommand(tenantId, chatRoomId, userId, lastReadMessageId);
 
-        when(chatRoomRepository.findByTenantIdAndId(tenantId, chatRoomId)).thenReturn(Optional.of(room));
-        when(chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
-                .thenReturn(Optional.of(member));
+        when(chatRoomAccessSupport.loadReadableActiveMember(tenantId, chatRoomId, userId))
+                .thenReturn(new ChatRoomAccess(room, member));
         when(messageRepository.findByTenantIdAndChatRoomIdAndId(tenantId, chatRoomId, lastReadMessageId))
                 .thenReturn(Optional.of(lastReadMessage));
         when(clockPort.now()).thenReturn(readAt);
@@ -127,9 +127,8 @@ class MarkReadCommandHandlerTest {
         PersistedMessage staleMessage = persistedMessage(tenantId, chatRoomId, userId, staleMessageId, 9L, createdAt);
         MarkReadCommand command = new MarkReadCommand(tenantId, chatRoomId, userId, staleMessageId);
 
-        when(chatRoomRepository.findByTenantIdAndId(tenantId, chatRoomId)).thenReturn(Optional.of(room));
-        when(chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
-                .thenReturn(Optional.of(member));
+        when(chatRoomAccessSupport.loadReadableActiveMember(tenantId, chatRoomId, userId))
+                .thenReturn(new ChatRoomAccess(room, member));
         when(messageRepository.findByTenantIdAndChatRoomIdAndId(tenantId, chatRoomId, staleMessageId))
                 .thenReturn(Optional.of(staleMessage));
 

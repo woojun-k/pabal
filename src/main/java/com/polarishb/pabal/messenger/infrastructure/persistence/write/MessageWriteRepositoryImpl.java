@@ -10,9 +10,11 @@ import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.Messa
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.write.MessageWriteJpaRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
@@ -21,14 +23,16 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class MessageWriteRepositoryImpl implements MessageWriteRepository {
 
+    private static final String CLIENT_MESSAGE_UNIQUE_CONSTRAINT = "uq_message_client_id";
+
     private final MessageWriteJpaRepository jpaRepository;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedMessage append(PersistedMessage persistedMessage) {
         MessageState state = persistedMessage.state();
         try {
-            MessageEntity saved = jpaRepository.save(MessageEntity.fromNewState(state));
+            MessageEntity saved = jpaRepository.saveAndFlush(MessageEntity.fromNewState(state));
             return MessagePersistenceMapper.toPersisted(saved.toState());
         } catch (DataIntegrityViolationException e) {
             throw translateAppendViolation(state, e);
@@ -36,7 +40,7 @@ public class MessageWriteRepositoryImpl implements MessageWriteRepository {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public PersistedMessage update(PersistedMessage persistedMessage) {
         MessageState currentState = persistedMessage.state();
         Message message = persistedMessage.message();
@@ -78,8 +82,12 @@ public class MessageWriteRepositoryImpl implements MessageWriteRepository {
     private boolean isClientMessageUniqueViolation(DataIntegrityViolationException cause) {
         Throwable current = cause;
         while (current != null) {
+            if (current instanceof ConstraintViolationException constraintViolation
+                    && CLIENT_MESSAGE_UNIQUE_CONSTRAINT.equals(constraintViolation.getConstraintName())) {
+                return true;
+            }
             String message = current.getMessage();
-            if (message != null && message.contains("uq_message_client_id")) {
+            if (message != null && message.contains(CLIENT_MESSAGE_UNIQUE_CONSTRAINT)) {
                 return true;
             }
             current = current.getCause();
