@@ -18,8 +18,11 @@ public class StompChatRealtimeAdapter implements ChatRealtimePort {
     private final SimpMessagingTemplate messagingTemplate;
 
     @Override
-    public void publishRoomEvent(UUID tenantId, UUID chatRoomId, RoomEventEnvelope event) {
-        messagingTemplate.convertAndSend(ChatRealtimeDestinations.roomEventsTopic(tenantId, chatRoomId), event);
+    public void publishRoomEvent(RoomEventEnvelope event) {
+        messagingTemplate.convertAndSend(
+                ChatRealtimeDestinations.roomEventsTopic(event.tenantId(), event.chatRoomId()),
+                event
+        );
     }
 
     @Override

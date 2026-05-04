@@ -10,5 +10,7 @@ public record MessageReadEvent(
     UUID chatRoomId,
     UUID userId,
     UUID lastReadMessageId,
-    Instant readAt
+    long sequence,
+    Instant readAt,
+    Long aggregateVersion
 ) implements DomainEvent {}

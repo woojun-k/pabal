@@ -12,6 +12,7 @@ import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelSettings;
 import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
+import com.polarishb.pabal.messenger.domain.policy.RoomMembershipPolicy;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -47,6 +48,7 @@ public class ChatRoom {
     
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant deletedAt;
 
     public static ChatRoom create(
         RoomType type,
@@ -69,7 +71,8 @@ public class ChatRoom {
             0L,
             null,
             createdAt,
-            createdAt // updatedAt
+            createdAt, // updatedAt
+            null
         );
     }
 
@@ -88,6 +91,40 @@ public class ChatRoom {
             Instant createdAt,
             Instant updatedAt
     ) {
+        return reconstitute(
+                id,
+                type,
+                name,
+                createdBy,
+                tenantId,
+                channelSettings,
+                status,
+                scheduledDeletionAt,
+                lastMessageId,
+                lastMessageSequence,
+                lastMessageAt,
+                createdAt,
+                updatedAt,
+                null
+        );
+    }
+
+    public static ChatRoom reconstitute(
+            UUID id,
+            RoomType type,
+            RoomName name,
+            UUID createdBy,
+            UUID tenantId,
+            ChannelSettings channelSettings,
+            RoomStatus status,
+            Instant scheduledDeletionAt,
+            UUID lastMessageId,
+            Long lastMessageSequence,
+            Instant lastMessageAt,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant deletedAt
+    ) {
         return new ChatRoom(
                 id,
                 type,
@@ -101,7 +138,8 @@ public class ChatRoom {
                 lastMessageSequence,
                 lastMessageAt,
                 createdAt,
-                updatedAt
+                updatedAt,
+                deletedAt
         );
     }
 
@@ -120,7 +158,8 @@ public class ChatRoom {
                 snapshot.lastMessageSequence(),
                 snapshot.lastMessageAt(),
                 snapshot.createdAt(),
-                snapshot.updatedAt()
+                snapshot.updatedAt(),
+                snapshot.deletedAt()
         );
     }
 
@@ -138,7 +177,8 @@ public class ChatRoom {
                 lastMessageSequence,
                 lastMessageAt,
                 createdAt,
-                updatedAt
+                updatedAt,
+                deletedAt
         );
     }
 
@@ -188,7 +228,8 @@ public class ChatRoom {
                 0L,
                 null,
                 createdAt,
-                createdAt
+                createdAt,
+                null
         );
     }
 
@@ -205,7 +246,7 @@ public class ChatRoom {
     }
 
     public boolean canJoin() {
-        return this.status == RoomStatus.ACTIVE;
+        return RoomMembershipPolicy.canSelfJoin(this);
     }
 
     public void validateCanSend() {
@@ -221,7 +262,7 @@ public class ChatRoom {
     }
 
     public void validateCanJoin() {
-        validateOperationAllowed(RoomAccessOperation.JOIN);
+        RoomMembershipPolicy.validateSelfJoin(this);
     }
 
     private void validateOperationAllowed(RoomAccessOperation operation) {
@@ -263,5 +304,6 @@ public class ChatRoom {
         this.status = RoomStatus.DELETED;
         this.scheduledDeletionAt = null;
         this.updatedAt = transitionAt;
+        this.deletedAt = transitionAt;
     }
 }

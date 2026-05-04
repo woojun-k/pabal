@@ -42,7 +42,10 @@ public class DirectChatMappingWriteRepositoryImpl implements DirectChatMappingWr
         DirectChatMappingState currentState = persistedMapping.state();
         DirectChatMapping mapping = persistedMapping.mapping();
 
-        DirectChatMappingEntity entity = jpaRepository.findById(currentState.id())
+        DirectChatMappingEntity entity = jpaRepository.findByTenantIdAndId(
+                currentState.tenantId(),
+                currentState.id()
+        )
                 .orElseThrow(() -> new EntityNotFoundException("DirectChatMapping not found"));
 
         if (!Objects.equals(entity.getVersion(), currentState.version())) {

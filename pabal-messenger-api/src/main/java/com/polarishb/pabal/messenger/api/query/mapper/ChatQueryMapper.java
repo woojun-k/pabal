@@ -72,6 +72,7 @@ public class ChatQueryMapper {
                 message.chatRoomId(),
                 message.senderId(),
                 message.clientMessageId(),
+                message.sequence(),
                 message.content(),
                 message.status(),
                 message.replyToMessageId(),

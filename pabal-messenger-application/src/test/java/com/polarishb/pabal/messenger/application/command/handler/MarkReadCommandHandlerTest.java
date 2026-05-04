@@ -88,6 +88,10 @@ class MarkReadCommandHandlerTest {
         when(messageRepository.findByTenantIdAndChatRoomIdAndId(tenantId, chatRoomId, lastReadMessageId))
                 .thenReturn(Optional.of(lastReadMessage));
         when(clockPort.now()).thenReturn(readAt);
+        when(chatRoomMemberRepository.update(member)).thenAnswer(invocation -> new PersistedChatRoomMember(
+                member.member(),
+                new ChatRoomMemberState(member.member().snapshot(), 1L)
+        ));
 
         handler.handle(command);
 
@@ -97,7 +101,7 @@ class MarkReadCommandHandlerTest {
         verify(eventPublisher).publishAfterCommit(eventCaptor.capture());
 
         assertThat(eventCaptor.getValue()).isEqualTo(
-                new MessageReadEvent(tenantId, chatRoomId, userId, lastReadMessageId, readAt)
+                new MessageReadEvent(tenantId, chatRoomId, userId, lastReadMessageId, 9L, readAt, 1L)
         );
         assertThat(member.member().getLastReadMessageId()).isEqualTo(lastReadMessageId);
         assertThat(member.member().getLastReadSequence()).isEqualTo(9L);

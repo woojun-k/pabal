@@ -5,5 +5,6 @@ import java.util.UUID;
 
 public record DeleteMessageResponse(
     UUID messageId,
+    long sequence,
     Instant deletedAt
 ) {}

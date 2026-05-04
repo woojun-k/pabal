@@ -8,6 +8,7 @@ import com.polarishb.pabal.messenger.domain.model.DirectChatMapping;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.support.AbstractPostgresDataJpaTest;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,36 @@ class DirectChatMappingWriteRepositoryImplTest extends AbstractPostgresDataJpaTe
                 .hasCauseInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void update_rejects_state_with_matching_id_but_wrong_tenant() {
+        PersistedDirectChatMapping saved = repository.append(draftMapping());
+        UUID wrongTenantId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-04-02T12:00:00Z");
+
+        DirectChatMapping wrongTenantMapping = DirectChatMapping.reconstitute(
+                saved.state().id(),
+                wrongTenantId,
+                chatRoomId,
+                saved.mapping().getUserIdMin(),
+                saved.mapping().getUserIdMax(),
+                now,
+                now.plusSeconds(60)
+        );
+        DirectChatMappingState wrongTenantState = new DirectChatMappingState(
+                saved.state().id(),
+                wrongTenantId,
+                chatRoomId,
+                saved.mapping().getUserIdMin(),
+                saved.mapping().getUserIdMax(),
+                now,
+                now,
+                saved.state().version()
+        );
+
+        assertThatThrownBy(() -> repository.update(new PersistedDirectChatMapping(wrongTenantMapping, wrongTenantState)))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
     private void insertChatRoom() {
         Instant now = Instant.parse("2026-04-02T12:00:00Z");
         Timestamp timestamp = Timestamp.from(now);
@@ -85,13 +116,11 @@ class DirectChatMappingWriteRepositoryImplTest extends AbstractPostgresDataJpaTe
         UUID mappingId = UUID.randomUUID();
         Instant now = Instant.parse("2026-04-02T12:00:00Z");
 
-        DirectChatMapping mapping = DirectChatMapping.reconstitute(
-                mappingId,
+        DirectChatMapping mapping = DirectChatMapping.create(
                 tenantId,
                 chatRoomId,
-                userId1.compareTo(userId2) < 0 ? userId1 : userId2,
-                userId1.compareTo(userId2) < 0 ? userId2 : userId1,
-                now,
+                userId1,
+                userId2,
                 now
         );
 

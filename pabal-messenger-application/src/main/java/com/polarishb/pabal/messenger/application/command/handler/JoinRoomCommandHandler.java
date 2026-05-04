@@ -31,11 +31,11 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
 
     @Transactional
     public Void handle(JoinRoomCommand command) {
-        Instant now = clockPort.now();
         PersistedChatRoom persistedChatRoom = chatRoomAccessSupport.loadJoinableRoom(
                 command.tenantId(),
                 command.chatRoomId()
         );
+        Instant now = clockPort.now();
 
         long baselineSequence = persistedChatRoom.state().lastMessageSequence() != null
                 ? persistedChatRoom.state().lastMessageSequence()
@@ -73,7 +73,10 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
             new MemberJoinedEvent(
                 command.tenantId(),
                 command.chatRoomId(),
-                command.userId()
+                command.userId(),
+                baselineSequence,
+                persistedMember.state().joinedAt(),
+                persistedMember.state().version()
             )
         );
 

@@ -54,14 +54,18 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
         eventPublisher.publishAfterCommit(
                 new MessageDeletedEvent(
                         command.tenantId(),
-                        message.getId(),
-                        message.getChatRoomId(),
-                        message.getSenderId()
+                        updated.state().id(),
+                        updated.state().chatRoomId(),
+                        updated.state().senderId(),
+                        updated.state().sequence(),
+                        updated.state().deletedAt(),
+                        updated.state().version()
                 )
         );
 
         return new DeleteMessageResult(
                 message.getId(),
+                updated.state().sequence(),
                 message.getDeletedAt()
         );
     }

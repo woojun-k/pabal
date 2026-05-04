@@ -180,6 +180,7 @@ public class ChatCommandMapper {
     public SendMessageResponse toSendMessageResponse(SendMessageResult result) {
         return new SendMessageResponse(
                 result.messageId(),
+                result.sequence(),
                 result.clientMessageId(),
                 result.createdAt(),
                 result.isDuplicated()
@@ -189,6 +190,7 @@ public class ChatCommandMapper {
     public EditMessageResponse toEditMessageResponse(EditMessageResult result) {
         return new EditMessageResponse(
                 result.messageId(),
+                result.sequence(),
                 result.content(),
                 result.updatedAt()
         );
@@ -197,6 +199,7 @@ public class ChatCommandMapper {
     public DeleteMessageResponse toDeleteMessageResponse(DeleteMessageResult result) {
         return new DeleteMessageResponse(
                 result.messageId(),
+                result.sequence(),
                 result.deletedAt()
         );
     }

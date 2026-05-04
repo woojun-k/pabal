@@ -1,6 +1,5 @@
 package com.polarishb.pabal.messenger.application.event.listener;
 
-import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimePort;
 import com.polarishb.pabal.messenger.contract.realtime.MemberLeftRealtimePayload;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventEnvelope;
@@ -16,26 +15,31 @@ import org.springframework.stereotype.Component;
 public class MemberLeftEventListener {
 
     private final ChatRealtimePort chatRealtimePort;
-    private final ClockPort clockPort;
 
     @EventListener
     public void handle(MemberLeftEvent event) {
-        var occurredAt = clockPort.now();
         RoomSubscriptionRevokedRealtimePayload revocationPayload = new RoomSubscriptionRevokedRealtimePayload(
                 event.tenantId(),
                 event.chatRoomId(),
-                occurredAt
+                event.leftAt()
         );
         MemberLeftRealtimePayload payload = new MemberLeftRealtimePayload(
                 event.userId(),
                 event.chatRoomId(),
-                occurredAt
+                event.sequence(),
+                event.leftAt()
         );
 
         chatRealtimePort.publishRoomEvent(
-                event.tenantId(),
-                event.chatRoomId(),
-                RoomEventEnvelope.of(RoomEventType.MEMBER_LEFT, payload, occurredAt)
+                RoomEventEnvelope.of(
+                        RoomEventType.MEMBER_LEFT,
+                        event.tenantId(),
+                        event.chatRoomId(),
+                        event.sequence(),
+                        event.aggregateVersion(),
+                        event.leftAt(),
+                        payload
+                )
         );
 
         chatRealtimePort.publishSubscriptionRevocation(

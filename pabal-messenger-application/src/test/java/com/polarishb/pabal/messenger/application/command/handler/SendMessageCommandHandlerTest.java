@@ -149,7 +149,7 @@ class SendMessageCommandHandlerTest {
                 .thenReturn(new ChatRoomAccess(chatRoom, member));
         when(messageSendSupport.findDuplicate(command)).thenReturn(Optional.empty());
         when(messageSendSupport.send(any(PersistedChatRoom.class), any(Message.class))).thenReturn(saved);
-        when(messageSendSupport.toSentResult(saved)).thenReturn(new SendMessageResult(messageId, clientMessageId, now, false));
+        when(messageSendSupport.toSentResult(saved)).thenReturn(new SendMessageResult(messageId, 1L, clientMessageId, now, false));
 
         SendMessageResult result = sendMessageCommandHandler.handle(command);
 
@@ -251,7 +251,7 @@ class SendMessageCommandHandlerTest {
                 0L
         );
         PersistedMessage duplicate = new PersistedMessage(Message.reconstitute(duplicateState.snapshot()), duplicateState);
-        SendMessageResult duplicateResult = new SendMessageResult(messageId, clientMessageId, now, true);
+        SendMessageResult duplicateResult = new SendMessageResult(messageId, 1L, clientMessageId, now, true);
 
         when(clockPort.now()).thenReturn(now);
         when(chatRoomAccessSupport.loadSendableActiveMember(tenantId, chatRoomId, senderId))

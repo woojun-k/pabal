@@ -54,14 +54,19 @@ public class EditMessageCommandHandler implements CommandHandler<EditMessageComm
         eventPublisher.publishAfterCommit(
                 new MessageEditedEvent(
                         command.tenantId(),
-                        message.getId(),
-                        message.getChatRoomId(),
-                        message.getSenderId()
+                        updated.state().id(),
+                        updated.state().chatRoomId(),
+                        updated.state().senderId(),
+                        updated.state().sequence(),
+                        updated.state().content(),
+                        updated.state().updatedAt(),
+                        updated.state().version()
                 )
         );
 
         return new EditMessageResult(
                 message.getId(),
+                updated.state().sequence(),
                 message.getContent().value(),
                 message.getUpdatedAt()
         );

@@ -22,7 +22,8 @@ public record ChatRoomSnapshot(
         Long lastMessageSequence,
         Instant lastMessageAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        Instant deletedAt
 ) {
     public ChatRoomSnapshot {
         Objects.requireNonNull(type);
@@ -32,5 +33,11 @@ public record ChatRoomSnapshot(
         Objects.requireNonNull(status);
         Objects.requireNonNull(createdAt);
         Objects.requireNonNull(updatedAt);
+        if (status == RoomStatus.DELETED && deletedAt == null) {
+            throw new IllegalArgumentException("deletedAt is required when room status is DELETED");
+        }
+        if (status != RoomStatus.DELETED && deletedAt != null) {
+            throw new IllegalArgumentException("deletedAt must be null when room status is not DELETED");
+        }
     }
 }

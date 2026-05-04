@@ -8,7 +8,7 @@ import java.util.UUID;
 
 public interface ChatRealtimePort {
 
-    void publishRoomEvent(UUID tenantId, UUID chatRoomId, RoomEventEnvelope event);
+    void publishRoomEvent(RoomEventEnvelope event);
 
     void publishTyping(UUID tenantId, UUID chatRoomId, TypingEventPayload payload);
 

@@ -56,7 +56,7 @@ public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, V
             return null;
         }
 
-        chatRoomMemberRepository.update(member);
+        PersistedChatRoomMember updatedMember = chatRoomMemberRepository.update(member);
 
         if (!readCursorAdvanced) {
             return null;
@@ -67,8 +67,10 @@ public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, V
                 command.tenantId(),
                 command.chatRoomId(),
                 command.userId(),
-                chatRoomMember.getLastReadMessageId(),
-                chatRoomMember.getLastReadAt()
+                updatedMember.state().lastReadMessageId(),
+                updatedMember.state().lastReadSequence(),
+                updatedMember.state().lastReadAt(),
+                updatedMember.state().version()
             )
         );
 

@@ -1,7 +1,6 @@
 package com.polarishb.pabal.messenger.application.event.listener;
 
 import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimePort;
-import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.contract.realtime.MemberLeftRealtimePayload;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventEnvelope;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventType;
@@ -19,16 +18,12 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class MemberLeftEventListenerTest {
 
     @Mock
     private ChatRealtimePort chatRealtimePort;
-
-    @Mock
-    private ClockPort clockPort;
 
     @InjectMocks
     private MemberLeftEventListener listener;
@@ -39,22 +34,24 @@ class MemberLeftEventListenerTest {
         UUID chatRoomId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Instant occurredAt = Instant.parse("2026-04-08T00:00:00Z");
+        long sequence = 17L;
+        long memberVersion = 3L;
 
-        when(clockPort.now()).thenReturn(occurredAt);
-
-        listener.handle(new MemberLeftEvent(tenantId, chatRoomId, userId));
+        listener.handle(new MemberLeftEvent(tenantId, chatRoomId, userId, sequence, occurredAt, memberVersion));
 
         ArgumentCaptor<RoomEventEnvelope> roomEventCaptor = ArgumentCaptor.forClass(RoomEventEnvelope.class);
-        verify(chatRealtimePort).publishRoomEvent(
-                org.mockito.ArgumentMatchers.eq(tenantId),
-                org.mockito.ArgumentMatchers.eq(chatRoomId),
-                roomEventCaptor.capture()
-        );
+        verify(chatRealtimePort).publishRoomEvent(roomEventCaptor.capture());
 
         RoomEventEnvelope roomEvent = roomEventCaptor.getValue();
+        assertThat(roomEvent.eventId()).isNotNull();
+        assertThat(roomEvent.schemaVersion()).isEqualTo(RoomEventEnvelope.CURRENT_SCHEMA_VERSION);
         assertThat(roomEvent.type()).isEqualTo(RoomEventType.MEMBER_LEFT);
+        assertThat(roomEvent.tenantId()).isEqualTo(tenantId);
+        assertThat(roomEvent.chatRoomId()).isEqualTo(chatRoomId);
+        assertThat(roomEvent.sequence()).isEqualTo(sequence);
+        assertThat(roomEvent.aggregateVersion()).isEqualTo(memberVersion);
         assertThat(roomEvent.occurredAt()).isEqualTo(occurredAt);
-        assertThat(roomEvent.payload()).isEqualTo(new MemberLeftRealtimePayload(userId, chatRoomId, occurredAt));
+        assertThat(roomEvent.payload()).isEqualTo(new MemberLeftRealtimePayload(userId, chatRoomId, sequence, occurredAt));
 
         ArgumentCaptor<RoomSubscriptionRevokedRealtimePayload> revocationCaptor =
                 ArgumentCaptor.forClass(RoomSubscriptionRevokedRealtimePayload.class);

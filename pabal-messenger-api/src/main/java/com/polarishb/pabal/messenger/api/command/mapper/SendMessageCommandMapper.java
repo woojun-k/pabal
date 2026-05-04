@@ -32,6 +32,7 @@ public class SendMessageCommandMapper {
     public SendMessageResponse toSendMessageResponse(SendMessageResult result) {
         return new SendMessageResponse(
                 result.messageId(),
+                result.sequence(),
                 result.clientMessageId(),
                 result.createdAt(),
                 result.isDuplicated()

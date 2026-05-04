@@ -1,6 +1,5 @@
 package com.polarishb.pabal.messenger.application.event.listener;
 
-import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimePort;
 import com.polarishb.pabal.messenger.contract.realtime.MessageReadRealtimePayload;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventEnvelope;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Component;
 public class MessageReadEventListener {
 
     private final ChatRealtimePort chatRealtimePort;
-    private final ClockPort clockPort;
 
     @EventListener
     public void handle(MessageReadEvent event) {
@@ -23,13 +21,20 @@ public class MessageReadEventListener {
                 event.userId(),
                 event.chatRoomId(),
                 event.lastReadMessageId(),
+                event.sequence(),
                 event.readAt()
         );
 
         chatRealtimePort.publishRoomEvent(
-                event.tenantId(),
-                event.chatRoomId(),
-                RoomEventEnvelope.of(RoomEventType.MESSAGE_READ, payload, clockPort.now())
+                RoomEventEnvelope.of(
+                        RoomEventType.MESSAGE_READ,
+                        event.tenantId(),
+                        event.chatRoomId(),
+                        event.sequence(),
+                        event.aggregateVersion(),
+                        event.readAt(),
+                        payload
+                )
         );
     }
 }

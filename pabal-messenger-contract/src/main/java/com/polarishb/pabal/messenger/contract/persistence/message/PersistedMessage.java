@@ -11,5 +11,8 @@ public record PersistedMessage(
     public PersistedMessage {
         Objects.requireNonNull(message);
         Objects.requireNonNull(state);
+        if (!Objects.equals(message.getTenantId(), state.tenantId())) {
+            throw new IllegalArgumentException("message tenantId must match persisted state tenantId");
+        }
     }
 }

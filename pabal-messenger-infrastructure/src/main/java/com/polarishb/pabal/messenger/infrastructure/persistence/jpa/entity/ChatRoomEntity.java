@@ -83,6 +83,7 @@ public class ChatRoomEntity extends DeletableEntity {
         
         entity.setCreatedAt(state.createdAt());
         entity.setUpdatedAt(state.updatedAt());
+        entity.setDeletedAt(state.deletedAt());
         return entity;
     }
 
@@ -105,6 +106,7 @@ public class ChatRoomEntity extends DeletableEntity {
                 this.lastMessageAt,
                 this.getCreatedAt(),
                 this.getUpdatedAt(),
+                this.getDeletedAt(),
                 this.version
         );
     }
@@ -129,5 +131,6 @@ public class ChatRoomEntity extends DeletableEntity {
                 });
         
         this.setUpdatedAt(state.updatedAt());
+        this.setDeletedAt(state.deletedAt());
     }
 }

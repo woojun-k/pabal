@@ -35,6 +35,42 @@ public record ChatRoomState(
             Long version
     ) {
         this(
+                id,
+                type,
+                name,
+                createdBy,
+                tenantId,
+                channelSettings,
+                status,
+                scheduledDeletionAt,
+                lastMessageId,
+                lastMessageSequence,
+                lastMessageAt,
+                createdAt,
+                updatedAt,
+                null,
+                version
+        );
+    }
+
+    public ChatRoomState(
+            UUID id,
+            RoomType type,
+            String name,
+            UUID createdBy,
+            UUID tenantId,
+            ChannelSettings channelSettings,
+            RoomStatus status,
+            Instant scheduledDeletionAt,
+            UUID lastMessageId,
+            Long lastMessageSequence,
+            Instant lastMessageAt,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant deletedAt,
+            Long version
+    ) {
+        this(
                 new ChatRoomSnapshot(
                         id,
                         type,
@@ -48,7 +84,8 @@ public record ChatRoomState(
                         lastMessageSequence,
                         lastMessageAt,
                         createdAt,
-                        updatedAt
+                        updatedAt,
+                        deletedAt
                 ),
                 version
         );
@@ -104,5 +141,9 @@ public record ChatRoomState(
 
     public Instant updatedAt() {
         return snapshot.updatedAt();
+    }
+
+    public Instant deletedAt() {
+        return snapshot.deletedAt();
     }
 }

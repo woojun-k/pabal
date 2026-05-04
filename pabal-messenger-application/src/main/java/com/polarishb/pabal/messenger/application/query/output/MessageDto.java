@@ -29,6 +29,10 @@ public record MessageDto(
         return snapshot.clientMessageId();
     }
 
+    public Long sequence() {
+        return snapshot.sequence();
+    }
+
     public String content() {
         return snapshot.content().value();
     }

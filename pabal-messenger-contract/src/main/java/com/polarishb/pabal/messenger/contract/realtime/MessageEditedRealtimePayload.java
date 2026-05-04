@@ -6,6 +6,7 @@ import java.util.UUID;
 public record MessageEditedRealtimePayload(
     UUID messageId,
     UUID chatRoomId,
+    long sequence,
     String content,
     Instant updatedAt
-) {}
+) implements RoomEventPayload {}

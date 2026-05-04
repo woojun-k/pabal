@@ -6,5 +6,6 @@ import java.util.UUID;
 public record MessageDeletedRealtimePayload(
     UUID messageId,
     UUID chatRoomId,
+    long sequence,
     Instant deletedAt
-) {}
+) implements RoomEventPayload {}

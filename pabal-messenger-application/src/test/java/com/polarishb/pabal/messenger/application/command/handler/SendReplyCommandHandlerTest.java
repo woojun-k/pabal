@@ -74,7 +74,7 @@ class SendReplyCommandHandlerTest {
         PersistedChatRoomMember member = persistedMember(tenantId, chatRoomId, senderId, now);
         PersistedMessage replyTarget = persistedMessage(tenantId, chatRoomId, senderId, replyToMessageId, UUID.randomUUID(), now);
         PersistedMessage duplicate = persistedMessage(tenantId, chatRoomId, senderId, duplicateMessageId, clientMessageId, now);
-        SendMessageResult duplicateResult = new SendMessageResult(duplicateMessageId, clientMessageId, now, true);
+        SendMessageResult duplicateResult = new SendMessageResult(duplicateMessageId, 1L, clientMessageId, now, true);
 
         when(chatRoomAccessSupport.loadSendableActiveMember(tenantId, chatRoomId, senderId))
                 .thenReturn(new ChatRoomAccess(room, member));

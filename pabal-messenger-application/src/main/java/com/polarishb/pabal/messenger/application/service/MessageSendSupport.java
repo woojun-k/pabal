@@ -76,7 +76,12 @@ public class MessageSendSupport {
                         saved.state().tenantId(),
                         saved.state().id(),
                         saved.state().chatRoomId(),
-                        saved.state().senderId()
+                        saved.state().senderId(),
+                        saved.state().clientMessageId(),
+                        saved.state().sequence(),
+                        saved.state().content(),
+                        saved.state().createdAt(),
+                        saved.state().version()
                 )
         );
 
@@ -91,6 +96,7 @@ public class MessageSendSupport {
     public SendMessageResult toDuplicateResult(PersistedMessage persistedMessage) {
         return new SendMessageResult(
                 persistedMessage.state().id(),
+                persistedMessage.state().sequence(),
                 persistedMessage.state().clientMessageId(),
                 persistedMessage.state().createdAt(),
                 true
@@ -100,6 +106,7 @@ public class MessageSendSupport {
     public SendMessageResult toSentResult(PersistedMessage persistedMessage) {
         return new SendMessageResult(
                 persistedMessage.state().id(),
+                persistedMessage.state().sequence(),
                 persistedMessage.state().clientMessageId(),
                 persistedMessage.state().createdAt(),
                 false

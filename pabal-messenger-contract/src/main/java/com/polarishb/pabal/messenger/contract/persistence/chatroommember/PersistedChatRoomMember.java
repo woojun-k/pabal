@@ -11,5 +11,8 @@ public record PersistedChatRoomMember(
     public PersistedChatRoomMember {
         Objects.requireNonNull(member);
         Objects.requireNonNull(state);
+        if (!Objects.equals(member.getTenantId(), state.tenantId())) {
+            throw new IllegalArgumentException("member tenantId must match persisted state tenantId");
+        }
     }
 }

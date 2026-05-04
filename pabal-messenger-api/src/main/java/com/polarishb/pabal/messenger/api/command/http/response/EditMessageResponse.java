@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record EditMessageResponse(
     UUID messageId,
+    long sequence,
     String content,
     Instant updatedAt
 ) {}

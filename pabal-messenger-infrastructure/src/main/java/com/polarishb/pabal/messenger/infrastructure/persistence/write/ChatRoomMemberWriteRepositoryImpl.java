@@ -51,7 +51,10 @@ public class ChatRoomMemberWriteRepositoryImpl implements ChatRoomMemberWriteRep
         ChatRoomMemberState currentState = persistedMember.state();
         ChatRoomMember member = persistedMember.member();
 
-        ChatRoomMemberEntity entity = jpaRepository.findById(currentState.id())
+        ChatRoomMemberEntity entity = jpaRepository.findByTenantIdAndId(
+                currentState.tenantId(),
+                currentState.id()
+        )
                 .orElseThrow(() -> new EntityNotFoundException("ChatRoomMember not found"));
 
         if (!Objects.equals(entity.getVersion(), currentState.version())) {

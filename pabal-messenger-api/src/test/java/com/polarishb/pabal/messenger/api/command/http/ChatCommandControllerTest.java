@@ -74,10 +74,11 @@ class ChatCommandControllerTest {
         UUID chatRoomId = UUID.randomUUID();
         UUID clientMessageId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
+        long sequence = 12L;
         Instant createdAt = Instant.parse("2026-04-02T12:00:00Z");
 
         when(sendMessageCommandHandler.handle(org.mockito.ArgumentMatchers.any(SendMessageCommand.class)))
-                .thenReturn(new SendMessageResult(messageId, clientMessageId, createdAt, false));
+                .thenReturn(new SendMessageResult(messageId, sequence, clientMessageId, createdAt, false));
 
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 new PabalPrincipal(userId, tenantId, "subject"),
@@ -97,6 +98,7 @@ class ChatCommandControllerTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messageId").value(messageId.toString()))
+                .andExpect(jsonPath("$.sequence").value(sequence))
                 .andExpect(jsonPath("$.clientMessageId").value(clientMessageId.toString()))
                 .andExpect(jsonPath("$.createdAt").value(createdAt.toString()))
                 .andExpect(jsonPath("$.duplicated").value(false));
@@ -120,10 +122,11 @@ class ChatCommandControllerTest {
         UUID replyToMessageId = UUID.randomUUID();
         UUID clientMessageId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
+        long sequence = 13L;
         Instant createdAt = Instant.parse("2026-04-03T10:15:30Z");
 
         when(sendReplyCommandHandler.handle(any(SendReplyCommand.class)))
-                .thenReturn(new SendMessageResult(messageId, clientMessageId, createdAt, false));
+                .thenReturn(new SendMessageResult(messageId, sequence, clientMessageId, createdAt, false));
 
         Authentication authentication = authentication(tenantId, userId);
 
@@ -140,6 +143,7 @@ class ChatCommandControllerTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messageId").value(messageId.toString()))
+                .andExpect(jsonPath("$.sequence").value(sequence))
                 .andExpect(jsonPath("$.clientMessageId").value(clientMessageId.toString()))
                 .andExpect(jsonPath("$.createdAt").value(createdAt.toString()))
                 .andExpect(jsonPath("$.duplicated").value(false));
@@ -161,10 +165,11 @@ class ChatCommandControllerTest {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
+        long sequence = 14L;
         Instant updatedAt = Instant.parse("2026-04-03T11:00:00Z");
 
         when(editMessageCommandHandler.handle(any(EditMessageCommand.class)))
-                .thenReturn(new EditMessageResult(messageId, "edited content", updatedAt));
+                .thenReturn(new EditMessageResult(messageId, sequence, "edited content", updatedAt));
 
         Authentication authentication = authentication(tenantId, userId);
 
@@ -180,6 +185,7 @@ class ChatCommandControllerTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messageId").value(messageId.toString()))
+                .andExpect(jsonPath("$.sequence").value(sequence))
                 .andExpect(jsonPath("$.content").value("edited content"))
                 .andExpect(jsonPath("$.updatedAt").value(updatedAt.toString()));
 
@@ -198,10 +204,11 @@ class ChatCommandControllerTest {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
+        long sequence = 15L;
         Instant deletedAt = Instant.parse("2026-04-03T12:00:00Z");
 
         when(deleteMessageCommandHandler.handle(any(DeleteMessageCommand.class)))
-                .thenReturn(new DeleteMessageResult(messageId, deletedAt));
+                .thenReturn(new DeleteMessageResult(messageId, sequence, deletedAt));
 
         Authentication authentication = authentication(tenantId, userId);
 
@@ -211,6 +218,7 @@ class ChatCommandControllerTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.messageId").value(messageId.toString()))
+                .andExpect(jsonPath("$.sequence").value(sequence))
                 .andExpect(jsonPath("$.deletedAt").value(deletedAt.toString()));
 
         ArgumentCaptor<DeleteMessageCommand> commandCaptor = ArgumentCaptor.forClass(DeleteMessageCommand.class);

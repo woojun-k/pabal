@@ -11,5 +11,8 @@ public record PersistedDirectChatMapping(
     public PersistedDirectChatMapping {
         Objects.requireNonNull(mapping);
         Objects.requireNonNull(state);
+        if (!Objects.equals(mapping.getTenantId(), state.tenantId())) {
+            throw new IllegalArgumentException("mapping tenantId must match persisted state tenantId");
+        }
     }
 }

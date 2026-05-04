@@ -1,6 +1,5 @@
 package com.polarishb.pabal.messenger.application.event.listener;
 
-import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimePort;
 import com.polarishb.pabal.messenger.contract.realtime.MemberJoinedRealtimePayload;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventEnvelope;
@@ -15,21 +14,26 @@ import org.springframework.stereotype.Component;
 public class MemberJoinedEventListener {
 
     private final ChatRealtimePort chatRealtimePort;
-    private final ClockPort clockPort;
 
     @EventListener
     public void handle(MemberJoinedEvent event) {
-        var occurredAt = clockPort.now();
         MemberJoinedRealtimePayload payload = new MemberJoinedRealtimePayload(
                 event.userId(),
                 event.chatRoomId(),
-                occurredAt
+                event.sequence(),
+                event.joinedAt()
         );
 
         chatRealtimePort.publishRoomEvent(
-                event.tenantId(),
-                event.chatRoomId(),
-                RoomEventEnvelope.of(RoomEventType.MEMBER_JOINED, payload, occurredAt)
+                RoomEventEnvelope.of(
+                        RoomEventType.MEMBER_JOINED,
+                        event.tenantId(),
+                        event.chatRoomId(),
+                        event.sequence(),
+                        event.aggregateVersion(),
+                        event.joinedAt(),
+                        payload
+                )
         );
     }
 }

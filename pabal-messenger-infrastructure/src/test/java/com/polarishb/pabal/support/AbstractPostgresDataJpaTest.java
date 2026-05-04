@@ -2,6 +2,8 @@ package com.polarishb.pabal.support;
 
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.write.MessageWriteJpaRepository;
+import com.polarishb.pabal.messenger.infrastructure.persistence.write.ChatRoomWriteRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.write.ChatRoomMemberWriteRepositoryImpl;
 import com.polarishb.pabal.messenger.infrastructure.persistence.write.DirectChatMappingWriteRepositoryImpl;
 import com.polarishb.pabal.messenger.infrastructure.persistence.write.MessageWriteRepositoryImpl;
 import org.springframework.boot.SpringBootConfiguration;
@@ -68,6 +70,8 @@ public abstract class AbstractPostgresDataJpaTest {
     @EntityScan(basePackageClasses = MessageEntity.class)
     @EnableJpaRepositories(basePackageClasses = MessageWriteJpaRepository.class)
     @Import({
+            ChatRoomWriteRepositoryImpl.class,
+            ChatRoomMemberWriteRepositoryImpl.class,
             DirectChatMappingWriteRepositoryImpl.class,
             MessageWriteRepositoryImpl.class
     })
