@@ -1,0 +1,102 @@
+[versions]
+# =============================================================================
+# Core Platform & Spring Ecosystem
+# =============================================================================
+java = "25"
+spring-boot = "4.0.2"
+
+# =============================================================================
+# Native / Platform
+# =============================================================================
+netty = "4.2.7.Final"
+
+# =============================================================================
+# Test
+# =============================================================================
+testcontainers = "1.21.3"
+
+# =============================================================================
+# Libraries
+# =============================================================================
+[libraries]
+
+# =============================================================================
+# Spring Boot BOM & Development Support
+# =============================================================================
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools" }
+spring-boot-docker-compose = { module = "org.springframework.boot:spring-boot-docker-compose" }
+
+# =============================================================================
+# Spring Boot Starters
+# =============================================================================
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-opentelemetry = { module = "org.springframework.boot:spring-boot-starter-opentelemetry" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-websocket = { module = "org.springframework.boot:spring-boot-starter-websocket" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-boot-starter-oauth2-resource-server = { module = "org.springframework.boot:spring-boot-starter-oauth2-resource-server" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis" }
+spring-boot-starter-data-redis-reactive = { module = "org.springframework.boot:spring-boot-starter-data-redis-reactive" }
+spring-boot-starter-kafka = { module = "org.springframework.boot:spring-boot-starter-kafka" }
+
+# =============================================================================
+# Spring Framework / Security
+# =============================================================================
+spring-context = { module = "org.springframework:spring-context" }
+spring-tx = { module = "org.springframework:spring-tx" }
+spring-web = { module = "org.springframework:spring-web" }
+spring-webmvc = { module = "org.springframework:spring-webmvc" }
+spring-orm = { module = "org.springframework:spring-orm" }
+spring-security-core = { module = "org.springframework.security:spring-security-core" }
+spring-security-messaging = { module = "org.springframework.security:spring-security-messaging" }
+
+# =============================================================================
+# Database, Migration & Drivers
+# =============================================================================
+postgresql = { module = "org.postgresql:postgresql" }
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+
+# =============================================================================
+# JSON, Logging & Jakarta
+# =============================================================================
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+slf4j-api = { module = "org.slf4j:slf4j-api" }
+jakarta-persistence-api = { module = "jakarta.persistence:jakarta.persistence-api" }
+jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
+jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api" }
+
+# =============================================================================
+# Persistence / Observability / Utilities
+# =============================================================================
+hibernate-core = { module = "org.hibernate.orm:hibernate-core" }
+opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api" }
+lombok = { module = "org.projectlombok:lombok" }
+netty-resolver-dns-native-macos = { module = "io.netty:netty-resolver-dns-native-macos", version.ref = "netty" }
+
+# =============================================================================
+# Test Dependencies
+# =============================================================================
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+spring-boot-starter-security-test = { module = "org.springframework.boot:spring-boot-starter-security-test" }
+spring-boot-starter-validation-test = { module = "org.springframework.boot:spring-boot-starter-validation-test" }
+spring-boot-starter-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test" }
+spring-boot-starter-websocket-test = { module = "org.springframework.boot:spring-boot-starter-websocket-test" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql" }
+testcontainers = { module = "org.testcontainers:testcontainers" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+assertj-core = { module = "org.assertj:assertj-core" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+# =============================================================================
+# Gradle Plugins
+# =============================================================================
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

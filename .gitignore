@@ -37,6 +37,11 @@ out/
 .vscode/
 .codex/
 
+### Environments ###
+.env.local
+.env.*
+!.env.example
+
 ### jenv ###
 .java-version
 
