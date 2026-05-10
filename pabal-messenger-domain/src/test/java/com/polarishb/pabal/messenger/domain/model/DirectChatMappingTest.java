@@ -56,6 +56,21 @@ class DirectChatMappingTest {
     }
 
     @Test
+    void create_produces_same_min_max_regardless_of_input_order() {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID userA = UUID.fromString("80000000-0000-0000-0000-000000000000");
+        UUID userB = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        Instant createdAt = Instant.parse("2026-04-02T12:00:00Z");
+
+        DirectChatMapping mapping1 = DirectChatMapping.create(tenantId, chatRoomId, userA, userB, createdAt);
+        DirectChatMapping mapping2 = DirectChatMapping.create(tenantId, chatRoomId, userB, userA, createdAt);
+
+        assertThat(mapping1.getUserIdMin()).isEqualTo(mapping2.getUserIdMin());
+        assertThat(mapping1.getUserIdMax()).isEqualTo(mapping2.getUserIdMax());
+    }
+
+    @Test
     void snapshot_round_trip_preserves_mapping_state() {
         DirectChatMappingSnapshot snapshot = new DirectChatMappingSnapshot(
                 UUID.randomUUID(),

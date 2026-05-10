@@ -128,4 +128,10 @@ public final class UuidV7 {
 
         return new UUID(msb, lsb);
     }
+
+    public static int compare(UUID left, UUID right) {
+        int msbCmp = Long.compareUnsigned(left.getMostSignificantBits(), right.getMostSignificantBits());
+        if (msbCmp != 0) return msbCmp;
+        return Long.compareUnsigned(left.getLeastSignificantBits(), right.getLeastSignificantBits());
+    }
 }

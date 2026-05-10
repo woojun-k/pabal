@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.domain.model;
 
+import com.polarishb.pabal.common.util.UuidV7;
 import com.polarishb.pabal.messenger.domain.exception.InvalidDirectChatParticipantsException;
 import com.polarishb.pabal.messenger.domain.model.snapshot.DirectChatMappingSnapshot;
 import lombok.AccessLevel;
@@ -35,7 +36,7 @@ public class DirectChatMapping {
     ) {
         validateParticipants(userId1, userId2);
 
-        int comparison = compareUuidInDatabaseOrder(userId1, userId2);
+        int comparison = UuidV7.compare(userId1, userId2);
         UUID userIdMin = comparison < 0 ? userId1 : userId2;
         UUID userIdMax = comparison < 0 ? userId2 : userId1;
 
@@ -57,14 +58,6 @@ public class DirectChatMapping {
         if (requiredRequesterId.equals(requiredParticipantId)) {
             throw new InvalidDirectChatParticipantsException(requiredRequesterId, requiredParticipantId);
         }
-    }
-
-    private static int compareUuidInDatabaseOrder(UUID left, UUID right) {
-        int mostSignificantComparison = Long.compareUnsigned(left.getMostSignificantBits(), right.getMostSignificantBits());
-        if (mostSignificantComparison != 0) {
-            return mostSignificantComparison;
-        }
-        return Long.compareUnsigned(left.getLeastSignificantBits(), right.getLeastSignificantBits());
     }
 
     public static DirectChatMapping reconstitute(

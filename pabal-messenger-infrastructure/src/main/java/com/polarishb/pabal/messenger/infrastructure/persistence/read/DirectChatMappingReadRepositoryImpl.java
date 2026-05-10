@@ -1,8 +1,9 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.read;
 
+import com.polarishb.pabal.common.util.UuidV7;
+import com.polarishb.pabal.messenger.application.port.out.persistence.DirectChatMappingReadRepository;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
-import com.polarishb.pabal.messenger.application.port.out.persistence.DirectChatMappingReadRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.DirectChatMappingEntity;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.DirectChatMappingReadJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class DirectChatMappingReadRepositoryImpl implements DirectChatMappingRea
 
     @Override
     public Optional<PersistedDirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2) {
-        int comparison = userId1.compareTo(userId2);
+        int comparison = UuidV7.compare(userId1, userId2);
         UUID userIdMin = comparison < 0 ? userId1 : userId2;
         UUID userIdMax = comparison < 0 ? userId2 : userId1;
 
