@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/chat/command")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class ChatCommandController {
 
@@ -59,32 +59,34 @@ public class ChatCommandController {
         );
     }
 
-    @PatchMapping("/messages/{messageId}")
+    @PatchMapping("/chat-rooms/{chatRoomId}/messages/{messageId}")
     public EditMessageResponse editMessage(
+            @PathVariable java.util.UUID chatRoomId,
             @PathVariable java.util.UUID messageId,
             @Valid @RequestBody EditMessageRequest request,
             Authentication authentication
     ) {
         return chatCommandMapper.toEditMessageResponse(
                 editMessageCommandHandler.handle(
-                        chatCommandMapper.toEditMessageCommand(messageId, request, authentication)
+                        chatCommandMapper.toEditMessageCommand(chatRoomId, messageId, request, authentication)
                 )
         );
     }
 
-    @DeleteMapping("/messages/{messageId}")
+    @DeleteMapping("/chat-rooms/{chatRoomId}/messages/{messageId}")
     public DeleteMessageResponse deleteMessage(
+            @PathVariable java.util.UUID chatRoomId,
             @PathVariable java.util.UUID messageId,
             Authentication authentication
     ) {
         return chatCommandMapper.toDeleteMessageResponse(
                 deleteMessageCommandHandler.handle(
-                        chatCommandMapper.toDeleteMessageCommand(messageId, authentication)
+                        chatCommandMapper.toDeleteMessageCommand(chatRoomId, messageId, authentication)
                 )
         );
     }
 
-    @PostMapping("/chat-rooms/{chatRoomId}/read")
+    @PutMapping("/chat-rooms/{chatRoomId}/read-state")
     public ResponseEntity<Void> markRead(
             @PathVariable java.util.UUID chatRoomId,
             @Valid @RequestBody MarkReadRequest request,
@@ -96,7 +98,7 @@ public class ChatCommandController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/chat-rooms/{chatRoomId}/join")
+    @PutMapping("/chat-rooms/{chatRoomId}/members/me")
     public ResponseEntity<Void> joinRoom(
             @PathVariable java.util.UUID chatRoomId,
             Authentication authentication
@@ -107,7 +109,7 @@ public class ChatCommandController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/chat-rooms/{chatRoomId}/leave")
+    @DeleteMapping("/chat-rooms/{chatRoomId}/members/me")
     public ResponseEntity<Void> leaveRoom(
             @PathVariable java.util.UUID chatRoomId,
             Authentication authentication
@@ -118,7 +120,7 @@ public class ChatCommandController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/group-rooms")
+    @PostMapping("/chat-rooms/groups")
     public CreateRoomResponse createGroupRoom(
             @Valid @RequestBody CreateGroupRoomRequest request,
             Authentication authentication
@@ -130,7 +132,7 @@ public class ChatCommandController {
         );
     }
 
-    @PostMapping("/channel-rooms")
+    @PostMapping("/chat-rooms/channels")
     public CreateRoomResponse createChannelRoom(
             @Valid @RequestBody CreateChannelRoomRequest request,
             Authentication authentication
@@ -142,7 +144,7 @@ public class ChatCommandController {
         );
     }
 
-    @PostMapping("/chat-rooms/{chatRoomId}/deletion-schedule")
+    @PutMapping("/chat-rooms/{chatRoomId}/deletion-schedule")
     public ResponseEntity<Void> scheduleRoomDeletion(
             @PathVariable java.util.UUID chatRoomId,
             Authentication authentication
@@ -164,7 +166,7 @@ public class ChatCommandController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/direct-rooms")
+    @PostMapping("/chat-rooms/direct")
     public GetOrCreateDirectRoomResponse getOrCreateDirectRoom(
             @Valid @RequestBody GetOrCreateDirectRoomRequest request,
             Authentication authentication

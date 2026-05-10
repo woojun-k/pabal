@@ -1,115 +1,27 @@
 package com.polarishb.pabal.messenger.application.service;
 
-import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.SendableCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.contract.persistence.message.MessagePersistenceMapper;
-import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
-import com.polarishb.pabal.messenger.domain.event.MessageSentEvent;
-import com.polarishb.pabal.messenger.domain.exception.*;
 import com.polarishb.pabal.messenger.domain.model.Message;
-import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomSequenceRepository;
-import com.polarishb.pabal.messenger.application.port.out.persistence.MessageRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
 
-@Component
-@RequiredArgsConstructor
-public class MessageSendSupport {
+public interface MessageSendSupport {
 
-    private final MessageRepository messageRepository;
-    private final ChatRoomSequenceRepository chatRoomSequenceRepository;
-    private final DomainEventPublisher eventPublisher;
+    PersistedMessage loadReplyTarget(UUID tenantId, UUID replyToMessageId);
 
-    public PersistedMessage loadReplyTarget(UUID tenantId, UUID replyToMessageId) {
-        return messageRepository.findByTenantIdAndId(tenantId, replyToMessageId)
-                .orElseThrow(() -> new MessageNotFoundException(replyToMessageId));
-    }
+    void validateReplyTarget(Message replyTarget, UUID chatRoomId);
 
-    public void validateReplyTarget(Message replyTarget, UUID chatRoomId) {
-        if (!replyTarget.getChatRoomId().equals(chatRoomId)) {
-            throw new InvalidReplyTargetException(replyTarget.getId(), chatRoomId);
-        }
-    }
+    Optional<PersistedMessage> findDuplicate(SendableCommand command);
 
-    public Optional<PersistedMessage> findDuplicate(SendableCommand command) {
-        return messageRepository.findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
-                    command.tenantId(),
-                    command.chatRoomId(),
-                    command.senderId(),
-                    command.clientMessageId()
-                );
-    }
+    PersistedMessage loadDuplicate(SendableCommand command);
 
-    public PersistedMessage loadDuplicate(SendableCommand command) {
-        return findDuplicate(command)
-                .orElseThrow(() -> new MessageNotFoundException(command.clientMessageId()));
-    }
+    PersistedMessage send(PersistedChatRoom persistedChatRoom, Message message);
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public PersistedMessage send(PersistedChatRoom persistedChatRoom, Message message) {
-        long sequence = chatRoomSequenceRepository.allocateNextMessageSequence(
-                persistedChatRoom.state().tenantId(),
-                persistedChatRoom.state().id()
-        );
-        message.assignSequence(sequence);
+    SendMessageResult toDuplicateResult(PersistedMessage persistedMessage);
 
-        PersistedMessage saved = messageRepository.append(draft(message));
-
-        chatRoomSequenceRepository.updateLastMessageSnapshot(
-                saved.state().tenantId(),
-                saved.state().chatRoomId(),
-                saved.state().id(),
-                saved.state().sequence(),
-                saved.state().createdAt()
-        );
-
-        eventPublisher.publishAfterCommit(
-                new MessageSentEvent(
-                        saved.state().tenantId(),
-                        saved.state().id(),
-                        saved.state().chatRoomId(),
-                        saved.state().senderId(),
-                        saved.state().clientMessageId(),
-                        saved.state().sequence(),
-                        saved.state().content(),
-                        saved.state().createdAt(),
-                        saved.state().version()
-                )
-        );
-
-        return saved;
-    }
-
-    private PersistedMessage draft(Message message) {
-        MessageState state = MessagePersistenceMapper.toState(message, null);
-        return new PersistedMessage(message, state);
-    }
-
-    public SendMessageResult toDuplicateResult(PersistedMessage persistedMessage) {
-        return new SendMessageResult(
-                persistedMessage.state().id(),
-                persistedMessage.state().sequence(),
-                persistedMessage.state().clientMessageId(),
-                persistedMessage.state().createdAt(),
-                true
-        );
-    }
-
-    public SendMessageResult toSentResult(PersistedMessage persistedMessage) {
-        return new SendMessageResult(
-                persistedMessage.state().id(),
-                persistedMessage.state().sequence(),
-                persistedMessage.state().clientMessageId(),
-                persistedMessage.state().createdAt(),
-                false
-        );
-    }
+    SendMessageResult toSentResult(PersistedMessage persistedMessage);
 }

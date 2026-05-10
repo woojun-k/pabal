@@ -48,6 +48,7 @@ public class ChatCommandMapper {
     }
 
     public EditMessageCommand toEditMessageCommand(
+            UUID chatRoomId,
             UUID messageId,
             EditMessageRequest request,
             Authentication authentication
@@ -55,6 +56,7 @@ public class ChatCommandMapper {
         PabalPrincipal principal = extractPrincipal(authentication);
         return new EditMessageCommand(
                 principal.tenantId(),
+                chatRoomId,
                 messageId,
                 principal.userId(),
                 request.newContent()
@@ -62,12 +64,14 @@ public class ChatCommandMapper {
     }
 
     public DeleteMessageCommand toDeleteMessageCommand(
+            UUID chatRoomId,
             UUID messageId,
             Authentication authentication
     ) {
         PabalPrincipal principal = extractPrincipal(authentication);
         return new DeleteMessageCommand(
                 principal.tenantId(),
+                chatRoomId,
                 messageId,
                 principal.userId()
         );

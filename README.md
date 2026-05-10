@@ -11,10 +11,10 @@ Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시
 - group 방 이름: 요청 이름이 없으면 요청자와 참여자 UUID 앞 8자리 기반 fallback 이름 자동 생성
 - channel 방 생성: application과 DB 모두 lower-case 기준으로 workspace별 채널명 unique 보장
 - 방 참여/재참여/나가기: active membership과 last-read baseline 관리
-- 채널 삭제 lifecycle: 생성자만 삭제 예약 가능, 기본 30일 보존 후 즉시 삭제 상태 전이 지원
+- 채널 권한: RBAC role과 fine-grained permission 기반 channel 생성, 삭제 예약, 즉시 삭제 인가
 - 메시지 전송/답장: 방 상태, active membership, reply target 검증 후 room-local sequence 할당
 - 메시지 idempotency: `tenantId + chatRoomId + senderId + clientMessageId` 기준 선조회와 DB unique constraint로 중복 전송 방어
-- 메시지 수정/삭제: 작성자 본인만 가능, 삭제 메시지는 재수정/재삭제 방지
+- 메시지 수정/삭제: active membership과 room 상태를 재검증하고 작성자 본인만 가능, 삭제 메시지는 재수정/재삭제 방지
 - 읽음 처리: 메시지 sequence 기반 read cursor 전진, cursor가 실제로 전진할 때만 read event 발행
 - 조회 API: 내 방 목록, 메시지 cursor page, 단건 메시지, unread count
 - realtime: 메시지/멤버/읽음 이벤트를 transaction commit 이후 STOMP로 발행
@@ -263,9 +263,10 @@ ID는 infrastructure JPA entity에서 `@UuidV7Generated`로 생성합니다. 기
 ## Domain Rules
 
 - `ChatRoom`
-  - `ACTIVE` 상태에서만 send/read/subscribe/join 허용
+  - `ACTIVE` 상태에서만 send/read/subscribe 허용
+  - self-join은 `ACTIVE` public channel에만 허용
   - channel만 삭제 예약/즉시 삭제 가능
-  - 삭제 예약 시 `PENDING_DELETION`, 즉시 삭제 시 `DELETED`로 전이
+  - 삭제 예약 시 `PENDING_DELETION`, 즉시 삭제 시 `DELETED`와 `deletedAt`으로 전이
   - 기본 삭제 보존 기간은 30일
 
 - `Message`
@@ -292,24 +293,28 @@ ID는 infrastructure JPA entity에서 `@UuidV7Generated`로 생성합니다. 기
 
 모든 `/api/**` 요청은 JWT bearer token 인증이 필요합니다. JWT는 `PabalPrincipal`로 변환되며 command/query에는 `tenantId`, `userId`가 명시적으로 들어갑니다.
 
-### Command API
+### Chat API
 
-Base path: `/api/chat/command`
+Base path: `/api/v1`
 
 | Method | Path | 설명 | Response |
 | --- | --- | --- | --- |
 | `POST` | `/chat-rooms/{chatRoomId}/messages` | 메시지 전송 | `SendMessageResponse` |
 | `POST` | `/chat-rooms/{chatRoomId}/messages/{replyToMessageId}/replies` | 답장 전송 | `SendMessageResponse` |
-| `PATCH` | `/messages/{messageId}` | 메시지 수정 | `EditMessageResponse` |
-| `DELETE` | `/messages/{messageId}` | 메시지 삭제 | `DeleteMessageResponse` |
-| `POST` | `/chat-rooms/{chatRoomId}/read` | 메시지 읽음 처리 | `204 No Content` |
-| `POST` | `/chat-rooms/{chatRoomId}/join` | 방 참여 또는 재참여 | `204 No Content` |
-| `POST` | `/chat-rooms/{chatRoomId}/leave` | 방 나가기 | `204 No Content` |
-| `POST` | `/group-rooms` | 그룹방 생성 | `CreateRoomResponse` |
-| `POST` | `/channel-rooms` | 채널방 생성 | `CreateRoomResponse` |
-| `POST` | `/chat-rooms/{chatRoomId}/deletion-schedule` | 채널 삭제 예약 | `204 No Content` |
+| `PATCH` | `/chat-rooms/{chatRoomId}/messages/{messageId}` | 메시지 수정 | `EditMessageResponse` |
+| `DELETE` | `/chat-rooms/{chatRoomId}/messages/{messageId}` | 메시지 삭제 | `DeleteMessageResponse` |
+| `PUT` | `/chat-rooms/{chatRoomId}/read-state` | 메시지 읽음 처리 | `204 No Content` |
+| `PUT` | `/chat-rooms/{chatRoomId}/members/me` | 방 참여 또는 재참여 | `204 No Content` |
+| `DELETE` | `/chat-rooms/{chatRoomId}/members/me` | 방 나가기 | `204 No Content` |
+| `POST` | `/chat-rooms/groups` | 그룹방 생성 | `CreateRoomResponse` |
+| `POST` | `/chat-rooms/channels` | 채널방 생성 | `CreateRoomResponse` |
+| `PUT` | `/chat-rooms/{chatRoomId}/deletion-schedule` | 채널 삭제 예약 | `204 No Content` |
 | `DELETE` | `/chat-rooms/{chatRoomId}` | 삭제 예약된 채널 즉시 삭제 | `204 No Content` |
-| `POST` | `/direct-rooms` | 1:1 방 조회 또는 생성 | `GetOrCreateDirectRoomResponse` |
+| `POST` | `/chat-rooms/direct` | 1:1 방 조회 또는 생성 | `GetOrCreateDirectRoomResponse` |
+| `GET` | `/chat-rooms` | 내 active membership 방 목록 조회 | `RoomResponse[]` |
+| `GET` | `/chat-rooms/{chatRoomId}/messages?cursor={sequence}&size={1..100}` | 메시지 cursor page 조회 | `MessagePageResponse` |
+| `GET` | `/chat-rooms/{chatRoomId}/messages/{messageId}` | 메시지 단건 조회 | `MessageResponse` |
+| `GET` | `/chat-rooms/{chatRoomId}/unread-count` | unread count 조회 | `UnreadCountResponse` |
 
 주요 request body:
 
@@ -342,22 +347,12 @@ Base path: `/api/chat/command`
 ```json
 {
   "messageId": "018f0000-0000-7000-8000-000000000100",
+  "sequence": 42,
   "clientMessageId": "018f0000-0000-7000-8000-000000000001",
   "createdAt": "2026-04-23T00:00:00Z",
   "duplicated": false
 }
 ```
-
-### Query API
-
-Base path: `/api/chat/query`
-
-| Method | Path | 설명 |
-| --- | --- | --- |
-| `GET` | `/chat-rooms` | 내 active membership 방 목록 조회 |
-| `GET` | `/chat-rooms/{chatRoomId}/messages?cursor={sequence}&size={1..100}` | 메시지 cursor page 조회 |
-| `GET` | `/chat-rooms/{chatRoomId}/messages/{messageId}` | 메시지 단건 조회 |
-| `GET` | `/chat-rooms/{chatRoomId}/unread-count` | unread count 조회 |
 
 메시지 목록 조회는 sequence 내림차순으로 `size + 1`개를 읽은 뒤 응답은 오래된 메시지부터 정렬해 반환합니다. `cursor`가 없으면 최신 페이지를 읽고, `nextCursor`는 다음 페이지 요청 시 사용할 마지막 sequence입니다. 기본 `size`는 50이고 허용 범위는 1에서 100입니다.
 
@@ -402,6 +397,30 @@ Room topic 구독은 `RoomSubscriptionAuthorizationManager`가 다음 조건을 
 - `MEMBER_JOINED`
 - `MEMBER_LEFT`
 
+`RoomEventEnvelope`는 클라이언트 reconciliation을 위해 `eventId`, `schemaVersion`, `tenantId`, `chatRoomId`, room-local `sequence`, `occurredAt`을 포함합니다. message/member/read payload에도 같은 `sequence`가 포함됩니다.
+
+```json
+{
+  "eventId": "018f0000-0000-7000-8000-000000000900",
+  "schemaVersion": 1,
+  "type": "MESSAGE_SENT",
+  "tenantId": "018f0000-0000-7000-8000-000000000100",
+  "chatRoomId": "018f0000-0000-7000-8000-000000000300",
+  "sequence": 42,
+  "aggregateVersion": 7,
+  "occurredAt": "2026-04-23T00:00:00Z",
+  "payload": {
+    "messageId": "018f0000-0000-7000-8000-000000000100",
+    "chatRoomId": "018f0000-0000-7000-8000-000000000300",
+    "sequence": 42,
+    "senderId": "018f0000-0000-7000-8000-000000000001",
+    "clientMessageId": "018f0000-0000-7000-8000-000000000001",
+    "content": "hello",
+    "createdAt": "2026-04-23T00:00:00Z"
+  }
+}
+```
+
 멤버가 방을 나가면 room event와 함께 해당 사용자에게 `/user/queue/chat.control`로 `RoomSubscriptionRevokedRealtimePayload`가 발행됩니다.
 
 ## 보안
@@ -423,7 +442,7 @@ JWT 설정은 다음 값을 사용합니다.
 - `pabal.security.jwt.clock-skew`
 - `pabal.security.jwt.local-secret`: local/test profile 전용
 
-local/test profile에서는 HS256 local secret 기반 `JwtDecoder`/`JwtEncoder`를 사용하고 `/dev/token`으로 개발용 token을 발급할 수 있습니다.
+local/test profile에서는 HS256 local secret 기반 `JwtDecoder`/`JwtEncoder`를 사용하고 `/dev/token`으로 개발용 token을 발급할 수 있습니다. `role`과 `scope` query parameter로 RBAC 테스트용 authority도 넣을 수 있습니다.
 
 ## 오류 응답과 로깅
 
@@ -435,7 +454,7 @@ HTTP 오류는 공통 `ApiError` 형태로 응답합니다.
   "status": 400,
   "code": "CMN002",
   "message": "잘못된 입력입니다",
-  "path": "/api/chat/command/group-rooms",
+  "path": "/api/v1/chat-rooms/groups",
   "traceId": "...",
   "details": [
     {
@@ -488,7 +507,7 @@ curl "http://localhost:8080/dev/token?userId=018f0000-0000-7000-8000-00000000000
 ```bash
 curl \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "http://localhost:8080/api/chat/query/chat-rooms"
+  "http://localhost:8080/api/v1/chat-rooms"
 ```
 
 STOMP `CONNECT` 예시 header:

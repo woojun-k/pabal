@@ -86,7 +86,7 @@ class ChatCommandControllerTest {
         );
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/messages", chatRoomId)
+                        post("/api/v1/chat-rooms/{chatRoomId}/messages", chatRoomId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -131,7 +131,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/messages/{replyToMessageId}/replies", chatRoomId, replyToMessageId)
+                        post("/api/v1/chat-rooms/{chatRoomId}/messages/{replyToMessageId}/replies", chatRoomId, replyToMessageId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -164,6 +164,7 @@ class ChatCommandControllerTest {
     void editMessage_maps_authenticated_principal_and_returns_response() throws Exception {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
         long sequence = 14L;
         Instant updatedAt = Instant.parse("2026-04-03T11:00:00Z");
@@ -174,7 +175,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        patch("/api/chat/command/messages/{messageId}", messageId)
+                        patch("/api/v1/chat-rooms/{chatRoomId}/messages/{messageId}", chatRoomId, messageId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -194,6 +195,7 @@ class ChatCommandControllerTest {
 
         EditMessageCommand command = commandCaptor.getValue();
         assertThat(command.tenantId()).isEqualTo(tenantId);
+        assertThat(command.chatRoomId()).isEqualTo(chatRoomId);
         assertThat(command.messageId()).isEqualTo(messageId);
         assertThat(command.requesterId()).isEqualTo(userId);
         assertThat(command.newContent()).isEqualTo("edited content");
@@ -203,6 +205,7 @@ class ChatCommandControllerTest {
     void deleteMessage_maps_authenticated_principal_and_returns_response() throws Exception {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
         long sequence = 15L;
         Instant deletedAt = Instant.parse("2026-04-03T12:00:00Z");
@@ -213,7 +216,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        delete("/api/chat/command/messages/{messageId}", messageId)
+                        delete("/api/v1/chat-rooms/{chatRoomId}/messages/{messageId}", chatRoomId, messageId)
                                 .principal(authentication)
                 )
                 .andExpect(status().isOk())
@@ -226,6 +229,7 @@ class ChatCommandControllerTest {
 
         DeleteMessageCommand command = commandCaptor.getValue();
         assertThat(command.tenantId()).isEqualTo(tenantId);
+        assertThat(command.chatRoomId()).isEqualTo(chatRoomId);
         assertThat(command.messageId()).isEqualTo(messageId);
         assertThat(command.requesterId()).isEqualTo(userId);
     }
@@ -242,7 +246,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/read", chatRoomId)
+                        put("/api/v1/chat-rooms/{chatRoomId}/read-state", chatRoomId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -274,7 +278,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/join", chatRoomId)
+                        put("/api/v1/chat-rooms/{chatRoomId}/members/me", chatRoomId)
                                 .principal(authentication)
                 )
                 .andExpect(status().isNoContent());
@@ -299,7 +303,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/leave", chatRoomId)
+                        delete("/api/v1/chat-rooms/{chatRoomId}/members/me", chatRoomId)
                                 .principal(authentication)
                 )
                 .andExpect(status().isNoContent());
@@ -327,7 +331,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/group-rooms")
+                        post("/api/v1/chat-rooms/groups")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -366,7 +370,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/channel-rooms")
+                        post("/api/v1/chat-rooms/channels")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -407,7 +411,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/deletion-schedule", chatRoomId)
+                        put("/api/v1/chat-rooms/{chatRoomId}/deletion-schedule", chatRoomId)
                                 .principal(authentication)
                 )
                 .andExpect(status().isNoContent());
@@ -432,7 +436,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        delete("/api/chat/command/chat-rooms/{chatRoomId}", chatRoomId)
+                        delete("/api/v1/chat-rooms/{chatRoomId}", chatRoomId)
                                 .principal(authentication)
                 )
                 .andExpect(status().isNoContent());
@@ -459,7 +463,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/direct-rooms")
+                        post("/api/v1/chat-rooms/direct")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -492,7 +496,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/messages", chatRoomId)
+                        post("/api/v1/chat-rooms/{chatRoomId}/messages", chatRoomId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -516,7 +520,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/messages", chatRoomId)
+                        post("/api/v1/chat-rooms/{chatRoomId}/messages", chatRoomId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -541,7 +545,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/messages/{replyToMessageId}/replies", chatRoomId, replyToMessageId)
+                        post("/api/v1/chat-rooms/{chatRoomId}/messages/{replyToMessageId}/replies", chatRoomId, replyToMessageId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -560,12 +564,13 @@ class ChatCommandControllerTest {
     void editMessage_returns_bad_request_when_new_content_is_blank() throws Exception {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
 
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        patch("/api/chat/command/messages/{messageId}", messageId)
+                        patch("/api/v1/chat-rooms/{chatRoomId}/messages/{messageId}", chatRoomId, messageId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -588,7 +593,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/read", chatRoomId)
+                        put("/api/v1/chat-rooms/{chatRoomId}/read-state", chatRoomId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -609,7 +614,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/group-rooms")
+                        post("/api/v1/chat-rooms/groups")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -632,7 +637,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/group-rooms")
+                        post("/api/v1/chat-rooms/groups")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -654,7 +659,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/channel-rooms")
+                        post("/api/v1/chat-rooms/channels")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -679,7 +684,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/channel-rooms")
+                        post("/api/v1/chat-rooms/channels")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -704,7 +709,7 @@ class ChatCommandControllerTest {
         Authentication authentication = authentication(tenantId, userId);
 
         mockMvc.perform(
-                        post("/api/chat/command/direct-rooms")
+                        post("/api/v1/chat-rooms/direct")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -729,7 +734,7 @@ class ChatCommandControllerTest {
         String tooLongContent = "a".repeat(5001);
 
         mockMvc.perform(
-                        post("/api/chat/command/chat-rooms/{chatRoomId}/messages", chatRoomId)
+                        post("/api/v1/chat-rooms/{chatRoomId}/messages", chatRoomId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -748,13 +753,14 @@ class ChatCommandControllerTest {
     void editMessage_returns_bad_request_when_new_content_exceeds_max_length() throws Exception {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
 
         Authentication authentication = authentication(tenantId, userId);
         String tooLongContent = "a".repeat(5001);
 
         mockMvc.perform(
-                        patch("/api/chat/command/messages/{messageId}", messageId)
+                        patch("/api/v1/chat-rooms/{chatRoomId}/messages/{messageId}", chatRoomId, messageId)
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -778,7 +784,7 @@ class ChatCommandControllerTest {
         String tooLongRoomName = "a".repeat(51);
 
         mockMvc.perform(
-                        post("/api/chat/command/group-rooms")
+                        post("/api/v1/chat-rooms/groups")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -803,7 +809,7 @@ class ChatCommandControllerTest {
         String tooLongChannelName = "a".repeat(51);
 
         mockMvc.perform(
-                        post("/api/chat/command/channel-rooms")
+                        post("/api/v1/chat-rooms/channels")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -830,7 +836,7 @@ class ChatCommandControllerTest {
         String tooLongDescription = "a".repeat(256);
 
         mockMvc.perform(
-                        post("/api/chat/command/channel-rooms")
+                        post("/api/v1/chat-rooms/channels")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
@@ -857,7 +863,7 @@ class ChatCommandControllerTest {
         String tooLongRoomName = "a".repeat(51);
 
         mockMvc.perform(
-                        post("/api/chat/command/direct-rooms")
+                        post("/api/v1/chat-rooms/direct")
                                 .principal(authentication)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""

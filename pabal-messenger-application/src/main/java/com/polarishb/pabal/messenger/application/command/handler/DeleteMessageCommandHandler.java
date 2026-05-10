@@ -5,6 +5,7 @@ import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.DeleteMessageCommand;
 import com.polarishb.pabal.messenger.application.command.output.DeleteMessageResult;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
+import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageDeletedEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageDeleteForbiddenException;
@@ -22,6 +23,7 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
     private final MessageRepository messageRepository;
     private final DomainEventPublisher eventPublisher;
     private final ClockPort clockPort;
+    private final ChatRoomAccessSupport chatRoomAccessSupport;
 
     @Override
     @Transactional
@@ -29,7 +31,7 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
 
         // 메시지 조회
         PersistedMessage persisted = messageRepository
-                .findByTenantIdAndId(command.tenantId(), command.messageId())
+                .findByTenantIdAndChatRoomIdAndId(command.tenantId(), command.chatRoomId(), command.messageId())
                 .orElseThrow(() -> new MessageNotFoundException(command.messageId()));
 
         Message message = persisted.message();
@@ -41,6 +43,12 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
                     message.getSenderId()
             );
         }
+
+        chatRoomAccessSupport.loadSendableActiveMember(
+                command.tenantId(),
+                command.chatRoomId(),
+                command.requesterId()
+        );
 
         // 메시지 삭제
         message.delete(clockPort.now());

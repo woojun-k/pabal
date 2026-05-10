@@ -15,12 +15,17 @@ public class UnauthorizedRoomDeletionException extends MessengerException {
     }
 
     public UnauthorizedRoomDeletionException(UUID requesterId, UUID roomId) {
+        this(requesterId, roomId, null);
+    }
+
+    public UnauthorizedRoomDeletionException(UUID requesterId, UUID roomId, String permission) {
         super(
                 MessengerErrorCode.ROOM_DELETE_FORBIDDEN,
                 MessengerErrorCode.ROOM_DELETE_FORBIDDEN.getMessage(),
                 payload(
                         entry("requesterId", requesterId),
-                        entry("roomId", roomId)
+                        entry("roomId", roomId),
+                        entry("permission", permission)
                 )
         );
     }

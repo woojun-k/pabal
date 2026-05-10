@@ -8,7 +8,7 @@ public record MessageResponse(
         UUID chatRoomId,
         UUID senderId,
         UUID clientMessageId,
-        Long sequence,
+        long sequence,
         String content,
         String status,
         UUID replyToMessageId,

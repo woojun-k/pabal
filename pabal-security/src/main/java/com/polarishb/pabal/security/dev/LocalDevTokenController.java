@@ -27,11 +27,13 @@ public class LocalDevTokenController {
     @GetMapping("/dev/token")
     public Map<String, String> token(
             @RequestParam UUID userId,
-            @RequestParam UUID tenantId
+            @RequestParam UUID tenantId,
+            @RequestParam(required = false, name = "scope") List<String> scopes,
+            @RequestParam(required = false, name = "role") List<String> roles
     ) {
         Instant now = Instant.now();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
                 .issuer("local-dev")
                 .subject(userId.toString())
                 .issuedAt(now)
@@ -39,8 +41,16 @@ public class LocalDevTokenController {
                 .audience(List.of(jwtProperties.audience()))
                 .claim(jwtProperties.userIdClaim(), userId.toString())
                 .claim(jwtProperties.tenantIdClaim(), tenantId.toString())
-                .claim(jwtProperties.principalClaim(), userId.toString())
-                .build();
+                .claim(jwtProperties.principalClaim(), userId.toString());
+
+        if (scopes != null && !scopes.isEmpty()) {
+            claimsBuilder.claim("scope", String.join(" ", scopes));
+        }
+        if (roles != null && !roles.isEmpty()) {
+            claimsBuilder.claim("roles", roles);
+        }
+
+        JwtClaimsSet claims = claimsBuilder.build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
 
