@@ -23,6 +23,7 @@ export function RealtimeBridge() {
   const applyMessageEvent = useMessageStore((state) => state.applyRoomEvent)
   const applyRoomEvent = useRoomStore((state) => state.applyRoomEvent)
   const loadRooms = useRoomStore((state) => state.loadRooms)
+  const selectRoom = useRoomStore((state) => state.selectRoom)
   const addNotification = useNotificationStore((state) => state.addNotification)
   const roomIds = useMemo(() => (roomIdsKey ? roomIdsKey.split('|') : []), [roomIdsKey])
   const activeRoomIdRef = useRef(activeRoomId)
@@ -34,13 +35,15 @@ export function RealtimeBridge() {
   useEffect(() => {
     if (!accessToken) {
       clearSubscriptions()
+      void selectRoom(null)
       void disconnect()
       return
     }
 
     connect()
+    void selectRoom(null)
     void loadRooms()
-  }, [accessToken, clearSubscriptions, connect, disconnect, loadRooms])
+  }, [accessToken, clearSubscriptions, connect, disconnect, loadRooms, selectRoom])
 
   useEffect(() => {
     if (!accessToken) {
@@ -69,12 +72,16 @@ export function RealtimeBridge() {
         applyMessageEvent(event)
         applyRoomEvent(event, userId)
 
-        if (isMessageSentEvent(event) && event.payload.senderId !== userId) {
+        if (
+          isMessageSentEvent(event) &&
+          event.payload.senderId !== userId &&
+          event.chatRoomId !== activeRoomIdRef.current
+        ) {
           addNotification({
             kind: 'info',
-            title:
-              event.chatRoomId === activeRoomIdRef.current ? 'New message' : 'New room message',
+            title: 'New room message',
             message: event.chatRoomId,
+            roomId: event.chatRoomId,
           })
         }
       }),

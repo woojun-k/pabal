@@ -18,6 +18,7 @@ export function RoomSidebar() {
     leaveActiveRoom,
   } = useRoomStore()
   const addNotification = useNotificationStore((state) => state.addNotification)
+  const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
   const [participantId, setParticipantId] = useState('')
 
   const handleCreateDirect = async (event: FormEvent<HTMLFormElement>) => {
@@ -42,6 +43,11 @@ export function RoomSidebar() {
         message: roomId,
       })
     }
+  }
+
+  const handleSelectRoom = async (roomId: string) => {
+    clearNotificationsForRoom(roomId)
+    await selectRoom(roomId)
   }
 
   return (
@@ -79,7 +85,7 @@ export function RoomSidebar() {
             type="button"
             className={room.roomId === activeRoomId ? 'room-item is-active' : 'room-item'}
             key={room.roomId}
-            onClick={() => void selectRoom(room.roomId)}
+            onClick={() => void handleSelectRoom(room.roomId)}
           >
             <span>
               <strong>{room.name || room.roomId}</strong>

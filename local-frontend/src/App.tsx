@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { DevAuthPanel } from './features/auth/DevAuthPanel'
 import { useAuthStore } from './features/auth/authStore'
 import { MessagePanel } from './features/messages/MessagePanel'
 import { NotificationTray } from './features/notifications/NotificationTray'
+import { useNotificationStore } from './features/notifications/notificationStore'
 import { RealtimeBridge } from './features/realtime/RealtimeBridge'
 import { RealtimeStatusPanel } from './features/realtime/RealtimeStatusPanel'
 import { RoomSidebar } from './features/rooms/RoomSidebar'
@@ -30,8 +31,8 @@ function App() {
   const roles = useAuthStore((state) => state.roles)
   const rooms = useRoomStore((state) => state.rooms)
   const activeRoomId = useRoomStore((state) => state.activeRoomId)
-  const loadRooms = useRoomStore((state) => state.loadRooms)
   const selectRoom = useRoomStore((state) => state.selectRoom)
+  const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
   const directRooms = useMemo(() => rooms.filter((room) => room.type === 'DIRECT'), [rooms])
   const activeRoom = useMemo(
     () => rooms.find((room) => room.roomId === activeRoomId) ?? null,
@@ -39,17 +40,10 @@ function App() {
   )
   const unreadTotal = rooms.reduce((total, room) => total + room.unreadCount, 0)
 
-  useEffect(() => {
-    if (!accessToken) {
-      return
-    }
-
-    void loadRooms()
-  }, [accessToken, loadRooms])
-
   const openRoom = (roomId: UUID) => {
     setActiveTab('messages')
     setIsSidebarCollapsed(false)
+    clearNotificationsForRoom(roomId)
     void selectRoom(roomId)
   }
 

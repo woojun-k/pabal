@@ -60,7 +60,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         activeRoomId:
           state.activeRoomId && rooms.some((room) => room.roomId === state.activeRoomId)
             ? state.activeRoomId
-            : rooms[0]?.roomId ?? null,
+            : null,
         isLoading: false,
       }))
     } catch (error) {
@@ -159,7 +159,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         const rooms = state.rooms.filter((room) => room.roomId !== roomId)
         return {
           rooms,
-          activeRoomId: rooms[0]?.roomId ?? null,
+          activeRoomId: null,
           isMutating: false,
         }
       })
@@ -183,7 +183,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         const rooms = state.rooms.filter((room) => room.roomId !== roomId)
         return {
           rooms,
-          activeRoomId: rooms[0]?.roomId ?? null,
+          activeRoomId: null,
           isMutating: false,
         }
       })
