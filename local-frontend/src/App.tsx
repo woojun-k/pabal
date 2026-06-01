@@ -11,20 +11,20 @@ import { useRoomStore } from './features/rooms/roomStore'
 import { BackendModeBadge } from './shared/config/BackendModeBadge'
 import { displayRole } from './shared/security/roles'
 import type { UUID } from './shared/types/api'
-import { formatDateTime } from './shared/utils/dateTime'
 import './App.css'
 
-type AppTab = 'contacts' | 'messages' | 'etc'
+type AppTab = 'messages' | 'contacts' | 'etc'
 
-const appTabs: Array<{ id: AppTab; label: string; shortLabel: string }> = [
-  { id: 'contacts', label: 'Contacts', shortLabel: 'CO' },
-  { id: 'messages', label: 'Messages', shortLabel: 'MS' },
-  { id: 'etc', label: 'Etc', shortLabel: 'ET' },
+const railTabs: Array<{ id: AppTab; label: string; icon: string }> = [
+  { id: 'messages', label: '메시지', icon: '#' },
+  { id: 'contacts', label: '연락처', icon: '✉' },
+  { id: 'etc', label: '설정', icon: '⚙' },
 ]
+
+const roomTitle = (roomName: string, fallback: string) => roomName || fallback
 
 function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('messages')
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const accessToken = useAuthStore((state) => state.accessToken)
   const userId = useAuthStore((state) => state.userId)
   const tenantId = useAuthStore((state) => state.tenantId)
@@ -33,37 +33,22 @@ function App() {
   const activeRoomId = useRoomStore((state) => state.activeRoomId)
   const selectRoom = useRoomStore((state) => state.selectRoom)
   const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
-  const directRooms = useMemo(() => rooms.filter((room) => room.type === 'DIRECT'), [rooms])
-  const activeRoom = useMemo(
-    () => rooms.find((room) => room.roomId === activeRoomId) ?? null,
-    [activeRoomId, rooms],
+  const directRooms = useMemo(
+    () => rooms.filter((room) => room.type === 'DIRECT' || room.type === 'GROUP'),
+    [rooms],
   )
   const unreadTotal = rooms.reduce((total, room) => total + room.unreadCount, 0)
 
   const openRoom = (roomId: UUID) => {
     setActiveTab('messages')
-    setIsSidebarCollapsed(false)
     clearNotificationsForRoom(roomId)
     void selectRoom(roomId)
   }
 
-  const sidebarTitle = {
-    contacts: 'Contacts',
-    messages: 'Messages',
-    etc: 'Etc',
-  }[activeTab]
-
-  const renderSidebarBody = () => {
+  const renderSidebar = () => {
     if (activeTab === 'messages') {
       if (!accessToken) {
-        return (
-          <section className="room-sidebar" aria-label="Chat rooms">
-            <div className="sidebar-section-header">
-              <span>Rooms</span>
-            </div>
-            <p className="empty-text">Issue a local token in Etc.</p>
-          </section>
-        )
+        return <p className="empty-text sb-empty">설정에서 로컬 토큰을 발급하세요.</p>
       }
 
       return <RoomSidebar />
@@ -71,40 +56,37 @@ function App() {
 
     if (activeTab === 'contacts') {
       return (
-        <section className="contact-sidebar" aria-label="Contacts">
-          <div className="sidebar-section-header">
-            <span>Direct contacts</span>
-            <strong>{directRooms.length}</strong>
+        <section className="contact-sidebar" aria-label="연락처">
+          <div className="grp">
+            <span className="tri">▾</span>
+            다이렉트 메시지
+            <span className="pip muted">{directRooms.length}</span>
           </div>
-
-          <div className="contact-list">
-            {!accessToken && <p className="empty-text">Issue a local token in Etc.</p>}
-            {accessToken && directRooms.length === 0 && (
-              <p className="empty-text">No direct contacts yet.</p>
-            )}
-            {directRooms.map((room) => (
-              <button
-                type="button"
-                className="contact-item"
-                key={room.roomId}
-                onClick={() => openRoom(room.roomId)}
-              >
-                <span className="avatar-token">{room.name?.slice(0, 2).toUpperCase() || 'DM'}</span>
-                <span>
-                  <strong>{room.name || room.roomId}</strong>
-                  <small>{room.status}</small>
-                </span>
-              </button>
-            ))}
-          </div>
+          {directRooms.length === 0 && (
+            <p className="empty-text sb-empty">
+              {accessToken ? '아직 연락처가 없습니다.' : '설정에서 로컬 토큰을 발급하세요.'}
+            </p>
+          )}
+          {directRooms.map((room) => (
+            <button
+              type="button"
+              className="nav-item"
+              key={room.roomId}
+              onClick={() => openRoom(room.roomId)}
+            >
+              <span className={room.type === 'GROUP' ? 'presence p-group' : 'presence p-online'} />
+              <span className="nm">{roomTitle(room.name, room.type === 'GROUP' ? '그룹 메시지' : '다이렉트 메시지')}</span>
+              {room.unreadCount > 0 && <span className="pip">{room.unreadCount}</span>}
+            </button>
+          ))}
         </section>
       )
     }
 
     return (
-      <section className="settings-sidebar" aria-label="Settings">
+      <section className="settings-sidebar" aria-label="설정">
         <div className="settings-nav-item is-active">
-          <span>Connection</span>
+          <span>연결</span>
           <BackendModeBadge />
         </div>
         <dl className="session-summary">
@@ -129,58 +111,46 @@ function App() {
     if (activeTab === 'messages') {
       if (!accessToken) {
         return (
-          <section className="content-panel locked-panel">
-            <p className="eyebrow">Messages</p>
-            <h2>Issue a local token first</h2>
+          <section className="main empty-main">
+            <div className="empty-chat">
+              <div className="av lg">#</div>
+              <h2>메시지를 시작하려면 토큰이 필요합니다</h2>
+              <p>왼쪽 레일의 설정에서 로컬 토큰을 발급하면 채팅방 목록이 표시됩니다.</p>
+            </div>
           </section>
         )
       }
 
-      return (
-        <MessagePanel
-          activeRoomId={activeRoomId}
-          currentUserId={userId}
-          key={activeRoomId ?? 'empty-room'}
-        />
-      )
+      return <MessagePanel activeRoomId={activeRoomId} currentUserId={userId} />
     }
 
     if (activeTab === 'contacts') {
       return (
-        <section className="content-panel contacts-main">
-          <div className="content-header">
-            <div>
-              <p className="eyebrow">Contacts</p>
-              <h2>Direct contacts</h2>
+        <section className="main contacts-main">
+          <header className="chead">
+            <div className="ttl">
+              <span className="glyph">✉</span>
+              <h1>연락처</h1>
             </div>
-            <span className="status-pill">{directRooms.length} contacts</span>
-          </div>
-
+            <div className="topic">다이렉트 메시지와 그룹 대화를 빠르게 엽니다</div>
+          </header>
           <div className="contact-grid">
-            {!accessToken && (
-              <article className="empty-state">
-                <h3>Local session required</h3>
-                <p>Open Etc and issue a local token.</p>
-              </article>
-            )}
-            {accessToken && directRooms.length === 0 && (
-              <article className="empty-state">
-                <h3>No contacts yet</h3>
-                <p>Create a direct room from Messages.</p>
+            {directRooms.length === 0 && (
+              <article className="empty-card">
+                <div className="av lg">✉</div>
+                <h2>연락처가 없습니다</h2>
+                <p>메시지 탭에서 다이렉트 메시지를 만들면 여기에 표시됩니다.</p>
               </article>
             )}
             {directRooms.map((room) => (
               <article className="contact-card" key={room.roomId}>
-                <span className="avatar-token large">
-                  {room.name?.slice(0, 2).toUpperCase() || 'DM'}
-                </span>
+                <span className="av">{room.type === 'GROUP' ? '그' : 'DM'}</span>
                 <div>
-                  <h3>{room.name || room.roomId}</h3>
-                  <p>{room.unreadCount > 0 ? `${room.unreadCount} unread` : room.status}</p>
-                  <small>{formatDateTime(room.lastMessageAt ?? room.joinedAt)}</small>
+                  <h3>{roomTitle(room.name, room.type === 'GROUP' ? '그룹 메시지' : '다이렉트 메시지')}</h3>
+                  <p>{room.unreadCount > 0 ? `${room.unreadCount}개 안 읽음` : room.status}</p>
                 </div>
-                <button type="button" className="secondary compact" onClick={() => openRoom(room.roomId)}>
-                  Message
+                <button type="button" className="btn-ghost" onClick={() => openRoom(room.roomId)}>
+                  메시지
                 </button>
               </article>
             ))}
@@ -190,7 +160,7 @@ function App() {
     }
 
     return (
-      <section className="settings-main">
+      <section className="main settings-main">
         <DevAuthPanel />
         <RealtimeStatusPanel />
       </section>
@@ -198,52 +168,69 @@ function App() {
   }
 
   return (
-    <main className={`app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`}>
+    <main className="app-shell" data-theme="light">
       <RealtimeBridge />
       <NotificationTray />
 
-      <aside className="app-nav" aria-label="Workspace navigation">
-        <nav className="app-tabs">
-          {appTabs.map((tab) => (
-            <button
-              type="button"
-              className={activeTab === tab.id ? 'app-tab is-active' : 'app-tab'}
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              aria-pressed={activeTab === tab.id}
-            >
-              <span>{tab.shortLabel}</span>
-              <small>{tab.label}</small>
-              {tab.id === 'messages' && unreadTotal > 0 && <em>{unreadTotal}</em>}
-            </button>
-          ))}
-        </nav>
-        <div className={accessToken ? 'nav-session is-ready' : 'nav-session'}>
-          {accessToken ? 'on' : 'off'}
-        </div>
-      </aside>
-
-      <aside className="workspace-sidebar" aria-label={`${sidebarTitle} sidebar`}>
-        <div className="sidebar-chrome">
-          <div>
-            <p className="eyebrow">{sidebarTitle}</p>
-            <h1>{activeTab === 'messages' ? activeRoom?.name || 'Rooms' : sidebarTitle}</h1>
-          </div>
+      <aside className="rail" aria-label="워크스페이스 내비게이션">
+        <button type="button" className="rail-ws active" title="아이누리">
+          아
+        </button>
+        <button type="button" className="rail-ws" title="사이드 프로젝트">
+          SP
+        </button>
+        <button type="button" className="rail-ws" title="스터디">
+          스
+        </button>
+        <div className="rail-nav" title="워크스페이스 추가">＋</div>
+        <div className="rail-div" />
+        {railTabs.map((tab) => (
           <button
             type="button"
-            className="icon-button"
-            onClick={() => setIsSidebarCollapsed((value) => !value)}
-            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={activeTab === tab.id ? 'rail-nav is-active' : 'rail-nav'}
+            key={tab.id}
+            title={tab.label}
+            onClick={() => setActiveTab(tab.id)}
+            aria-pressed={activeTab === tab.id}
           >
-            {isSidebarCollapsed ? '>' : '<'}
+            {tab.icon}
+            {tab.id === 'messages' && unreadTotal > 0 && <span className="rail-pip">{unreadTotal}</span>}
           </button>
-        </div>
-        <div className="sidebar-body">{renderSidebarBody()}</div>
+        ))}
+        <span className={accessToken ? 'nav-session is-ready' : 'nav-session'}>
+          {accessToken ? 'on' : 'off'}
+        </span>
       </aside>
 
-      <section className="workspace-main" aria-label={`${sidebarTitle} main content`}>
-        {renderMain()}
-      </section>
+      <aside className="sidebar" aria-label="워크스페이스 사이드바">
+        <div className="ws-head">
+          <span className="av sm">우</span>
+          <span className="nm display">아이누리</span>
+          <button type="button" className="icobtn" title="새 메시지">✎</button>
+          <span className="chev">▾</span>
+        </div>
+        <div className="sb-search">
+          <span>🔍</span>
+          <span>검색 또는 점프</span>
+          <kbd>⌘K</kbd>
+        </div>
+        <div className="sb-scroll">{renderSidebar()}</div>
+        <div className="me-bar">
+          <div className="av-pos">
+            <span className="av sm">우</span>
+            <span className="presence p-online" />
+          </div>
+          <div className="me-text">
+            <div className="nm">정우</div>
+            <div className="st">{accessToken ? '집중 모드' : '오프라인'}</div>
+          </div>
+          <button type="button" className="icobtn" onClick={() => setActiveTab('etc')} title="설정">
+            ⚙
+          </button>
+        </div>
+      </aside>
+
+      {renderMain()}
     </main>
   )
 }

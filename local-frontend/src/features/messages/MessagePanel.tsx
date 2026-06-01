@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { apiContract } from '../../shared/constants/apiContract'
 import type { UUID } from '../../shared/types/api'
-import { formatDateTime } from '../../shared/utils/dateTime'
 import { useNotificationStore } from '../notifications/notificationStore'
+import { useRoomStore } from '../rooms/roomStore'
 import { useMessageStore, type MessageView } from './messageStore'
 
 type MessagePanelProps = {
@@ -11,7 +11,41 @@ type MessagePanelProps = {
   currentUserId: UUID | null
 }
 
+const avatarColors = ['#6b8e9e', '#a9789f', '#c08552', '#5b9e78', '#8a86c4', '#7d8aa3']
+
+const getRoomName = (roomId: UUID, roomName?: string) => roomName || roomId
+
+const formatMessageTime = (value: string) =>
+  new Intl.DateTimeFormat('ko-KR', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
+
+const getSenderLabel = (senderId: UUID, currentUserId: UUID | null) => {
+  if (senderId === currentUserId) {
+    return '나'
+  }
+
+  return `사용자 ${senderId.slice(-4)}`
+}
+
+const getAvatarText = (senderId: UUID, currentUserId: UUID | null) => {
+  if (senderId === currentUserId) {
+    return '나'
+  }
+
+  return senderId.replaceAll('-', '').slice(-2).toUpperCase()
+}
+
+const getAvatarStyle = (senderId: UUID): CSSProperties => {
+  const value = [...senderId].reduce((total, char) => total + char.charCodeAt(0), 0)
+  return { '--av': avatarColors[value % avatarColors.length] } as CSSProperties
+}
+
 export function MessagePanel({ activeRoomId, currentUserId }: MessagePanelProps) {
+  const activeRoom = useRoomStore((state) =>
+    activeRoomId ? state.rooms.find((room) => room.roomId === activeRoomId) ?? null : null,
+  )
   const {
     rooms,
     isLoading,
@@ -48,7 +82,7 @@ export function MessagePanel({ activeRoomId, currentUserId }: MessagePanelProps)
     }
 
     textarea.style.height = 'auto'
-    textarea.style.height = `${textarea.scrollHeight}px`
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`
   }, [content])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -95,86 +129,162 @@ export function MessagePanel({ activeRoomId, currentUserId }: MessagePanelProps)
     await markRoomRead(activeRoomId)
     addNotification({
       kind: 'success',
-      title: 'Marked as read',
+      title: '읽음 처리했습니다',
+      roomId: activeRoomId,
     })
   }
 
   if (!activeRoomId) {
     return (
-      <section className="message-panel empty-panel">
-        <p className="eyebrow">Messages</p>
-        <h2>Select or create a room</h2>
+      <section className="main empty-main">
+        <div className="empty-chat">
+          <div className="av lg">#</div>
+          <h2>채팅방을 선택하세요</h2>
+          <p>왼쪽 사이드바에서 채널 또는 다이렉트 메시지를 선택하면 대화가 표시됩니다.</p>
+        </div>
       </section>
     )
   }
 
+  const title = getRoomName(activeRoomId, activeRoom?.name)
+  const isChannel = activeRoom?.type === 'CHANNEL'
+
   return (
-    <section className="message-panel">
-      <div className="section-header">
-        <div>
-          <p className="eyebrow">Messages</p>
-          <h2>{activeRoomId}</h2>
+    <section className="main chat-main">
+      <header className="chead">
+        <div className="ttl">
+          <span className="glyph">{isChannel ? '#' : '●'}</span>
+          <h1>{title}</h1>
         </div>
-        <button type="button" className="secondary compact" onClick={handleMarkRead}>
-          Read
-        </button>
-      </div>
+        <div className="topic">
+          {isChannel ? '스프린트 24 · 실시간 채팅 백엔드' : '다이렉트 메시지'}
+        </div>
+        <div className="tools">
+          <div className="head-search">
+            <span className="ico">🔍</span>
+            <input placeholder={`${isChannel ? '#' : ''}${title} 검색`} />
+            <kbd>⌘F</kbd>
+          </div>
+          <button type="button" className="icobtn" title="읽음 처리" onClick={handleMarkRead}>
+            ✓
+          </button>
+          <button type="button" className="icobtn" title="알림">
+            🔔
+          </button>
+          <button type="button" className="icobtn wide" title="멤버">
+            👥 <span>{isChannel ? '18' : '2'}</span>
+          </button>
+          <button type="button" className="icobtn" title="더보기">
+            ⋯
+          </button>
+        </div>
+      </header>
 
-      {error && <p className="error-text">{error.message}</p>}
+      {error && <p className="error-text chat-error">{error.message}</p>}
 
-      <div className="message-list" aria-busy={isLoading}>
-        {roomMessages.length === 0 && (
-          <p className="empty-text">{isLoading ? 'Loading messages...' : 'No messages yet'}</p>
-        )}
-        {roomMessages.map((message) => (
-          <article
-            className={message.senderId === currentUserId ? 'message-bubble mine' : 'message-bubble'}
-            key={`${message.messageId}:${message.clientMessageId}`}
-          >
-            <div className="message-meta">
-              <span>{message.senderId === currentUserId ? 'me' : message.senderId}</span>
-              <time>{formatDateTime(message.createdAt)}</time>
-              {message.deliveryStatus && <em>{message.deliveryStatus}</em>}
-            </div>
-            <p>{message.status === 'DELETED' ? 'Deleted message' : message.content}</p>
-            {message.status !== 'DELETED' && message.senderId === currentUserId && (
-              <div className="message-actions">
-                <button type="button" className="ghost-button" onClick={() => startEdit(message)}>
-                  Edit
-                </button>
-                <button type="button" className="ghost-button danger" onClick={() => void handleDelete(message)}>
-                  Delete
-                </button>
-              </div>
-            )}
-          </article>
-        ))}
+      <div className="stream" aria-busy={isLoading}>
+        <div className="stream-inner">
+          <div className="channel-intro">
+            <div className="av lg channel-mark">{isChannel ? '#' : '●'}</div>
+            <h2>{isChannel ? `#${title}` : title}</h2>
+            <p>{isChannel ? `#${title} 채널의 시작입니다.` : `${title} 대화의 시작입니다.`}</p>
+          </div>
+
+          <div className="day">
+            <span>오늘</span>
+          </div>
+
+          {roomMessages.length === 0 && (
+            <p className="empty-text chat-empty">{isLoading ? '메시지를 불러오는 중...' : '아직 메시지가 없습니다.'}</p>
+          )}
+          {roomMessages.map((message, index) => {
+            const previous = roomMessages[index - 1]
+            const grouped = previous?.senderId === message.senderId
+            const mine = message.senderId === currentUserId
+
+            return (
+              <article
+                className={['bwrap', mine ? 'mine' : '', grouped ? 'grouped' : ''].filter(Boolean).join(' ')}
+                key={`${message.messageId}:${message.clientMessageId}`}
+              >
+                <div className="av-slot">
+                  {!grouped && (
+                    <span className="av" style={getAvatarStyle(message.senderId)}>
+                      {getAvatarText(message.senderId, currentUserId)}
+                    </span>
+                  )}
+                </div>
+                <div className="bcol">
+                  <div className="hov">
+                    <button type="button" title="반응">😀</button>
+                    <button type="button" title="답글">↩</button>
+                    {message.status !== 'DELETED' && mine && (
+                      <button type="button" title="수정" onClick={() => startEdit(message)}>
+                        ✎
+                      </button>
+                    )}
+                    {message.status !== 'DELETED' && mine && (
+                      <button type="button" title="삭제" onClick={() => void handleDelete(message)}>
+                        ⋯
+                      </button>
+                    )}
+                  </div>
+                  {!grouped && (
+                    <div className="bmeta">
+                      <span className="au">{getSenderLabel(message.senderId, currentUserId)}</span>
+                      <span className="role">{mine ? '나' : '멤버'}</span>
+                      <time className="ts">{formatMessageTime(message.createdAt)}</time>
+                    </div>
+                  )}
+                  <div className={message.status === 'DELETED' ? 'bubble del' : 'bubble'}>
+                    {message.status === 'DELETED' ? '삭제된 메시지입니다' : message.content}
+                    {message.status === 'EDITED' && <span className="edited">(수정됨)</span>}
+                  </div>
+                  {message.deliveryStatus && message.deliveryStatus !== 'sent' && (
+                    <div className="line-ts">{message.deliveryStatus}</div>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+        </div>
       </div>
 
       <form className="composer" onSubmit={editingMessage ? handleEditSubmit : handleSubmit}>
-        <textarea
-          ref={composerRef}
-          rows={1}
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          placeholder={editingMessage ? 'Edit message' : 'Type a message'}
-          maxLength={apiContract.message.contentMaxLength}
-        />
-        {editingMessage && (
-          <button
-            type="button"
-            className="secondary compact"
-            onClick={() => {
-              setEditingMessage(null)
-              setContent('')
-            }}
-          >
-            Cancel
-          </button>
-        )}
-        <button type="submit" disabled={isSending || !content.trim()}>
-          {editingMessage ? 'Save' : 'Send'}
-        </button>
+        <div className="composer-stack">
+          <div className="composer-inner">
+            <textarea
+              ref={composerRef}
+              rows={1}
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              placeholder={editingMessage ? '메시지 수정' : `${isChannel ? `#${title}` : title} 에 메시지 보내기`}
+              maxLength={apiContract.message.contentMaxLength}
+            />
+            <div className="ctrls">
+              <button type="button" className="icobtn" title="첨부">＋</button>
+              <button type="button" className="icobtn" title="이모지">😀</button>
+              <button type="button" className="icobtn" title="멘션">@</button>
+              <span className="spacer" />
+              {editingMessage && (
+                <button
+                  type="button"
+                  className="btn-ghost compact"
+                  onClick={() => {
+                    setEditingMessage(null)
+                    setContent('')
+                  }}
+                >
+                  취소
+                </button>
+              )}
+              <span className="hint">⏎ 전송 · ⇧⏎ 줄바꿈</span>
+              <button type="submit" className="send" disabled={isSending || !content.trim()}>
+                {editingMessage ? '저장' : '보내기'}
+              </button>
+            </div>
+          </div>
+        </div>
       </form>
     </section>
   )

@@ -1,9 +1,84 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import type { RoomResponse, UUID } from '../../shared/types/api'
 import { isUuid } from '../../shared/utils/uuid'
-import { formatDateTime } from '../../shared/utils/dateTime'
 import { useNotificationStore } from '../notifications/notificationStore'
 import { useRoomStore } from './roomStore'
+
+type RoomGroupProps = {
+  label: string
+  rooms: RoomResponse[]
+  activeRoomId: UUID | null
+  isDirectGroup?: boolean
+  onSelectRoom: (roomId: UUID) => void
+  onOpenCreate?: () => void
+}
+
+const displayRoomName = (room: RoomResponse) => {
+  if (room.name) {
+    return room.name
+  }
+
+  if (room.type === 'DIRECT') {
+    return '다이렉트 메시지'
+  }
+
+  if (room.type === 'GROUP') {
+    return '그룹 메시지'
+  }
+
+  return room.roomId
+}
+
+function RoomGroup({
+  label,
+  rooms,
+  activeRoomId,
+  isDirectGroup = false,
+  onSelectRoom,
+  onOpenCreate,
+}: RoomGroupProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  return (
+    <div className="room-group">
+      <div className={isCollapsed ? 'grp collapsed' : 'grp'}>
+        <button type="button" className="grp-main" onClick={() => setIsCollapsed((value) => !value)}>
+          <span className="tri">▾</span>
+          {label}
+        </button>
+        {onOpenCreate && (
+          <button type="button" className="grp-add" title="새 대화" onClick={onOpenCreate}>
+            ＋
+          </button>
+        )}
+      </div>
+
+      {!isCollapsed && rooms.map((room) => (
+        <button
+          type="button"
+          className={[
+            'nav-item',
+            room.roomId === activeRoomId ? 'active' : '',
+            room.unreadCount > 0 && room.roomId !== activeRoomId ? 'unread' : '',
+          ].filter(Boolean).join(' ')}
+          key={room.roomId}
+          onClick={() => onSelectRoom(room.roomId)}
+        >
+          {isDirectGroup ? (
+            <span className={room.type === 'GROUP' ? 'presence p-group' : 'presence p-online'} />
+          ) : (
+            <span className="glyph">#</span>
+          )}
+          <span className="nm">{displayRoomName(room)}</span>
+          {room.unreadCount > 0 && <span className="pip">{room.unreadCount}</span>}
+        </button>
+      ))}
+
+      {!isCollapsed && rooms.length === 0 && <p className="empty-text sb-empty">목록이 없습니다.</p>}
+    </div>
+  )
+}
 
 export function RoomSidebar() {
   const {
@@ -15,11 +90,16 @@ export function RoomSidebar() {
     loadRooms,
     selectRoom,
     createDirectRoom,
-    leaveActiveRoom,
   } = useRoomStore()
   const addNotification = useNotificationStore((state) => state.addNotification)
   const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
   const [participantId, setParticipantId] = useState('')
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const channels = useMemo(() => rooms.filter((room) => room.type === 'CHANNEL'), [rooms])
+  const directRooms = useMemo(
+    () => rooms.filter((room) => room.type === 'DIRECT' || room.type === 'GROUP'),
+    [rooms],
+  )
 
   const handleCreateDirect = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -27,8 +107,8 @@ export function RoomSidebar() {
     if (!isUuid(participantId)) {
       addNotification({
         kind: 'warning',
-        title: 'Invalid participant ID',
-        message: 'Use a UUID value for local development.',
+        title: '잘못된 사용자 ID',
+        message: '로컬 개발에서는 UUID 값을 입력하세요.',
       })
       return
     }
@@ -37,74 +117,59 @@ export function RoomSidebar() {
 
     if (roomId) {
       setParticipantId('')
+      setIsCreateOpen(false)
       addNotification({
         kind: 'success',
-        title: 'Room ready',
+        title: '대화방이 준비되었습니다',
         message: roomId,
+        roomId,
       })
     }
   }
 
-  const handleSelectRoom = async (roomId: string) => {
+  const handleSelectRoom = async (roomId: UUID) => {
     clearNotificationsForRoom(roomId)
     await selectRoom(roomId)
   }
 
   return (
-    <section className="room-sidebar" aria-label="Chat rooms">
-      <div className="sidebar-section-header">
-        <span>Rooms</span>
-        <button type="button" className="secondary compact" onClick={() => void loadRooms()}>
-          Refresh
-        </button>
-      </div>
+    <section className="room-sidebar" aria-label="채팅방">
+      <RoomGroup
+        label="채널"
+        rooms={channels}
+        activeRoomId={activeRoomId}
+        onSelectRoom={(roomId) => void handleSelectRoom(roomId)}
+      />
 
-      <form className="stacked-form" onSubmit={handleCreateDirect}>
-        <label>
-          <span>Participant UUID</span>
+      <button type="button" className="create-row" onClick={() => void loadRooms()}>
+        <span className="plus">↻</span>
+        {isLoading ? '새로고침 중' : '채널 새로고침'}
+      </button>
+
+      <RoomGroup
+        label="다이렉트 메시지"
+        rooms={directRooms}
+        activeRoomId={activeRoomId}
+        isDirectGroup
+        onSelectRoom={(roomId) => void handleSelectRoom(roomId)}
+        onOpenCreate={() => setIsCreateOpen((value) => !value)}
+      />
+
+      {isCreateOpen && (
+        <form className="inline-create" onSubmit={handleCreateDirect}>
           <input
             value={participantId}
             onChange={(event) => setParticipantId(event.target.value)}
-            placeholder="00000000-0000-4000-8000-000000000000"
+            placeholder="Participant UUID"
             spellCheck={false}
           />
-        </label>
-        <button type="submit" disabled={isMutating}>
-          Direct room
-        </button>
-      </form>
-
-      {error && <p className="error-text">{error.message}</p>}
-
-      <div className="room-list" aria-busy={isLoading}>
-        {rooms.length === 0 && (
-          <p className="empty-text">{isLoading ? 'Loading rooms...' : 'No rooms yet'}</p>
-        )}
-        {rooms.map((room) => (
-          <button
-            type="button"
-            className={room.roomId === activeRoomId ? 'room-item is-active' : 'room-item'}
-            key={room.roomId}
-            onClick={() => void handleSelectRoom(room.roomId)}
-          >
-            <span>
-              <strong>{room.name || room.roomId}</strong>
-              <small>{room.type} · {room.status}</small>
-              <small>{formatDateTime(room.lastMessageAt ?? room.joinedAt)}</small>
-            </span>
-            {room.unreadCount > 0 && <em>{room.unreadCount}</em>}
+          <button type="submit" disabled={isMutating}>
+            만들기
           </button>
-        ))}
-      </div>
+        </form>
+      )}
 
-      <button
-        type="button"
-        className="secondary danger compact full-width"
-        disabled={!activeRoomId || isMutating}
-        onClick={() => void leaveActiveRoom()}
-      >
-        Leave selected room
-      </button>
+      {error && <p className="error-text sb-error">{error.message}</p>}
     </section>
   )
 }
