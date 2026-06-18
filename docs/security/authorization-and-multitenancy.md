@@ -16,6 +16,7 @@ tags:
 Layer: Security → API → Application → Application Port → Infrastructure
 
 - tenant/user context의 source of truth는 `PabalPrincipal`이다.
+- tenant 안의 user 존재/상태 source of truth는 `tenant_user`이며, bounded context 간 조회는 `UserContract`로 수행한다.
 - repository 조회 조건에는 `tenantId`가 포함되어야 한다.
 - room 접근은 room 상태와 active membership을 모두 확인해야 한다.
 - client-provided identity는 거부하거나 principal과 비교해야 한다.
@@ -26,6 +27,8 @@ Layer: API
 
 - `ChatCommandMapper`는 `Authentication`에서 `PabalPrincipal`을 추출한다.
 - `ChatQueryMapper`도 동일하게 principal에서 `tenantId`, `userId`를 추출한다.
+- `UserCommandMapper`는 `/users/me` 생성 시 principal의 `tenantId`, `userId`와 request `name`으로 command를 만든다.
+- `UserQueryMapper`는 `/users/me`에서는 principal user를, `/users/{userId}`에서는 path user와 principal tenant를 query에 넣는다.
 - request body에는 userId/tenantId를 받지 않는다.
 - principal이 없으면 `AccessDeniedException`이 발생한다.
 
@@ -41,7 +44,10 @@ Layer: Application
 | leave | `ChatRoomAccessSupport.loadLeavableMember` | active member |
 | edit/delete message | `EditMessageCommandHandler`, `DeleteMessageCommandHandler` | `chatRoomId` 포함 message 조회, active member와 sendable room 재검증, requester sender 확인 |
 | channel create | `ChatRoomAuthorizationService` | `messenger:channel:create` permission |
+| room/channel invite | `RoomParticipantPolicy`, `ChatRoomAuthorizationService` | requester+participants batch membership 검증, group은 `messenger:room:invite`, channel은 `messenger:channel:invite` permission |
 | room deletion | `ChatRoomDeletionSupport`, `ChatRoomAuthorizationService` | own/any deletion permission |
+| user create/read | `CreateUserCommandHandler`, `GetUserQueryHandler` | principal tenant 범위의 user만 생성/조회 |
+| user existence | `UserContractService`, `RoomParticipantPolicy` | tenant active user 여부를 user module contract로 검증 |
 
 ## RBAC와 fine-grained permission
 
@@ -52,6 +58,8 @@ Application은 role 이름을 직접 해석하지 않고 `PermissionPort`에 `Pe
 | Permission | 값 | 용도 |
 | --- | --- | --- |
 | `CHANNEL_CREATE` | `messenger:channel:create` | workspace 안에서 channel 생성 |
+| `CHANNEL_INVITE` | `messenger:channel:invite` | workspace channel 생성/초대 대상 추가 |
+| `ROOM_INVITE` | `messenger:room:invite` | tenant group room 초대 대상 추가 |
 | `CHANNEL_DELETE_SCHEDULE_OWN` | `messenger:channel:delete:schedule:own` | 자신이 생성한 channel 삭제 예약 |
 | `CHANNEL_DELETE_SCHEDULE_ANY` | `messenger:channel:delete:schedule:any` | channel 삭제 예약 관리자 권한 |
 | `CHANNEL_DELETE_EXECUTE_OWN` | `messenger:channel:delete:execute:own` | 자신이 생성한 channel 즉시 삭제 |
@@ -62,7 +70,7 @@ Application은 role 이름을 직접 해석하지 않고 `PermissionPort`에 `Pe
 | Authority | Permission |
 | --- | --- |
 | `ROLE_PABAL_ADMIN`, `ROLE_TENANT_ADMIN` | 모든 Messenger permission |
-| `ROLE_WORKSPACE_ADMIN` | channel create, schedule any, execute any |
+| `ROLE_WORKSPACE_ADMIN` | channel create, channel invite, schedule any, execute any |
 | `ROLE_CHANNEL_OWNER` | schedule own, execute own |
 | `SCOPE_{permission}`, raw `{permission}`, `PERMISSION_{NORMALIZED_PERMISSION}` | 해당 permission 직접 부여 |
 | `tenant:{tenantId}:{permission}`, `workspace:{workspaceId}:{permission}`, `room:{chatRoomId}:{permission}`와 `SCOPE_` variant | scope가 일치하는 해당 permission |
@@ -74,6 +82,8 @@ Application은 role 이름을 직접 해석하지 않고 `PermissionPort`에 `Pe
 Layer: Security / Infrastructure
 
 `SecurityContextHolder` 직접 접근은 `pabal-security`의 `CurrentAuthenticationProvider`가 캡슐화한다. Messenger infrastructure의 `RbacPermissionAdapter`는 이 provider만 의존하고, application은 `PermissionPort`만 의존한다.
+
+`pabal-security`는 Spring Messaging 타입을 public signature로 노출하지 않는다. STOMP 전용 `DestinationUserNameProvider` 구현은 messenger infrastructure의 `StompAuthenticationToken`과 `RealtimePrincipal`에 둔다.
 
 ## Repository tenant checks
 
@@ -102,13 +112,15 @@ Code: `RoomSubscriptionAuthorizationManager`
 검증 순서:
 
 1. authentication 존재 및 authenticated 여부
-2. principal이 `PabalPrincipal`인지 확인
+2. authentication principal이 `PabalPrincipal`인지 확인
 3. destination pattern 파싱
 4. destination tenant와 principal tenant 비교
 5. room 존재와 `canSubscribe()` 확인
 6. active membership 확인
 
-`ChatRealtimeCommandController`는 typing payload tenant와 principal tenant도 비교한다.
+CONNECT 단계에서는 `StompConnectAuthenticationInterceptor`가 JWT 인증 결과를 `StompAuthenticationToken`으로 감싸 `accessor.setUser(...)`에 넣는다. 이 wrapper는 principal은 `PabalPrincipal`로 유지하고, `/user` destination routing에 필요한 user name만 `RealtimePrincipal.destinationUserName(tenantId, userId)` 규칙으로 제공한다.
+
+`ChatRealtimeCommandController`는 typing/send payload tenant와 principal tenant도 비교한다.
 
 ## 현재 구현 / 남은 영역
 

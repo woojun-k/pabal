@@ -3,6 +3,8 @@ package com.polarishb.pabal.messenger.application.authorization;
 public enum MessengerPermission {
 
     CHANNEL_CREATE("messenger:channel:create"),
+    CHANNEL_INVITE("messenger:channel:invite"),
+    ROOM_INVITE("messenger:room:invite"),
     CHANNEL_DELETE_SCHEDULE_OWN("messenger:channel:delete:schedule:own"),
     CHANNEL_DELETE_SCHEDULE_ANY("messenger:channel:delete:schedule:any"),
     CHANNEL_DELETE_EXECUTE_OWN("messenger:channel:delete:execute:own"),

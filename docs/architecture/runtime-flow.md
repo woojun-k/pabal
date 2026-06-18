@@ -89,9 +89,35 @@ flowchart LR
 
 - read 흐름도 room/member 접근 검증을 먼저 수행한다.
 - cursor는 message `sequence` 기준이며, DB에서는 내림차순으로 읽고 response에는 오래된 순서로 뒤집는다.
+- `DELETED` 메시지는 sequence 보존을 위해 조회될 수 있으나 DTO content는 tombstone 값 `[deleted]`로 마스킹한다.
 - unread count는 sender 자신과 `DELETED` 메시지를 제외한다.
 
-## 3. Realtime inbound 흐름
+## 3. User HTTP 흐름
+
+Layer: API → Application → Domain → Application Port → Infrastructure Adapter
+
+대표 흐름: `createMe`
+
+```mermaid
+flowchart LR
+    req["POST /api/v1/users/me"] --> controller["UserCommandController"]
+    controller --> mapper["UserCommandMapper"]
+    mapper --> command["CreateUserCommand"]
+    command --> handler["CreateUserCommandHandler"]
+    handler --> domain["User.create"]
+    handler --> port["UserRepository"]
+    port --> adapter["UserRepositoryImpl"]
+    adapter --> entity["TenantUserEntity"]
+    entity --> db[(PostgreSQL)]
+```
+
+포인트:
+
+- `tenantId`, `userId`는 `PabalPrincipal`에서 추출하고 request body에는 `name`만 받는다.
+- `tenant_user`는 user module의 source of truth다.
+- Messenger가 participant 존재를 확인할 때는 `UserContractService`를 통해 active tenant user 여부를 조회한다.
+
+## 4. Realtime inbound 흐름
 
 Layer: Infrastructure Security → API → Application → Application Port → Infrastructure Adapter
 
@@ -101,10 +127,11 @@ flowchart LR
     connect --> interceptor["StompConnectAuthenticationInterceptor"]
     interceptor --> authManager["WebSocketAuthenticationManagerConfig"]
     authManager --> converter["PabalJwtAuthenticationConverter"]
-    client --> send["SEND /app/chat.typing.start|stop"]
+    converter --> stompToken["StompAuthenticationToken"]
+    client --> send["SEND /app/chat.message.send|chat.typing.start|stop"]
     send --> controller["ChatRealtimeCommandController"]
-    controller --> command["SendTypingCommand"]
-    command --> handler["SendTypingCommandHandler"]
+    controller --> command["SendMessageCommand / SendTypingCommand"]
+    command --> handler["SendMessageCommandHandler / SendTypingCommandHandler"]
     handler --> access["ChatRoomAccessSupport"]
     handler --> port["ChatRealtimePort"]
     port --> adapter["StompChatRealtimeAdapter"]
@@ -116,19 +143,22 @@ flowchart LR
 StompConnectAuthenticationInterceptor
 → WebSocketAuthenticationManagerConfig
 → PabalJwtAuthenticationConverter
+→ StompAuthenticationToken
 → ChatRealtimeCommandController
-→ SendTypingCommandHandler
-→ ChatRealtimePort.publishTyping
+→ SendMessageCommandHandler / SendTypingCommandHandler
+→ Message persistence + after-commit room event / ChatRealtimePort.publishTyping
 → StompChatRealtimeAdapter
 ```
 
 포인트:
 
 - CONNECT 인증은 STOMP native header `Authorization: Bearer ...` 또는 `access_token`을 사용한다.
-- `TypingRequest.tenantId`는 principal tenant와 반드시 일치해야 한다.
+- STOMP accessor user는 `PabalJwtAuthenticationToken`을 감싼 `StompAuthenticationToken`이며, principal은 `PabalPrincipal`로 유지된다.
+- `SendMessageWsRequest.tenantId`와 `TypingRequest.tenantId`는 principal tenant와 반드시 일치해야 한다.
+- message send는 HTTP `SendMessage`와 같은 application handler를 사용하고, commit 이후 room event로 broadcast된다.
 - typing은 DB 상태 변경 없이 `TypingEventPayload`를 topic으로 보낸다.
 
-## 4. Realtime outbound 흐름
+## 5. Realtime outbound 흐름
 
 Layer: Domain Event → Application Listener → Application Port → Infrastructure Adapter
 
@@ -153,7 +183,7 @@ flowchart LR
 - `MemberJoinedEventListener`
 - `MemberLeftEventListener`
 
-## 5. 읽을 때 추천하는 디버깅 순서
+## 6. 읽을 때 추천하는 디버깅 순서
 
 1. controller entry 확인
 2. mapper에서 principal이 command/query로 바뀌는 방식 확인

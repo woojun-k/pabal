@@ -17,6 +17,14 @@ public record PermissionCheck(
         Objects.requireNonNull(permission);
     }
 
+    public static PermissionCheck tenant(
+            UUID tenantId,
+            UUID requesterId,
+            MessengerPermission permission
+    ) {
+        return new PermissionCheck(tenantId, requesterId, null, null, permission);
+    }
+
     public static PermissionCheck workspace(
             UUID tenantId,
             UUID requesterId,

@@ -90,6 +90,26 @@ When: channel create, deletion schedule, immediate delete 권한 확인
 Then: role/scope에 맞는 permission만 허용하고 다른 tenant/requester principal은 거부
 Related: [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md)
 
+## User create duplicate
+
+Layer: Domain / Application / Infrastructure
+Target: `CreateUserCommandHandler`, `UserRepositoryImpl`, `tenant_user`
+Purpose: principal 기준 tenant/user는 한 번만 등록되도록 보장
+Given: 같은 tenant/user의 기존 active user
+When: 같은 userId로 `CreateUserCommand` 처리
+Then: `DuplicateUserException`, `USR409001`
+Related: [Pabal HTTP API 예시와 오류 매핑](../use-cases/http-api-and-error-mapping.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)
+
+## User contract participant validation
+
+Layer: App / Application / Infrastructure
+Target: `UserContractService`, `CurrentAuthenticationRoomParticipantDirectoryAdapter`, `RoomParticipantPolicy`
+Purpose: messenger가 user module의 active tenant user만 초대/참여자로 인정하도록 보장
+Given: requester와 participant가 `tenant_user`에 active 상태로 존재
+When: messenger participant directory가 current principal과 target user를 조회
+Then: `UserContract`를 통해 active tenant user 여부가 확인되고, 없는 user는 invitable 대상에서 제외
+Related: [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
+
 ## Message edit/delete access recheck
 
 Layer: Application
@@ -133,12 +153,22 @@ Related: [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-excep
 ## STOMP CONNECT authentication
 
 Layer: Security / Infrastructure
-Target: `StompConnectAuthenticationInterceptor`, `WebSocketAuthenticationManagerConfig`
+Target: `StompConnectAuthenticationInterceptor`, `WebSocketAuthenticationManagerConfig`, `StompAuthenticationToken`
 Purpose: STOMP native header token 인증 보장
 Given: Authorization bearer, access_token, missing token
 When: CONNECT frame 처리
-Then: 인증 성공 시 accessor user 설정, 실패 시 denied
+Then: 인증 성공 시 accessor user는 `StompAuthenticationToken`으로 설정되고, 실패 시 denied
 Related: [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md), [Websocket 설정](../realtime/websocket-configuration.md)
+
+## STOMP message send MVP
+
+Layer: App / API / Application / Infrastructure
+Target: `ChatRealtimeCommandController`, `SendMessageCommandHandler`, `StompChatRealtimeAdapter`
+Purpose: WebSocket realtime 송수신 경로를 E2E로 증명
+Given: test fixture가 active `chat_room`, `chat_room_member`를 직접 구성하고 receiver가 room event topic을 subscribe
+When: sender가 `SEND /app/chat.message.send` payload를 전송
+Then: receiver가 room events topic에서 `MESSAGE_SENT` envelope를 수신
+Related: [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md), [Pabal Realtime 이벤트 스키마](../realtime/event-schema.md)
 
 ## Room subscription authorization
 

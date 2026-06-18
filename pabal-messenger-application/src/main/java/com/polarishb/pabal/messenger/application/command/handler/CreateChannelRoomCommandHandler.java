@@ -6,6 +6,7 @@ import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAuthorizationService;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
+import com.polarishb.pabal.messenger.application.service.RoomParticipantPolicy;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelName;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -22,6 +25,7 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
     private final ChatRoomCreationSupport creationSupport;
     private final ClockPort clockPort;
     private final ChatRoomAuthorizationService authorizationService;
+    private final RoomParticipantPolicy participantPolicy;
 
     @Override
     @Transactional
@@ -30,6 +34,13 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
                 command.tenantId(),
                 command.requesterId(),
                 command.workspaceId()
+        );
+
+        List<UUID> participantIds = participantPolicy.validateChannelParticipants(
+                command.tenantId(),
+                command.workspaceId(),
+                command.requesterId(),
+                command.participantIds()
         );
 
         Instant now = clockPort.now();
@@ -60,7 +71,7 @@ public class CreateChannelRoomCommandHandler implements CommandHandler<CreateCha
                 command.tenantId(),
                 saved.state().id(),
                 command.requesterId(),
-                command.participantIds(),
+                participantIds,
                 now,
                 saved.state().lastMessageSequence() != null ? saved.state().lastMessageSequence() : 0L
         );

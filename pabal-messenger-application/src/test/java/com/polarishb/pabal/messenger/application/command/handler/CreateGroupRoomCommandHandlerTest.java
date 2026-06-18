@@ -4,8 +4,10 @@ import com.polarishb.pabal.messenger.application.command.input.CreateGroupRoomCo
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
+import com.polarishb.pabal.messenger.application.service.RoomParticipantPolicy;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
+import com.polarishb.pabal.messenger.domain.exception.RoomParticipantNotInvitableException;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import org.junit.jupiter.api.Test;
@@ -17,11 +19,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +38,9 @@ class CreateGroupRoomCommandHandlerTest {
 
     @Mock
     private ClockPort clockPort;
+
+    @Mock
+    private RoomParticipantPolicy participantPolicy;
 
     @InjectMocks
     private CreateGroupRoomCommandHandler handler;
@@ -44,6 +53,8 @@ class CreateGroupRoomCommandHandlerTest {
         UUID chatRoomId = uuid(200);
         Instant now = Instant.parse("2026-04-02T12:00:00Z");
 
+        when(participantPolicy.validateGroupParticipants(tenantId, requesterId, participantIds))
+                .thenReturn(participantIds);
         when(clockPort.now()).thenReturn(now);
         when(creationSupport.saveRoom(any(ChatRoom.class)))
                 .thenAnswer(invocation -> persistedRoom(invocation.getArgument(0), chatRoomId));
@@ -70,6 +81,29 @@ class CreateGroupRoomCommandHandlerTest {
                 now,
                 0L
         );
+    }
+
+    @Test
+    void handle_rejects_uninvitable_participant_before_creating_room() {
+        UUID tenantId = uuid(100);
+        UUID requesterId = uuid(1);
+        List<UUID> participantIds = List.of(uuid(2));
+        CreateGroupRoomCommand command = new CreateGroupRoomCommand(
+                tenantId,
+                requesterId,
+                participantIds,
+                null
+        );
+
+        doThrow(new RoomParticipantNotInvitableException(tenantId, null, Set.copyOf(participantIds)))
+                .when(participantPolicy)
+                .validateGroupParticipants(tenantId, requesterId, participantIds);
+
+        assertThatThrownBy(() -> handler.handle(command))
+                .isInstanceOf(RoomParticipantNotInvitableException.class);
+
+        verify(participantPolicy).validateGroupParticipants(tenantId, requesterId, participantIds);
+        verifyNoInteractions(clockPort, creationSupport);
     }
 
     private PersistedChatRoom persistedRoom(ChatRoom room, UUID chatRoomId) {

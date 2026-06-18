@@ -21,6 +21,11 @@ Status: Implemented
 pabal-app
 pabal-common
 pabal-security
+pabal-user-domain
+pabal-user-application
+pabal-user-contract
+pabal-user-api
+pabal-user-infrastructure
 pabal-messenger-domain
 pabal-messenger-application
 pabal-messenger-contract
@@ -33,28 +38,28 @@ pabal-messenger-infrastructure
 ## 목표 의존 방향
 
 ```text
-api → application
-application → domain
-application → contract
-contract → domain
-infrastructure → application/domain/contract
+{bounded-context}-api → {bounded-context}-application
+{bounded-context}-application → {bounded-context}-domain
+{bounded-context}-application → {bounded-context}-contract
+{bounded-context}-contract → {bounded-context}-domain
+{bounded-context}-infrastructure → {bounded-context}-application/{bounded-context}-domain/{bounded-context}-contract
 security → common
-app → api/application/infrastructure/security/common
+app → *-api/*-application/*-infrastructure/security/common
 ```
 
-`common`은 모든 모듈이 사용할 수 있지만, 특정 messenger 구현을 알아서는 안 된다.
+`common`은 모든 모듈이 사용할 수 있지만, 특정 user/messenger 구현을 알아서는 안 된다.
 
 ## 금지 의존
 
 ```text
-domain → contract
-domain → infrastructure
-domain → api
-application → infrastructure
-api → infrastructure
-contract → infrastructure
-security → messenger-*
-common → messenger-*
+{bounded-context}-domain → {bounded-context}-contract
+{bounded-context}-domain → {bounded-context}-infrastructure
+{bounded-context}-domain → {bounded-context}-api
+{bounded-context}-application → {bounded-context}-infrastructure
+{bounded-context}-api → {bounded-context}-infrastructure
+{bounded-context}-contract → {bounded-context}-infrastructure
+security → user-* 또는 messenger-*
+common → user-* 또는 messenger-*
 ```
 
 ## 모듈별 안정화 기준
@@ -79,7 +84,47 @@ Layer: Common
 Layer: Security
 
 - JWT claim mapping과 `PabalPrincipal`을 소유한다.
+- STOMP 전용 `DestinationUserNameProvider`를 소유하지 않는다.
 - room/member authorization 정책은 messenger application/infrastructure에 남긴다.
+
+### pabal-user-domain
+
+Layer: Domain
+
+- user aggregate, name/status VO, user domain exception만 둔다.
+- repository port는 application에 둔다.
+- `State`, `Persisted*`, JPA Entity를 import하지 않는다.
+
+### pabal-user-contract
+
+Layer: Contract
+
+- user persistence state/wrapper/mapper를 둔다.
+- 비즈니스 결정을 하지 않는다.
+
+### pabal-user-application
+
+Layer: Application
+
+- user command/query handler, repository port, `UserContractService`를 둔다.
+- messenger가 user repository를 직접 참조하지 않도록 common `UserContract`를 구현한다.
+- infrastructure 구현체를 참조하지 않는다.
+
+### pabal-user-api
+
+Layer: API
+
+- user HTTP controller와 mapper를 둔다.
+- `PabalPrincipal`에서 tenant/user를 추출해 command/query에 반영한다.
+- application handler에 위임한다.
+
+### pabal-user-infrastructure
+
+Layer: Infrastructure
+
+- `tenant_user` JPA adapter, JPA Entity, Spring Data repository, clock adapter를 둔다.
+- application port를 구현한다.
+- 유스케이스 정책을 새로 만들지 않는다.
 
 ### pabal-messenger-domain
 
@@ -131,6 +176,8 @@ Status: Partial
 - [x] persistence contract와 JPA Entity 분리
 - [x] STOMP adapter를 infrastructure로 격리
 - [x] message send use case interface와 transaction-owning adapter 분리
+- [x] user bounded context module 추가
+- [x] `pabal-security`에서 Spring Messaging 의존 제거
 - [ ] 모듈 의존 규칙 자동 검증 추가
 - [ ] 전체 `./gradlew test` 기준으로 module boundary regression 확인
 - [x] `message.content` 길이 정책 불일치 정리

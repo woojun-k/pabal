@@ -14,6 +14,7 @@ import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.model.type.MessageType;
 import com.polarishb.pabal.messenger.domain.model.type.RoomAccessOperation;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
+import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
@@ -25,6 +26,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
@@ -70,6 +72,7 @@ class DeleteMessageCommandHandlerTest {
         inOrder.verify(messageRepository).findByTenantIdAndChatRoomIdAndId(tenantId, roomId, messageId);
         inOrder.verify(chatRoomAccessSupport).loadSendableActiveMember(tenantId, roomId, requesterId);
         inOrder.verify(messageRepository).update(message);
+        assertThat(message.message().getContent().value()).isEqualTo(MessageContent.DELETED_TOMBSTONE_VALUE);
     }
 
     @Test

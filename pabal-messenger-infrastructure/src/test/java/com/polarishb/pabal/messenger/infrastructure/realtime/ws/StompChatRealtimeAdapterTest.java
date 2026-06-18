@@ -4,7 +4,7 @@ import com.polarishb.pabal.messenger.contract.realtime.MessageReadRealtimePayloa
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventEnvelope;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventType;
 import com.polarishb.pabal.messenger.contract.realtime.RoomSubscriptionRevokedRealtimePayload;
-import com.polarishb.pabal.security.authentication.PabalPrincipal;
+import com.polarishb.pabal.messenger.infrastructure.realtime.ws.security.RealtimePrincipal;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -69,7 +69,7 @@ class StompChatRealtimeAdapterTest {
             assertThat(SimpMessageHeaderAccessor.getDestination(message.getHeaders()))
                     .isEqualTo(
                             "/user/"
-                                    + PabalPrincipal.destinationUserName(tenantId, userId)
+                                    + RealtimePrincipal.destinationUserName(tenantId, userId)
                                     + ChatRealtimeDestinations.userControlDestination()
                     );
         });

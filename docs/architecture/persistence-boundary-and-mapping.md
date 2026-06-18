@@ -14,7 +14,7 @@ tags:
 
 ## 왜 이 문서가 중요한가
 
-Pabal Messenger는 domain model과 JPA entity를 직접 연결하지 않는다. 현재 구현은 다음 세 표현을 분리한다.
+Pabal의 bounded context는 domain model과 JPA entity를 직접 연결하지 않는다. 현재 구현은 다음 세 표현을 분리한다.
 
 ```text
 Domain Model
@@ -24,11 +24,11 @@ Domain Model
 
 ## 핵심 경계 규칙
 
-- Layer: Domain - `Message`, `ChatRoom`, `ChatRoomMember`, `DirectChatMapping`은 JPA Entity를 모른다.
+- Layer: Domain - `User`, `Message`, `ChatRoom`, `ChatRoomMember`, `DirectChatMapping`은 JPA Entity를 모른다.
 - Layer: Domain - domain은 `MessageState`, `PersistedMessage` 같은 contract persistence 모델을 import하지 않는다.
 - Layer: Contract - `State`, `Persisted*`, `PersistenceMapper`가 domain ↔ persistence shape 변환을 담당한다.
-- Layer: Application - repository port는 `pabal-messenger-application`의 `port.out.persistence`에 있다.
-- Layer: Infrastructure - JPA Entity와 Spring Data repository는 `pabal-messenger-infrastructure` 안에만 둔다.
+- Layer: Application - repository port는 각 bounded context의 application `port.out.persistence`에 있다.
+- Layer: Infrastructure - JPA Entity와 Spring Data repository는 각 bounded context의 infrastructure 안에만 둔다.
 
 ## Message 기준 변환 흐름
 
@@ -62,17 +62,19 @@ Message.snapshot
 
 | Domain Model | State | Persisted Wrapper | JPA Entity |
 | --- | --- | --- | --- |
+| `User` | `UserState` | `PersistedUser` | `TenantUserEntity` |
 | `Message` | `MessageState` | `PersistedMessage` | `MessageEntity` |
 | `ChatRoom` | `ChatRoomState` | `PersistedChatRoom` | `ChatRoomEntity` |
 | `ChatRoomMember` | `ChatRoomMemberState` | `PersistedChatRoomMember` | `ChatRoomMemberEntity` |
 | `DirectChatMapping` | `DirectChatMappingState` | `PersistedDirectChatMapping` | `DirectChatMappingEntity` |
 
-각 aggregate는 domain snapshot을 통해 persistence shape로 넘어간다. `ChatRoomSnapshot`, `ChatRoomMemberSnapshot`, `DirectChatMappingSnapshot`, `MessageSnapshot`이 domain에 있고, contract `State`는 해당 snapshot을 감싼다. 예를 들어 `ChatRoomSnapshot`과 `ChatRoomState`는 `deletedAt`을 포함하며, `DELETED` 상태와 `deletedAt` 정합성을 snapshot 생성 시 검증한다.
+각 aggregate는 domain snapshot을 통해 persistence shape로 넘어간다. `UserSnapshot`, `ChatRoomSnapshot`, `ChatRoomMemberSnapshot`, `DirectChatMappingSnapshot`, `MessageSnapshot`이 domain에 있고, contract `State`는 해당 snapshot을 감싼다. 예를 들어 `ChatRoomSnapshot`과 `ChatRoomState`는 `deletedAt`을 포함하며, `DELETED` 상태와 `deletedAt` 정합성을 snapshot 생성 시 검증한다.
 
 ## Repository port와 adapter
 
 Layer: Application
 
+- `UserRepository`
 - `MessageRepository`, `MessageReadRepository`, `MessageWriteRepository`
 - `ChatRoomRepository`, `ChatRoomReadRepository`, `ChatRoomWriteRepository`
 - `ChatRoomMemberRepository`, `ChatRoomMemberReadRepository`, `ChatRoomMemberWriteRepository`
@@ -81,6 +83,7 @@ Layer: Application
 
 Layer: Infrastructure
 
+- `UserRepositoryImpl`은 `TenantUserEntity`와 `TenantUserJpaRepository`를 통해 user persistence port를 구현한다.
 - `MessageRepositoryImpl`은 read/write port를 조합하는 facade adapter다.
 - `MessageWriteRepositoryImpl`은 `MessageEntity` 저장과 optimistic locking/version 검증을 담당한다.
 - `MessageReadRepositoryImpl`은 조회와 unread count native query를 담당한다.
@@ -94,9 +97,12 @@ Flyway migration은 `pabal-app/src/main/resources/db/migration`에 있다.
 
 - `V1__postgres_extensions_and_uuidv7.sql`: `pgcrypto`, `uuidv7()` 함수
 - `V2__messenger_tables.sql`: `chat_room`, `chat_room_member`, `direct_chat_mapping`, `message`
+- `V3__tombstone_deleted_message_content.sql`: 기존 deleted message tombstone 보정
+- `V4__tenant_user_tables.sql`: `tenant_user`
 
 중요 제약:
 
+- `uq_tenant_user_tenant_id_id`: tenant/user identity uniqueness
 - `uq_message_client_id`: room/sender/clientMessageId 기반 idempotency
 - `uq_message_room_sequence`: room 내부 sequence uniqueness
 - `uq_direct_chat_mapping`: tenant/user pair direct room uniqueness

@@ -1,7 +1,10 @@
 package com.polarishb.pabal.messenger.api.command.ws;
 
+import com.polarishb.pabal.messenger.api.command.ws.request.SendMessageWsRequest;
 import com.polarishb.pabal.messenger.api.command.ws.request.TypingRequest;
+import com.polarishb.pabal.messenger.application.command.handler.SendMessageCommandHandler;
 import com.polarishb.pabal.messenger.application.command.handler.SendTypingCommandHandler;
+import com.polarishb.pabal.messenger.application.command.input.SendMessageCommand;
 import com.polarishb.pabal.messenger.application.command.input.SendTypingCommand;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
 import jakarta.validation.Valid;
@@ -21,7 +24,23 @@ public class ChatRealtimeCommandController {
     private static final String TYPING_STARTED = "STARTED";
     private static final String TYPING_STOPPED = "STOPPED";
 
+    private final SendMessageCommandHandler sendMessageCommandHandler;
     private final SendTypingCommandHandler sendTypingCommandHandler;
+
+    @MessageMapping("/chat.message.send")
+    public void sendMessage(@Valid SendMessageWsRequest request, Principal principal) {
+        validateTenant(request.tenantId(), principal);
+
+        sendMessageCommandHandler.handle(
+                new SendMessageCommand(
+                        request.tenantId(),
+                        extractUserId(principal),
+                        request.chatRoomId(),
+                        request.clientMessageId(),
+                        request.content()
+                )
+        );
+    }
 
     @MessageMapping("/chat.typing.start")
     public void typingStart(@Valid TypingRequest request, Principal principal) {

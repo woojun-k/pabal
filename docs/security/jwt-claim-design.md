@@ -17,6 +17,8 @@ Status: Implemented
 
 Pabal은 JWT를 `PabalPrincipal(userId, tenantId, subject)`로 정규화한다. 이 principal이 HTTP command/query와 STOMP 인증/인가의 기준이며, role/permission authority는 application `PermissionPort` 구현에서 RBAC 판단에 사용한다.
 
+`PabalPrincipal`은 Spring Messaging 타입을 노출하지 않는다. STOMP user destination에 필요한 `DestinationUserNameProvider` 구현은 messenger infrastructure의 adapter 타입이 담당한다.
+
 ## 설정 속성
 
 Code: `JwtSecurityProperties`
@@ -119,21 +121,27 @@ Code: `IssuerJwtDecoderConfig`
 - issuer location으로 `JwtDecoder`를 만든다.
 - issuer, audience, required claims를 검증한다.
 
-## WebSocket principal
+## WebSocket principal adapter
 
-`PabalPrincipal`은 `DestinationUserNameProvider`를 구현한다.
+Code:
+
+- `StompAuthenticationToken`
+- `RealtimePrincipal`
+
+`PabalPrincipal`은 security module의 protocol-neutral principal이다. STOMP CONNECT 인증 후 messenger infrastructure가 `PabalJwtAuthenticationToken`을 `StompAuthenticationToken`으로 감싸고, 이 adapter가 `DestinationUserNameProvider`를 구현한다.
 
 ```text
-PabalPrincipal.destinationUserName(tenantId, userId)
+RealtimePrincipal.destinationUserName(tenantId, userId)
 = {tenantId}:{userId}
 ```
 
-`StompChatRealtimeAdapter.publishSubscriptionRevocation`은 이 destination user name을 사용해 `/user/queue/chat.control`로 전송한다.
+`StompChatRealtimeAdapter.publishSubscriptionRevocation`은 이 destination user name을 사용해 `/user/queue/chat.control`로 전송한다. 이 경계를 통해 `pabal-security`는 `spring-messaging`에 의존하지 않는다.
 
 ## 보안 설계 원칙
 
 - 클라이언트가 제공한 userId/tenantId를 신뢰하지 않는다.
 - HTTP command/query는 authentication principal에서 tenant/user를 꺼낸다.
+- `pabal-security`는 HTTP/JWT principal 정규화만 담당하고 STOMP 전용 user destination adapter를 소유하지 않는다.
 - STOMP typing payload의 tenantId는 principal tenant와 일치해야 한다.
 - room/topic subscribe는 tenant 일치와 active membership을 모두 확인한다.
 - role은 coarse-grained RBAC 입력이고, use case에서는 fine-grained permission으로 판정한다.

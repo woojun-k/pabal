@@ -159,6 +159,7 @@ class MessageTest {
 
         message.delete(deletedAt);
 
+        assertThat(message.getContent().value()).isEqualTo(MessageContent.DELETED_TOMBSTONE_VALUE);
         assertThat(message.getStatus()).isEqualTo(MessageStatus.DELETED);
         assertThat(message.getUpdatedAt()).isEqualTo(deletedAt);
         assertThat(message.getDeletedAt()).isEqualTo(deletedAt);

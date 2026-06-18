@@ -35,6 +35,7 @@ public class RbacPermissionAdapter implements PermissionPort {
 
     private static final EnumSet<MessengerPermission> WORKSPACE_ADMIN_PERMISSIONS = EnumSet.of(
             MessengerPermission.CHANNEL_CREATE,
+            MessengerPermission.CHANNEL_INVITE,
             MessengerPermission.CHANNEL_DELETE_SCHEDULE_ANY,
             MessengerPermission.CHANNEL_DELETE_EXECUTE_ANY
     );

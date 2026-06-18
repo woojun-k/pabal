@@ -15,6 +15,7 @@
 - 현재 상태: 단일 배포 멀티모듈 모놀리스
 - 실행 모듈: `pabal-app`
 - 공통 모듈: `pabal-common`, `pabal-security`
+- User 모듈: `pabal-user-domain`, `pabal-user-application`, `pabal-user-contract`, `pabal-user-api`, `pabal-user-infrastructure`
 - Messenger 모듈: `pabal-messenger-domain`, `pabal-messenger-application`, `pabal-messenger-contract`, `pabal-messenger-api`, `pabal-messenger-infrastructure`
 - 주요 구조: DDD + Hexagonal Architecture + CQRS + Realtime(STOMP)
 - 장기 방향: 멀티모듈 모놀리스 안정화 이후 MSA 분리 가능성 검토

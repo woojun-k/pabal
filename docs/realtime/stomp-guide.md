@@ -45,7 +45,10 @@ StompConnectAuthenticationInterceptor
 → JwtDecoder
 → PabalJwtAuthenticationConverter
 → PabalJwtAuthenticationToken(PabalPrincipal)
+→ StompAuthenticationToken
 ```
+
+`StompAuthenticationToken`은 messenger infrastructure 타입이며, `/user` destination routing에 필요한 `DestinationUserNameProvider`만 담당한다. security module의 `PabalPrincipal`은 Spring Messaging 타입을 구현하지 않는다.
 
 ## SUBSCRIBE 인가
 
@@ -78,6 +81,30 @@ StompConnectAuthenticationInterceptor
 authenticated user만 subscribe할 수 있다.
 
 ## SEND destination
+
+### message send
+
+```text
+SEND /app/chat.message.send
+```
+
+Payload:
+
+```json
+{
+  "tenantId": "uuid",
+  "chatRoomId": "uuid",
+  "clientMessageId": "uuid",
+  "content": "hello"
+}
+```
+
+처리:
+
+- `ChatRealtimeCommandController.sendMessage`가 payload tenant와 principal tenant를 비교한다.
+- 통과하면 `SendMessageCommandHandler`에 위임한다.
+- 저장과 room event 발행 경로는 HTTP `SendMessage`와 동일하다.
+- 수신자는 room events topic에서 `MESSAGE_SENT` event를 받는다.
 
 ### typing start
 
@@ -112,8 +139,8 @@ Payload:
 주의:
 
 - `tenantId`는 request payload에 있지만 그대로 신뢰하지 않는다.
-- `ChatRealtimeCommandController.validateTenant`가 payload tenant와 principal tenant를 비교한다.
-- 권한 검증은 `SendTypingCommandHandler`에서 `ChatRoomAccessSupport.loadSendableActiveMember`로 수행한다.
+- `ChatRealtimeCommandController.validateTenant`가 send/typing payload tenant와 principal tenant를 비교한다.
+- 권한 검증은 `SendMessageCommandHandler`와 `SendTypingCommandHandler`가 `ChatRoomAccessSupport.loadSendableActiveMember` 경로로 수행한다.
 
 ## room event 수신 예시
 

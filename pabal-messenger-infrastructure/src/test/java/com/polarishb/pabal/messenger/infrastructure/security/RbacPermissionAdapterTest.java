@@ -53,6 +53,37 @@ class RbacPermissionAdapterTest {
     }
 
     @Test
+    void hasPermission_maps_workspace_admin_role_to_channel_invite_permission() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        RbacPermissionAdapter adapter = adapter(tenantId, userId, Set.of("ROLE_WORKSPACE_ADMIN"));
+
+        boolean granted = adapter.hasPermission(PermissionCheck.workspace(
+                tenantId,
+                userId,
+                UUID.randomUUID(),
+                MessengerPermission.CHANNEL_INVITE
+        ));
+
+        assertThat(granted).isTrue();
+    }
+
+    @Test
+    void hasPermission_does_not_map_workspace_admin_role_to_tenant_room_invite_permission() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        RbacPermissionAdapter adapter = adapter(tenantId, userId, Set.of("ROLE_WORKSPACE_ADMIN"));
+
+        boolean granted = adapter.hasPermission(PermissionCheck.tenant(
+                tenantId,
+                userId,
+                MessengerPermission.ROOM_INVITE
+        ));
+
+        assertThat(granted).isFalse();
+    }
+
+    @Test
     void hasPermission_does_not_map_channel_owner_role_to_any_delete_permission() {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();

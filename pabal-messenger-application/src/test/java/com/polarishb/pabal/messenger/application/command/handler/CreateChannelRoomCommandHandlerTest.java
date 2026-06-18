@@ -4,6 +4,7 @@ import com.polarishb.pabal.messenger.application.command.input.CreateChannelRoom
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAuthorizationService;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
+import com.polarishb.pabal.messenger.application.service.RoomParticipantPolicy;
 import com.polarishb.pabal.messenger.domain.exception.ChannelPermissionDeniedException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,9 @@ class CreateChannelRoomCommandHandlerTest {
     @Mock
     private ChatRoomAuthorizationService authorizationService;
 
+    @Mock
+    private RoomParticipantPolicy participantPolicy;
+
     @InjectMocks
     private CreateChannelRoomCommandHandler handler;
 
@@ -57,6 +61,6 @@ class CreateChannelRoomCommandHandlerTest {
                 .isInstanceOf(ChannelPermissionDeniedException.class);
 
         verify(authorizationService).requireChannelCreation(tenantId, requesterId, workspaceId);
-        verifyNoInteractions(clockPort, creationSupport);
+        verifyNoInteractions(participantPolicy, clockPort, creationSupport);
     }
 }

@@ -17,12 +17,14 @@ tags:
 Layer: App / Infrastructure / Contract
 Status: Implemented
 
-Pabal Messenger의 DB schema source of truth는 Flyway migration이다. Hibernate는 schema 생성이 아니라 `ddl-auto: validate`로 정합성 검증만 담당한다.
+Pabal DB schema source of truth는 Flyway migration이다. Hibernate는 schema 생성이 아니라 `ddl-auto: validate`로 정합성 검증만 담당한다.
 
 현재 migration 파일은 `pabal-app/src/main/resources/db/migration`에 있다.
 
 - `V1__postgres_extensions_and_uuidv7.sql`
 - `V2__messenger_tables.sql`
+- `V3__tombstone_deleted_message_content.sql`
+- `V4__tenant_user_tables.sql`
 
 ## Schema 관리 원칙
 
@@ -38,24 +40,40 @@ Layer: App / Infrastructure
 
 ```mermaid
 flowchart LR
+    user["tenant_user"]
     room["chat_room"] --> member["chat_room_member"]
     room --> mapping["direct_chat_mapping"]
     room --> message["message"]
     message --> reply["message.reply_to_message_id"]
     message --> last["chat_room.last_message_id"]
     message --> read["chat_room_member.last_read_message_id"]
+    user -. "logical userId" .-> member
+    user -. "logical senderId" .-> message
+    user -. "logical direct participant" .-> mapping
 ```
 
 ## 테이블별 책임
 
 | Table | 대상 Entity | 주요 책임 |
 | --- | --- | --- |
+| `tenant_user` | `TenantUserEntity` | tenant 안의 사용자 존재/상태/name 저장, user module source of truth |
 | `chat_room` | `ChatRoomEntity` | DIRECT/GROUP/CHANNEL 공통 메타데이터, room 상태, last message snapshot |
 | `chat_room_member` | `ChatRoomMemberEntity` | room membership, active/left 상태, read cursor |
 | `direct_chat_mapping` | `DirectChatMappingEntity` | direct participant pair와 room 매핑 |
 | `message` | `MessageEntity` | room-local sequence 기반 메시지 저장, reply, idempotency |
 
 ## 핵심 제약
+
+### tenant_user
+
+Layer: Infrastructure / Domain
+
+- `uq_tenant_user_tenant_id_id`: tenant 포함 user 식별 target
+- `chk_tenant_user_status`: `ACTIVE`, `DISABLED`
+- `chk_tenant_user_name_not_blank`: 공백 name 방지
+- `idx_tenant_user_tenant_status`: tenant별 active user 조회
+
+`chat_room_member.user_id`, `message.sender_id`, `direct_chat_mapping.user_id_min/user_id_max`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Messenger와 User bounded context의 결합은 DB FK가 아니라 application contract인 `UserContract`와 `RoomParticipantPolicy`에서 검증한다.
 
 ### chat_room
 
@@ -105,6 +123,7 @@ Layer: Infrastructure / Domain
 - `chk_message_content_length`: `char_length(content) BETWEEN 1 AND 5000`
 - `chk_message_sequence_positive`: sequence는 1 이상
 - `chk_message_deleted_consistency`: `DELETED`와 `deleted_at` 정합성
+- `V3__tombstone_deleted_message_content`: 기존 `DELETED` message content를 `[deleted]`로 보정
 
 ## 메시지 길이 정책
 

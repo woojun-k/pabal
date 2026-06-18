@@ -1,6 +1,8 @@
 package com.polarishb.pabal.messenger.application.query.output;
 
 import com.polarishb.pabal.messenger.domain.model.snapshot.MessageSnapshot;
+import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
+import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -34,6 +36,9 @@ public record MessageDto(
     }
 
     public String content() {
+        if (snapshot.status() == MessageStatus.DELETED) {
+            return MessageContent.DELETED_TOMBSTONE_VALUE;
+        }
         return snapshot.content().value();
     }
 

@@ -134,6 +134,7 @@ public class Message {
         if (this.status == MessageStatus.DELETED) {
             throw new MessageAlreadyDeletedException();
         }
+        this.content = MessageContent.deletedTombstone();
         this.status = MessageStatus.DELETED;
         this.updatedAt = deletedAt;
         this.deletedAt = deletedAt;

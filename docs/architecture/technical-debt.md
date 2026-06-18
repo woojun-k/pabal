@@ -70,17 +70,17 @@ Layer: Infrastructure / Security
 현재 확인된 상태:
 
 - `RealtimeAccessTokenAuthenticator`는 참조되지 않는다.
-- `RealtimePrincipal`은 참조되지 않는다.
-- 현재 STOMP 인증은 `StompConnectAuthenticationInterceptor` + `WebSocketAuthenticationManagerConfig` + `PabalJwtAuthenticationConverter` 흐름이다.
+- `RealtimePrincipal`은 user destination name 생성에 사용된다.
+- 현재 STOMP 인증은 `StompConnectAuthenticationInterceptor` + `WebSocketAuthenticationManagerConfig` + `PabalJwtAuthenticationConverter` + `StompAuthenticationToken` 흐름이다.
 
 선택지:
 
-- 사용하지 않는 타입이면 삭제한다.
+- `RealtimeAccessTokenAuthenticator`가 사용되지 않는 타입이면 삭제한다.
 - Realtime Gateway 분리 준비 타입이면 `Status: Planned`로 문서화하고 실제 사용 계획을 남긴다.
 
 검증 방법:
 
-- `rg "RealtimeAccessTokenAuthenticator|RealtimePrincipal"`로 참조 여부 확인.
+- `rg "RealtimeAccessTokenAuthenticator"`로 참조 여부 확인.
 - 삭제 시 WebSocket 인증 테스트가 현재 흐름을 보호해야 한다.
 
 ## 3. module boundary 자동 검증

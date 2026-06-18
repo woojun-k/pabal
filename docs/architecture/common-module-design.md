@@ -38,7 +38,7 @@ Status: Implemented
 | `common.persistence.entity.base` | Common / Infrastructure Support | `BaseEntity`, `UpdatableEntity`, `DeletableEntity` | JPA entity 공통 timestamp/delete field |
 | `common.persistence.jpa` | Common / Infrastructure Support | `UuidV7Generated`, `UuidV7IdGenerator` | UUID v7 Hibernate generator |
 | `common.util` | Common | `UuidV7` | UUID v7 생성/검증 utility |
-| `common.contract` | Common / Contract | `UserContract`, `UserInfo` | 사용자 정보 조회를 위한 공통 contract 후보 |
+| `common.contract` | Common / Contract | `UserContract`, `UserInfo` | bounded context 간 사용자 존재/상태 조회 contract |
 
 ## 의존 방향
 
@@ -61,6 +61,20 @@ pabal-common → pabal-app
 ```
 
 공통 모듈은 Spring Framework, validation, webmvc, security core, OpenTelemetry API 같은 범용 dependency를 사용할 수 있지만, 프로젝트 내부의 특정 도메인 모듈에는 의존하지 않아야 한다.
+
+## bounded context 간 contract
+
+Layer: Common / Contract
+
+`UserContract`는 messenger가 user module의 내부 repository나 JPA entity에 직접 의존하지 않고 tenant user 존재를 확인하기 위한 공통 contract다.
+
+현재 구현:
+
+- interface: `pabal-common`의 `UserContract`
+- provider: `pabal-user-application`의 `UserContractService`
+- consumer: `pabal-messenger-infrastructure`의 `CurrentAuthenticationRoomParticipantDirectoryAdapter`
+
+이 contract는 identity primitive인 `tenantId`, `userId`, `UserInfo`만 노출한다. user domain model, persistence `State`, JPA entity는 common으로 올리지 않는다.
 
 ## API 오류 모델
 

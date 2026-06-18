@@ -15,7 +15,8 @@ tags:
 Layer: Security → API → Application → Infrastructure
 
 - `PabalJwtAuthenticationConverter`가 JWT claim에서 `tenantId`, `userId`, `subject`를 추출한다.
-- `PabalPrincipal`이 HTTP와 STOMP 인증 컨텍스트의 기준이다.
+- `PabalPrincipal`이 HTTP와 STOMP 인증 컨텍스트의 tenant/user 기준이다.
+- user 존재/상태는 user module의 `tenant_user`가 기준이며, messenger는 `UserContract`를 통해 확인한다.
 - API mapper는 principal의 tenant/user를 command/query에 넣는다.
 - repository port와 adapter 메서드는 `findByTenantId...` 형태로 tenant 조건을 명시한다.
 - STOMP subscription은 destination의 `{tenantId}`와 principal tenant가 일치해야 허용한다.
@@ -34,6 +35,7 @@ WebSocket/STOMP:
 
 - handshake endpoint는 HTTP security에서 permitAll 처리된다.
 - STOMP CONNECT에서 `StompConnectAuthenticationInterceptor`가 bearer token을 인증한다.
+- 인증 결과는 `PabalPrincipal`을 담은 JWT authentication이고, STOMP accessor user는 messenger infrastructure의 `StompAuthenticationToken`으로 감싼다.
 - SUBSCRIBE authorization은 `StompMessageAuthorizationConfig`와 `RoomSubscriptionAuthorizationManager`가 담당한다.
 
 ## 3. 예외 처리
@@ -89,6 +91,7 @@ Layer: App / Common / Infrastructure
 ## 운영상 주의점
 
 - 신규 repository method는 tenant 조건을 빠뜨리면 안 된다.
+- bounded context 간 user 조회는 repository 직접 의존이 아니라 `UserContract` 같은 contract 경계를 통해야 한다.
 - 신규 realtime destination은 CONNECT 인증과 SUBSCRIBE 인가를 분리해서 설계해야 한다.
 - 신규 domain event는 after-commit 필요 여부를 명시해야 한다.
 - 신규 API error는 `ErrorCode`와 `GlobalExceptionHandler`의 정규화 규칙을 확인해야 한다.

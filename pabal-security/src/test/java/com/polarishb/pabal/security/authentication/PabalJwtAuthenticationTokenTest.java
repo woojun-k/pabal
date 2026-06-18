@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PabalJwtAuthenticationTokenTest {
 
     @Test
-    void getDestinationUserName_uses_tenant_and_user_id() {
+    void getPrincipal_returns_pabal_principal() {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         PabalPrincipal principal = new PabalPrincipal(userId, tenantId, "subject");
@@ -28,7 +28,7 @@ class PabalJwtAuthenticationTokenTest {
         PabalJwtAuthenticationToken authenticationToken =
                 new PabalJwtAuthenticationToken(principal, jwt, List.of());
 
-        assertThat(authenticationToken.getDestinationUserName())
-                .isEqualTo(PabalPrincipal.destinationUserName(tenantId, userId));
+        assertThat(authenticationToken.getPrincipal()).isSameAs(principal);
+        assertThat(authenticationToken.getName()).isEqualTo("subject");
     }
 }

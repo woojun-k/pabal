@@ -15,7 +15,15 @@ tags:
 Layer: API → Application → Domain → Application Port → Infrastructure Adapter
 Status: Implemented
 
-Pabal Messenger의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출된다. API controller는 외부 request를 application command/query record로 변환하고, application handler가 유스케이스를 처리한다.
+Pabal의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출된다. API controller는 외부 request를 application command/query record로 변환하고, application handler가 유스케이스를 처리한다.
+
+## User HTTP 유스케이스
+
+| Use Case | Endpoint | Command/Query | Handler | 주요 domain/port | Event |
+| --- | --- | --- | --- | --- | --- |
+| CreateMe | `POST /api/v1/users/me` | `CreateUserCommand` | `CreateUserCommandHandler` | `User`, `UserRepository` | none |
+| GetMe | `GET /api/v1/users/me` | `GetUserQuery` | `GetUserQueryHandler` | `UserRepository`, `UserDto` | none |
+| GetUser | `GET /api/v1/users/{userId}` | `GetUserQuery` | `GetUserQueryHandler` | `UserRepository`, `UserDto` | none |
 
 ## HTTP Command 유스케이스
 
@@ -28,8 +36,8 @@ Pabal Messenger의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint�
 | MarkRead | `PUT /api/v1/chat-rooms/{chatRoomId}/read-state` | `MarkReadCommand` | `MarkReadCommandHandler` | `ChatRoomMember.updateLastRead`, `MessageRepository` | `MessageReadEvent` |
 | JoinRoom | `PUT /api/v1/chat-rooms/{chatRoomId}/members/me` | `JoinRoomCommand` | `JoinRoomCommandHandler` | `ChatRoomMember.create/rejoin` | `MemberJoinedEvent` |
 | LeaveRoom | `DELETE /api/v1/chat-rooms/{chatRoomId}/members/me` | `LeaveRoomCommand` | `LeaveRoomCommandHandler` | `ChatRoomMember.leave` | `MemberLeftEvent` |
-| CreateGroupRoom | `POST /api/v1/chat-rooms/groups` | `CreateGroupRoomCommand` | `CreateGroupRoomCommandHandler` | `ChatRoom.createGroup`, `ChatRoomCreationSupport` | none |
-| CreateChannelRoom | `POST /api/v1/chat-rooms/channels` | `CreateChannelRoomCommand` | `CreateChannelRoomCommandHandler` | `ChatRoom.createChannel`, channel name uniqueness, `PermissionPort` | none |
+| CreateGroupRoom | `POST /api/v1/chat-rooms/groups` | `CreateGroupRoomCommand` | `CreateGroupRoomCommandHandler` | `RoomParticipantPolicy`, `ChatRoom.createGroup`, `ChatRoomCreationSupport` | none |
+| CreateChannelRoom | `POST /api/v1/chat-rooms/channels` | `CreateChannelRoomCommand` | `CreateChannelRoomCommandHandler` | `RoomParticipantPolicy`, `ChatRoom.createChannel`, channel name uniqueness, `PermissionPort` | none |
 | ScheduleRoomDeletion | `PUT /api/v1/chat-rooms/{chatRoomId}/deletion-schedule` | `ScheduleRoomDeletionCommand` | `ScheduleRoomDeletionCommandHandler` | `ChatRoom.scheduleForDeletion`, `PermissionPort` | none |
 | DeleteRoomImmediately | `DELETE /api/v1/chat-rooms/{chatRoomId}` | `DeleteRoomImmediatelyCommand` | `DeleteRoomImmediatelyCommandHandler` | `ChatRoom.deleteImmediately`, `PermissionPort` | none |
 | GetOrCreateDirectRoom | `POST /api/v1/chat-rooms/direct` | `GetOrCreateDirectRoomCommand` | `GetOrCreateDirectRoomCommandHandler` | `DirectRoomCreationService`, `DirectChatMapping` | none |
@@ -47,6 +55,7 @@ Pabal Messenger의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint�
 
 | Use Case | Destination | Command | Handler | Output |
 | --- | --- | --- | --- | --- |
+| SendMessage | `/app/chat.message.send` | `SendMessageCommand` | `SendMessageCommandHandler` | `RoomEventEnvelope(type=MESSAGE_SENT)` to room event topic |
 | TypingStart | `/app/chat.typing.start` | `SendTypingCommand(status=STARTED)` | `SendTypingCommandHandler` | `TypingEventPayload` to typing topic |
 | TypingStop | `/app/chat.typing.stop` | `SendTypingCommand(status=STOPPED)` | `SendTypingCommandHandler` | `TypingEventPayload` to typing topic |
 
@@ -58,6 +67,8 @@ Pabal Messenger의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint�
 - Leave: `ChatRoomAccessSupport.loadLeavableMember`
 - Edit/delete message: message sender 검증 전에 `chatRoomId` 포함 조회와 `ChatRoomAccessSupport.loadSendableActiveMember`를 다시 통과한다.
 - Channel create/delete: `ChatRoomAuthorizationService`가 `PermissionPort`에 fine-grained permission을 질의한다.
+- Room participant validation: `RoomParticipantPolicy`가 `RoomParticipantDirectoryPort`를 통해 current principal과 target user의 tenant membership을 검증한다.
+- User existence: messenger infrastructure는 common `UserContract`를 통해 user module의 active tenant user를 조회한다.
 
 ## 구현상 중요한 세부
 

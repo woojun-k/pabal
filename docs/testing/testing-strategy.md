@@ -12,7 +12,7 @@ tags:
 
 ## 개요
 
-현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-security`, `pabal-messenger-domain`, `pabal-messenger-application`, `pabal-messenger-api`, `pabal-messenger-infrastructure`, `pabal-app`로 분산되어 있다.
+현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-security`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
 
 ## 실행 환경
 
@@ -42,6 +42,15 @@ Layer: Testing / App
 - `pabal-security/src/test/java/com/polarishb/pabal/security/authentication/PabalJwtAuthenticationTokenTest.java`
 - `pabal-security/src/test/java/com/polarishb/pabal/security/authentication/PabalJwtAuthenticationConverterTest.java`
 - `pabal-security/src/test/java/com/polarishb/pabal/security/context/SecurityContextCurrentAuthenticationProviderTest.java`
+
+### User
+
+- `pabal-user-domain/src/test/java/.../UserTest.java`
+- `pabal-user-domain/src/test/java/.../UserNameTest.java`
+- `pabal-user-application/src/test/java/.../CreateUserCommandHandlerTest.java`
+- `pabal-user-application/src/test/java/.../UserContractServiceTest.java`
+- `pabal-user-infrastructure/src/test/java/.../UserRepositoryImplTest.java`
+- `pabal-app/src/test/java/com/polarishb/pabal/user/integration/UserMessengerIntegrationTest.java`
 
 ### Domain
 
@@ -82,6 +91,7 @@ Layer: Testing / App
 - `DirectChatMappingWriteRepositoryImplTest`
 - `RbacPermissionAdapterTest`
 - `StompChatRealtimeAdapterTest`
+- `StompAuthenticationTokenTest`
 - `PabalApplicationTests`
 
 ## 추천 테스트 피라미드
@@ -166,15 +176,26 @@ Layer: Common / Application / Infrastructure
 - listener는 contract payload와 `RoomEventEnvelope`를 만든다.
 - STOMP adapter는 `ChatRealtimeDestinations` 기준 destination으로 전송한다.
 - CONNECT 인증과 SUBSCRIBE 인가는 분리해서 테스트한다.
+- STOMP message send MVP는 connect/subscribe/send/receive를 실제 WebSocket endpoint(`/ws`)로 검증한다.
+- `/user` destination routing은 `StompAuthenticationToken`과 `RealtimePrincipal.destinationUserName` 규칙을 검증한다.
 
 이벤트 경계는 [Pabal 이벤트 발행과 트랜잭션 경계](../architecture/event-and-transaction-boundary.md)를 기준으로 본다.
+
+## User-Messenger 통합 테스트 기준
+
+Layer: App / Application / Infrastructure
+
+- user 생성/조회는 `tenant_user` migration과 JPA mapping을 함께 검증한다.
+- `UserContractService`는 active tenant user 조회 contract를 보장한다.
+- messenger participant validation은 user module의 active tenant user를 `UserContract`로 조회하는 통합 테스트를 둔다.
+- messenger application은 user repository나 user JPA entity에 직접 의존하지 않는다.
 
 ## 현재 기준 우선 보강 포인트
 
 Status: Proposed
 
-- WebSocket CONNECT 인증 실패/성공 테스트
-- `RoomSubscriptionAuthorizationManager` tenant mismatch, inactive member, deleted room subscribe 실패 테스트
+- WebSocket CONNECT 인증 실패/성공 테스트 확장
+- `RoomSubscriptionAuthorizationManager` tenant mismatch, inactive member, deleted room subscribe 실패 테스트 확장
 - message content 5000자 정책 회귀 테스트
 - module dependency rule test 또는 Gradle plugin 검증
 - private channel invite/admin approval flow test once that flow is implemented

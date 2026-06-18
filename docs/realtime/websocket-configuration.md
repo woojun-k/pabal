@@ -51,13 +51,15 @@ Code:
 - `StompConnectAuthenticationInterceptor`
 - `WebSocketAuthenticationManagerConfig`
 - `PabalJwtAuthenticationConverter`
+- `StompAuthenticationToken`
+- `RealtimePrincipal`
 
 CONNECT native header에서 token을 읽는다.
 
 - `Authorization: Bearer {token}`
 - `access_token: {token}`
 
-인증 성공 시 STOMP accessor user가 `PabalJwtAuthenticationToken`으로 설정된다.
+인증 성공 시 JWT 인증 결과는 `PabalJwtAuthenticationToken(PabalPrincipal)`이고, STOMP accessor user에는 messenger infrastructure의 `StompAuthenticationToken`이 설정된다. 이 wrapper는 `/user` destination routing을 위해 `DestinationUserNameProvider`를 구현하지만, `pabal-security`는 Spring Messaging에 의존하지 않는다.
 
 ## 메시지 인가
 
@@ -75,6 +77,12 @@ Code:
 - `/topic/tenants/{tenantId}/chat-rooms/{chatRoomId}/events`: room member subscribe check
 - `/topic/tenants/{tenantId}/chat-rooms/{chatRoomId}/typing`: room member subscribe check
 - 기타 MESSAGE/SUBSCRIBE: deny
+
+현재 `/app/**`에서 구현된 command destination은 다음과 같다.
+
+- `/app/chat.message.send`
+- `/app/chat.typing.start`
+- `/app/chat.typing.stop`
 
 ## 포트 및 어댑터
 

@@ -4,7 +4,7 @@ import com.polarishb.pabal.messenger.application.port.out.realtime.ChatRealtimeP
 import com.polarishb.pabal.messenger.contract.realtime.RoomSubscriptionRevokedRealtimePayload;
 import com.polarishb.pabal.messenger.contract.realtime.RoomEventEnvelope;
 import com.polarishb.pabal.messenger.contract.realtime.TypingEventPayload;
-import com.polarishb.pabal.security.authentication.PabalPrincipal;
+import com.polarishb.pabal.messenger.infrastructure.realtime.ws.security.RealtimePrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -37,7 +37,7 @@ public class StompChatRealtimeAdapter implements ChatRealtimePort {
             RoomSubscriptionRevokedRealtimePayload payload
     ) {
         messagingTemplate.convertAndSendToUser(
-                PabalPrincipal.destinationUserName(tenantId, userId),
+                RealtimePrincipal.destinationUserName(tenantId, userId),
                 ChatRealtimeDestinations.userControlDestination(),
                 payload
         );

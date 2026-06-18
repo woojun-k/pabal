@@ -26,13 +26,15 @@ Pabal Messenger는 `pabal-app`이 모든 모듈을 조립해 단일 애플리케
 5. `pabal-app/src/main/resources/application-local.yaml`
 6. `compose.local.yaml`
 7. `pabal-app/src/main/resources/db/migration/V2__messenger_tables.sql`
-8. `pabal-common/src/main/java/com/polarishb/pabal/common/api/GlobalExceptionHandler.java`
-9. `pabal-common/src/main/java/com/polarishb/pabal/common/event/SpringDomainEventPublisher.java`
-10. `pabal-messenger-api/src/main/java/com/polarishb/pabal/messenger/api/command/http/ChatCommandController.java`
-11. `pabal-messenger-application/src/main/java/com/polarishb/pabal/messenger/application/command/handler/SendMessageCommandHandler.java`
-12. `pabal-messenger-domain/src/main/java/com/polarishb/pabal/messenger/domain/model/entity/Message.java`
-13. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/persistence/write/MessageWriteRepositoryImpl.java`
-14. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/config/WebSocketBrokerConfig.java`
+8. `pabal-app/src/main/resources/db/migration/V4__tenant_user_tables.sql`
+9. `pabal-common/src/main/java/com/polarishb/pabal/common/api/GlobalExceptionHandler.java`
+10. `pabal-common/src/main/java/com/polarishb/pabal/common/event/SpringDomainEventPublisher.java`
+11. `pabal-user-application/src/main/java/com/polarishb/pabal/user/application/service/UserContractService.java`
+12. `pabal-messenger-api/src/main/java/com/polarishb/pabal/messenger/api/command/http/ChatCommandController.java`
+13. `pabal-messenger-application/src/main/java/com/polarishb/pabal/messenger/application/command/handler/SendMessageCommandHandler.java`
+14. `pabal-messenger-domain/src/main/java/com/polarishb/pabal/messenger/domain/model/Message.java`
+15. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/persistence/write/MessageWriteRepositoryImpl.java`
+16. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/config/WebSocketBrokerConfig.java`
 
 ## 3. 모듈 지도
 
@@ -41,6 +43,11 @@ Pabal Messenger는 `pabal-app`이 모든 모듈을 조립해 단일 애플리케
 | `pabal-app` | App | `com.polarishb.pabal` | Spring Boot 실행, 모듈 조립, resource/migration 보관 |
 | `pabal-common` | Common | `common.api`, `common.event`, `common.cqrs` | 공통 API error, event publisher, CQRS marker, UUID v7 |
 | `pabal-security` | Security | `security.authentication`, `security.config` | JWT decoder/converter, `PabalPrincipal`, HTTP security |
+| `pabal-user-domain` | Domain | `domain.model`, `domain.exception` | user aggregate, name/status invariant |
+| `pabal-user-contract` | Contract | `contract.persistence` | user persistence 경계 shape |
+| `pabal-user-application` | Application | `command.handler`, `query.handler`, `service` | user 유스케이스, `UserContract` 구현 |
+| `pabal-user-api` | API | `api.command`, `api.query` | user HTTP controller와 mapper |
+| `pabal-user-infrastructure` | Infrastructure | `persistence`, `time` | `tenant_user` JPA adapter |
 | `pabal-messenger-domain` | Domain | `domain.model`, `domain.event`, `domain.exception` | 순수 도메인 모델, invariant, 도메인 이벤트 |
 | `pabal-messenger-contract` | Contract | `contract.persistence`, `contract.realtime` | persistence/realtime 경계 shape |
 | `pabal-messenger-application` | Application | `command.handler`, `query.handler`, `port.out` | 유스케이스 orchestration, outbound port |
@@ -124,8 +131,9 @@ STOMP CONNECT
 → StompConnectAuthenticationInterceptor
 → WebSocketAuthenticationManagerConfig
 → PabalJwtAuthenticationConverter
+→ StompAuthenticationToken
 → ChatRealtimeCommandController
-→ SendTypingCommandHandler
+→ SendMessageCommandHandler / SendTypingCommandHandler
 → ChatRealtimePort
 → StompChatRealtimeAdapter
 ```
@@ -153,6 +161,7 @@ DomainEventPublisher.publishAfterCommit
 ## 9. 흔한 실수
 
 - `tenantId`를 request body나 path에서 신뢰하는 것. HTTP에서는 `PabalPrincipal` 기준으로 command/query를 만든다.
+- messenger에서 user module repository/JPA entity를 직접 참조하는 것. user 존재 확인은 `UserContract`를 통해 한다.
 - domain에 JPA Entity, `MessageState`, `PersistedMessage`를 넣는 것.
 - application handler에서 JPA repository를 직접 참조하는 것.
 - API controller에 비즈니스 규칙을 넣는 것.

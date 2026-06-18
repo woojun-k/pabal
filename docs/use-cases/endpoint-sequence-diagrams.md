@@ -143,6 +143,7 @@ sequenceDiagram
     participant AM as WebSocketAuthenticationManagerConfig
     participant J as JwtDecoder
     participant CV as PabalJwtAuthenticationConverter
+    participant ST as StompAuthenticationToken
     participant AZ as RoomSubscriptionAuthorizationManager
     participant RR as ChatRoomReadRepository
     participant MR as ChatRoomMemberRepository
@@ -151,6 +152,7 @@ sequenceDiagram
     I->>AM: authenticate(BearerTokenAuthenticationToken)
     AM->>J: decode/validate JWT
     AM->>CV: convert JWT to PabalJwtAuthenticationToken
+    I->>ST: wrap authentication for /user destination
     I-->>C: authenticated STOMP session
     C->>AZ: SUBSCRIBE /topic/tenants/{tenantId}/chat-rooms/{roomId}/events
     AZ->>AZ: compare destination tenant with principal tenant

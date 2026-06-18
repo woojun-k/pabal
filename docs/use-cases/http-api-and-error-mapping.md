@@ -36,6 +36,70 @@ Layer: API
 }
 ```
 
+## User endpoints
+
+### CreateMe
+
+`POST /api/v1/users/me`
+
+Request:
+
+```json
+{
+  "name": "Alice"
+}
+```
+
+Response:
+
+```json
+{
+  "userId": "018f0000-0000-7000-8000-000000000001",
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Alice",
+  "status": "ACTIVE",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- userId와 tenantId는 `PabalPrincipal`에서 가져온다.
+- request body에는 name만 받는다.
+- 이미 같은 tenant/user가 존재하면 중복 user로 거부한다.
+
+주요 오류:
+
+- `USR409001 DUPLICATE_USER`
+- `CMN002 INVALID_INPUT`
+
+### GetMe / GetUser
+
+- `GET /api/v1/users/me` → `UserResponse`
+- `GET /api/v1/users/{userId}` → `UserResponse`
+
+Response:
+
+```json
+{
+  "userId": "018f0000-0000-7000-8000-000000000001",
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Alice",
+  "status": "ACTIVE",
+  "createdAt": "2026-04-29T00:00:00Z",
+  "updatedAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- `/users/me`는 principal의 userId를 조회한다.
+- `/users/{userId}`는 principal tenant 범위에서 path userId를 조회한다.
+
+주요 오류:
+
+- `USR404001 USER_NOT_FOUND`
+
 ## Message endpoints
 
 ### SendMessage
@@ -144,7 +208,11 @@ Response:
 }
 ```
 
-정책은 `EditMessage`와 동일하게 sender, active membership, room status를 재검증한다.
+정책:
+
+- `EditMessage`와 동일하게 sender, active membership, room status를 재검증한다.
+- 삭제 시 원문 `content`는 tombstone 값 `[deleted]`로 대체한다.
+- 조회 응답도 `DELETED` 메시지의 content를 `[deleted]`로 마스킹한다.
 
 주요 오류:
 
@@ -212,6 +280,17 @@ Response:
 }
 ```
 
+정책:
+
+- `participantIds`는 requester와 함께 tenant membership을 batch 검증한다.
+- 초대 대상이 있으면 `messenger:room:invite` fine-grained permission이 필요하다.
+
+주요 오류:
+
+- `MSG403009 ROOM_INVITE_PERMISSION_DENIED`
+- `MSG403010 ROOM_PARTICIPANT_NOT_INVITABLE`
+- `CMN002 INVALID_INPUT`
+
 ### CreateChannelRoom
 
 `POST /api/v1/chat-rooms/channels`
@@ -231,11 +310,14 @@ Request:
 정책:
 
 - `messenger:channel:create` fine-grained permission이 필요하다.
-- `ROLE_TENANT_ADMIN`, `ROLE_PABAL_ADMIN`, `ROLE_WORKSPACE_ADMIN`은 RBAC adapter에서 이 permission으로 매핑된다.
+- `participantIds`는 requester와 함께 workspace membership을 batch 검증한다.
+- 초대 대상이 있으면 `messenger:channel:invite` fine-grained permission도 필요하다.
+- `ROLE_TENANT_ADMIN`, `ROLE_PABAL_ADMIN`, `ROLE_WORKSPACE_ADMIN`은 RBAC adapter에서 channel create/invite permission으로 매핑된다.
 
 주요 오류:
 
 - `MSG403008 CHANNEL_PERMISSION_DENIED`
+- `MSG403010 ROOM_PARTICIPANT_NOT_INVITABLE`
 - `MSG409003 DUPLICATE_CHANNEL_NAME`
 - `CMN002 INVALID_INPUT`
 
@@ -260,9 +342,15 @@ Response:
 }
 ```
 
+정책:
+
+- requester와 participant가 서로 다른 사용자여야 한다.
+- requester와 participant가 같은 tenant membership에 있는지 batch 검증한다.
+
 주요 오류:
 
 - `MSG400006 INVALID_DIRECT_CHAT_PARTICIPANTS`
+- `MSG403010 ROOM_PARTICIPANT_NOT_INVITABLE`
 
 ## Channel deletion endpoints
 
@@ -321,18 +409,23 @@ Response:
       "senderId": "018f0000-0000-7000-8000-000000000001",
       "clientMessageId": "018f0000-0000-7000-8000-000000000001",
       "sequence": 42,
-      "content": "hello",
-      "status": "ACTIVE",
+      "content": "[deleted]",
+      "status": "DELETED",
       "replyToMessageId": null,
       "createdAt": "2026-04-29T00:00:00Z",
-      "updatedAt": "2026-04-29T00:00:00Z",
-      "deletedAt": null
+      "updatedAt": "2026-04-29T00:02:00Z",
+      "deletedAt": "2026-04-29T00:02:00Z"
     }
   ],
   "nextCursor": 42,
   "hasNext": true
 }
 ```
+
+정책:
+
+- 삭제된 메시지도 pagination sequence 보존을 위해 목록에 포함될 수 있다.
+- `status = DELETED`인 메시지의 content는 항상 `[deleted]`로 반환한다.
 
 ### ReadMessage / GetUnreadCount
 
