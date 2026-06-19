@@ -106,6 +106,53 @@ Payload:
 - 저장과 room event 발행 경로는 HTTP `SendMessage`와 동일하다.
 - 수신자는 room events topic에서 `MESSAGE_SENT` event를 받는다.
 
+### message edit
+
+```text
+SEND /app/chat.message.edit
+```
+
+Payload:
+
+```json
+{
+  "tenantId": "uuid",
+  "chatRoomId": "uuid",
+  "messageId": "uuid",
+  "newContent": "edited"
+}
+```
+
+처리:
+
+- `ChatRealtimeCommandController.editMessage`가 payload tenant와 principal tenant를 비교한다.
+- 통과하면 `EditMessageCommandHandler`에 위임한다.
+- 저장과 room event 발행 경로는 HTTP `EditMessage`와 동일하다.
+- 수신자는 room events topic에서 `MESSAGE_EDITED` event를 받는다.
+
+### message delete
+
+```text
+SEND /app/chat.message.delete
+```
+
+Payload:
+
+```json
+{
+  "tenantId": "uuid",
+  "chatRoomId": "uuid",
+  "messageId": "uuid"
+}
+```
+
+처리:
+
+- `ChatRealtimeCommandController.deleteMessage`가 payload tenant와 principal tenant를 비교한다.
+- 통과하면 `DeleteMessageCommandHandler`에 위임한다.
+- 저장과 room event 발행 경로는 HTTP `DeleteMessage`와 동일하다.
+- 수신자는 room events topic에서 `MESSAGE_DELETED` event를 받는다.
+
 ### typing start
 
 ```text
@@ -139,8 +186,8 @@ Payload:
 주의:
 
 - `tenantId`는 request payload에 있지만 그대로 신뢰하지 않는다.
-- `ChatRealtimeCommandController.validateTenant`가 send/typing payload tenant와 principal tenant를 비교한다.
-- 권한 검증은 `SendMessageCommandHandler`와 `SendTypingCommandHandler`가 `ChatRoomAccessSupport.loadSendableActiveMember` 경로로 수행한다.
+- `ChatRealtimeCommandController.validateTenant`가 message/typing payload tenant와 principal tenant를 비교한다.
+- 권한 검증은 각 command handler가 `ChatRoomAccessSupport.loadSendableActiveMember` 경로로 수행한다.
 
 ## room event 수신 예시
 

@@ -76,7 +76,7 @@ Pabal은 현재 MSA가 아니다. 이 문서는 멀티모듈 모놀리스가 안
 ## 외부 계약 후보
 
 - HTTP: `/api/v1/chat-rooms/**`
-- STOMP inbound: `/app/chat.typing.start`, `/app/chat.typing.stop`
+- STOMP inbound: `/app/chat.message.send`, `/app/chat.message.edit`, `/app/chat.message.delete`, `/app/chat.typing.start`, `/app/chat.typing.stop`
 - STOMP outbound: `/topic/tenants/{tenantId}/chat-rooms/{chatRoomId}/events`
 - STOMP typing: `/topic/tenants/{tenantId}/chat-rooms/{chatRoomId}/typing`
 - User control: `/user/queue/chat.control`

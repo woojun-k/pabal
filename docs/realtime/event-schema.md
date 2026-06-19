@@ -24,6 +24,9 @@ Realtime 외부 payload는 `pabal-messenger-contract/src/main/java/com/polarishb
 
 | 목적 | Destination | Controller |
 | --- | --- | --- |
+| message send | `/app/chat.message.send` | `ChatRealtimeCommandController.sendMessage` |
+| message edit | `/app/chat.message.edit` | `ChatRealtimeCommandController.editMessage` |
+| message delete | `/app/chat.message.delete` | `ChatRealtimeCommandController.deleteMessage` |
 | typing start | `/app/chat.typing.start` | `ChatRealtimeCommandController.typingStart` |
 | typing stop | `/app/chat.typing.stop` | `ChatRealtimeCommandController.typingStop` |
 

@@ -30,6 +30,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private static final String MESSAGE_SEND_DESTINATION = "/app/chat.message.send";
+    private static final String MESSAGE_EDIT_DESTINATION = "/app/chat.message.edit";
+    private static final String MESSAGE_DELETE_DESTINATION = "/app/chat.message.delete";
+    private static final int NO_EVENT_TIMEOUT_SECONDS = 2;
 
     @LocalServerPort
     private int port;
@@ -62,80 +66,281 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
     private SimpUserRegistry simpUserRegistry;
 
     @Test
-    void stomp_send_message_broadcasts_message_sent_event_to_room_subscriber() throws Exception {
+    void stomp_send_edit_delete_broadcasts_events_to_sender_and_receiver() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID userAId = UUID.randomUUID();
+        UUID userBId = UUID.randomUUID();
+        UUID clientMessageId = UUID.randomUUID();
+        String originalContent = "hello over stomp";
+        String editedContent = "edited over stomp";
+        insertActiveRoomWithMembers(tenantId, chatRoomId, userAId, userBId);
+
+        StompTestClient userAClient = stompClient();
+        StompTestClient userBClient = stompClient();
+        StompSession userASession = null;
+        StompSession userBSession = null;
+
+        try {
+            userASession = connect(userAClient.client(), tokenFor(userAId, tenantId));
+            userBSession = connect(userBClient.client(), tokenFor(userBId, tenantId));
+
+            BlockingQueue<Map<String, Object>> userAEvents = new LinkedBlockingQueue<>();
+            BlockingQueue<Map<String, Object>> userBEvents = new LinkedBlockingQueue<>();
+            String roomEventsTopic = roomEventsTopic(tenantId, chatRoomId);
+            userASession.subscribe(roomEventsTopic, mapFrameHandler(userAEvents));
+            userBSession.subscribe(roomEventsTopic, mapFrameHandler(userBEvents));
+            awaitSubscriptionCount(roomEventsTopic, 2);
+
+            sendMessage(userASession, tenantId, chatRoomId, clientMessageId, originalContent);
+
+            Map<String, Object> userASent = awaitRoomEvent(userAEvents, "MESSAGE_SENT", tenantId, chatRoomId);
+            Map<String, Object> userBSent = awaitRoomEvent(userBEvents, "MESSAGE_SENT", tenantId, chatRoomId);
+            Map<String, Object> sentPayload = payload(userASent);
+            UUID messageId = UUID.fromString(sentPayload.get("messageId").toString());
+
+            assertThat(userBSent.get("eventId")).isEqualTo(userASent.get("eventId"));
+            assertThat(payload(userBSent).get("messageId")).isEqualTo(messageId.toString());
+            assertThat(sentPayload.get("senderId")).isEqualTo(userAId.toString());
+            assertThat(sentPayload.get("clientMessageId")).isEqualTo(clientMessageId.toString());
+            assertThat(sentPayload.get("content")).isEqualTo(originalContent);
+            assertThat(((Number) sentPayload.get("sequence")).longValue()).isEqualTo(1L);
+
+            editMessage(userASession, tenantId, chatRoomId, messageId, editedContent);
+
+            Map<String, Object> userAEdited = awaitRoomEvent(userAEvents, "MESSAGE_EDITED", tenantId, chatRoomId);
+            Map<String, Object> userBEdited = awaitRoomEvent(userBEvents, "MESSAGE_EDITED", tenantId, chatRoomId);
+            assertMessageEditedPayload(payload(userAEdited), messageId, chatRoomId, editedContent);
+            assertThat(userBEdited.get("eventId")).isEqualTo(userAEdited.get("eventId"));
+            assertMessageEditedPayload(payload(userBEdited), messageId, chatRoomId, editedContent);
+
+            deleteMessage(userASession, tenantId, chatRoomId, messageId);
+
+            Map<String, Object> userADeleted = awaitRoomEvent(userAEvents, "MESSAGE_DELETED", tenantId, chatRoomId);
+            Map<String, Object> userBDeleted = awaitRoomEvent(userBEvents, "MESSAGE_DELETED", tenantId, chatRoomId);
+            assertMessageDeletedPayload(payload(userADeleted), messageId, chatRoomId);
+            assertThat(userBDeleted.get("eventId")).isEqualTo(userADeleted.get("eventId"));
+            assertMessageDeletedPayload(payload(userBDeleted), messageId, chatRoomId);
+
+            MessageRow messageRow = findMessage(tenantId, chatRoomId, messageId);
+            assertThat(messageRow.status()).isEqualTo("DELETED");
+            assertThat(messageRow.content()).isEqualTo("[deleted]");
+            assertThat(messageRow.deletedAt()).isNotNull();
+        } finally {
+            disconnect(userASession);
+            disconnect(userBSession);
+            userAClient.close();
+            userBClient.close();
+        }
+    }
+
+    @Test
+    void stomp_non_member_send_does_not_broadcast_or_persist_message() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID userAId = UUID.randomUUID();
+        UUID userBId = UUID.randomUUID();
+        UUID nonMemberId = UUID.randomUUID();
+        insertActiveRoomWithMembers(tenantId, chatRoomId, userAId, userBId);
+        insertActiveTenantUser(tenantId, nonMemberId, "Non Member");
+
+        StompTestClient subscriberClient = stompClient();
+        StompTestClient nonMemberClient = stompClient();
+        StompSession subscriberSession = null;
+        StompSession nonMemberSession = null;
+
+        try {
+            subscriberSession = connect(subscriberClient.client(), tokenFor(userAId, tenantId));
+            nonMemberSession = connect(nonMemberClient.client(), tokenFor(nonMemberId, tenantId));
+
+            BlockingQueue<Map<String, Object>> roomEvents = new LinkedBlockingQueue<>();
+            String roomEventsTopic = roomEventsTopic(tenantId, chatRoomId);
+            subscriberSession.subscribe(roomEventsTopic, mapFrameHandler(roomEvents));
+            awaitSubscriptionCount(roomEventsTopic, 1);
+
+            sendMessage(
+                    nonMemberSession,
+                    tenantId,
+                    chatRoomId,
+                    UUID.randomUUID(),
+                    "non member message"
+            );
+
+            assertNoRoomEvent(roomEvents);
+            assertThat(countMessages(tenantId, chatRoomId)).isZero();
+        } finally {
+            disconnect(nonMemberSession);
+            disconnect(subscriberSession);
+            nonMemberClient.close();
+            subscriberClient.close();
+        }
+    }
+
+    @Test
+    void stomp_non_sender_cannot_edit_or_delete_sender_message() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID otherMemberId = UUID.randomUUID();
+        UUID clientMessageId = UUID.randomUUID();
+        String originalContent = "owned message";
+        insertActiveRoomWithMembers(tenantId, chatRoomId, senderId, otherMemberId);
+
+        StompTestClient subscriberClient = stompClient();
+        StompTestClient senderClient = stompClient();
+        StompTestClient editAttemptClient = stompClient();
+        StompTestClient deleteAttemptClient = stompClient();
+        StompSession subscriberSession = null;
+        StompSession senderSession = null;
+        StompSession editAttemptSession = null;
+        StompSession deleteAttemptSession = null;
+
+        try {
+            subscriberSession = connect(subscriberClient.client(), tokenFor(senderId, tenantId));
+            senderSession = connect(senderClient.client(), tokenFor(senderId, tenantId));
+            editAttemptSession = connect(editAttemptClient.client(), tokenFor(otherMemberId, tenantId));
+            deleteAttemptSession = connect(deleteAttemptClient.client(), tokenFor(otherMemberId, tenantId));
+
+            BlockingQueue<Map<String, Object>> roomEvents = new LinkedBlockingQueue<>();
+            String roomEventsTopic = roomEventsTopic(tenantId, chatRoomId);
+            subscriberSession.subscribe(roomEventsTopic, mapFrameHandler(roomEvents));
+            awaitSubscriptionCount(roomEventsTopic, 1);
+
+            sendMessage(senderSession, tenantId, chatRoomId, clientMessageId, originalContent);
+            UUID messageId = UUID.fromString(payload(
+                    awaitRoomEvent(roomEvents, "MESSAGE_SENT", tenantId, chatRoomId)
+            ).get("messageId").toString());
+
+            editMessage(editAttemptSession, tenantId, chatRoomId, messageId, "hijacked edit");
+
+            assertNoRoomEvent(roomEvents);
+            MessageRow afterEditAttempt = findMessage(tenantId, chatRoomId, messageId);
+            assertThat(afterEditAttempt.status()).isEqualTo("ACTIVE");
+            assertThat(afterEditAttempt.content()).isEqualTo(originalContent);
+
+            deleteMessage(deleteAttemptSession, tenantId, chatRoomId, messageId);
+
+            assertNoRoomEvent(roomEvents);
+            MessageRow afterDeleteAttempt = findMessage(tenantId, chatRoomId, messageId);
+            assertThat(afterDeleteAttempt.status()).isEqualTo("ACTIVE");
+            assertThat(afterDeleteAttempt.content()).isEqualTo(originalContent);
+            assertThat(afterDeleteAttempt.deletedAt()).isNull();
+        } finally {
+            disconnect(deleteAttemptSession);
+            disconnect(editAttemptSession);
+            disconnect(senderSession);
+            disconnect(subscriberSession);
+            deleteAttemptClient.close();
+            editAttemptClient.close();
+            senderClient.close();
+            subscriberClient.close();
+        }
+    }
+
+    @Test
+    void stomp_deleted_message_cannot_be_edited_again() throws Exception {
         UUID tenantId = UUID.randomUUID();
         UUID chatRoomId = UUID.randomUUID();
         UUID senderId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
         UUID clientMessageId = UUID.randomUUID();
-        String content = "hello over stomp";
         insertActiveRoomWithMembers(tenantId, chatRoomId, senderId, receiverId);
 
-        StompTestClient receiverClient = stompClient();
+        StompTestClient subscriberClient = stompClient();
         StompTestClient senderClient = stompClient();
-        StompSession receiverSession = null;
+        StompSession subscriberSession = null;
         StompSession senderSession = null;
 
         try {
-            receiverSession = connect(receiverClient.client(), tokenFor(receiverId, tenantId));
+            subscriberSession = connect(subscriberClient.client(), tokenFor(receiverId, tenantId));
             senderSession = connect(senderClient.client(), tokenFor(senderId, tenantId));
 
-            BlockingQueue<Map<String, Object>> receivedEvents = new LinkedBlockingQueue<>();
+            BlockingQueue<Map<String, Object>> roomEvents = new LinkedBlockingQueue<>();
             String roomEventsTopic = roomEventsTopic(tenantId, chatRoomId);
-            receiverSession.subscribe(
-                    roomEventsTopic,
-                    mapFrameHandler(receivedEvents)
-            );
-            awaitSubscription(roomEventsTopic);
+            subscriberSession.subscribe(roomEventsTopic, mapFrameHandler(roomEvents));
+            awaitSubscriptionCount(roomEventsTopic, 1);
 
-            senderSession.send(MESSAGE_SEND_DESTINATION, Map.of(
-                    "tenantId", tenantId.toString(),
-                    "chatRoomId", chatRoomId.toString(),
-                    "clientMessageId", clientMessageId.toString(),
-                    "content", content
-            ));
+            sendMessage(senderSession, tenantId, chatRoomId, clientMessageId, "message to delete");
+            UUID messageId = UUID.fromString(payload(
+                    awaitRoomEvent(roomEvents, "MESSAGE_SENT", tenantId, chatRoomId)
+            ).get("messageId").toString());
 
-            Map<String, Object> event = receivedEvents.poll(10, TimeUnit.SECONDS);
+            deleteMessage(senderSession, tenantId, chatRoomId, messageId);
+            awaitRoomEvent(roomEvents, "MESSAGE_DELETED", tenantId, chatRoomId);
 
-            assertThat(event).isNotNull();
-            assertThat(event.get("type")).isEqualTo("MESSAGE_SENT");
-            assertThat(event.get("tenantId")).isEqualTo(tenantId.toString());
-            assertThat(event.get("chatRoomId")).isEqualTo(chatRoomId.toString());
-            assertThat(((Number) event.get("sequence")).longValue()).isEqualTo(1L);
+            editMessage(senderSession, tenantId, chatRoomId, messageId, "edit after delete");
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> payload = (Map<String, Object>) event.get("payload");
-            assertThat(payload.get("messageId")).isNotNull();
-            assertThat(payload.get("chatRoomId")).isEqualTo(chatRoomId.toString());
-            assertThat(((Number) payload.get("sequence")).longValue()).isEqualTo(1L);
-            assertThat(payload.get("senderId")).isEqualTo(senderId.toString());
-            assertThat(payload.get("clientMessageId")).isEqualTo(clientMessageId.toString());
-            assertThat(payload.get("content")).isEqualTo(content);
+            assertNoRoomEvent(roomEvents);
+            MessageRow messageRow = findMessage(tenantId, chatRoomId, messageId);
+            assertThat(messageRow.status()).isEqualTo("DELETED");
+            assertThat(messageRow.content()).isEqualTo("[deleted]");
+            assertThat(messageRow.deletedAt()).isNotNull();
         } finally {
             disconnect(senderSession);
-            disconnect(receiverSession);
+            disconnect(subscriberSession);
             senderClient.close();
-            receiverClient.close();
+            subscriberClient.close();
         }
     }
 
-    private void awaitSubscription(String destination) {
+    @Test
+    void stomp_tenant_mismatch_command_does_not_broadcast_or_persist_message() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        UUID otherTenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        insertActiveRoomWithMembers(tenantId, chatRoomId, senderId, receiverId);
+
+        StompTestClient subscriberClient = stompClient();
+        StompTestClient senderClient = stompClient();
+        StompSession subscriberSession = null;
+        StompSession senderSession = null;
+
+        try {
+            subscriberSession = connect(subscriberClient.client(), tokenFor(receiverId, tenantId));
+            senderSession = connect(senderClient.client(), tokenFor(senderId, tenantId));
+
+            BlockingQueue<Map<String, Object>> roomEvents = new LinkedBlockingQueue<>();
+            String roomEventsTopic = roomEventsTopic(tenantId, chatRoomId);
+            subscriberSession.subscribe(roomEventsTopic, mapFrameHandler(roomEvents));
+            awaitSubscriptionCount(roomEventsTopic, 1);
+
+            sendMessage(
+                    senderSession,
+                    otherTenantId,
+                    chatRoomId,
+                    UUID.randomUUID(),
+                    "tenant mismatch"
+            );
+
+            assertNoRoomEvent(roomEvents);
+            assertThat(countMessages(tenantId, chatRoomId)).isZero();
+        } finally {
+            disconnect(senderSession);
+            disconnect(subscriberSession);
+            senderClient.close();
+            subscriberClient.close();
+        }
+    }
+
+    private void awaitSubscriptionCount(String destination, int expectedCount) {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (System.nanoTime() < deadline) {
-            if (hasSubscription(destination)) {
+            if (subscriptionCount(destination) >= expectedCount) {
                 return;
             }
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(25));
         }
 
-        assertThat(hasSubscription(destination))
-                .as("STOMP subscription registered for %s", destination)
-                .isTrue();
+        assertThat(subscriptionCount(destination))
+                .as("STOMP subscription count for %s", destination)
+                .isGreaterThanOrEqualTo(expectedCount);
     }
 
-    private boolean hasSubscription(String destination) {
-        return !simpUserRegistry.findSubscriptions(subscription -> destination.equals(subscription.getDestination()))
-                .isEmpty();
+    private long subscriptionCount(String destination) {
+        return simpUserRegistry.findSubscriptions(subscription -> destination.equals(subscription.getDestination()))
+                .size();
     }
 
     private StompTestClient stompClient() {
@@ -181,6 +386,99 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
         };
     }
 
+    private void sendMessage(
+            StompSession session,
+            UUID tenantId,
+            UUID chatRoomId,
+            UUID clientMessageId,
+            String content
+    ) {
+        session.send(MESSAGE_SEND_DESTINATION, Map.of(
+                "tenantId", tenantId.toString(),
+                "chatRoomId", chatRoomId.toString(),
+                "clientMessageId", clientMessageId.toString(),
+                "content", content
+        ));
+    }
+
+    private void editMessage(
+            StompSession session,
+            UUID tenantId,
+            UUID chatRoomId,
+            UUID messageId,
+            String newContent
+    ) {
+        session.send(MESSAGE_EDIT_DESTINATION, Map.of(
+                "tenantId", tenantId.toString(),
+                "chatRoomId", chatRoomId.toString(),
+                "messageId", messageId.toString(),
+                "newContent", newContent
+        ));
+    }
+
+    private void deleteMessage(
+            StompSession session,
+            UUID tenantId,
+            UUID chatRoomId,
+            UUID messageId
+    ) {
+        session.send(MESSAGE_DELETE_DESTINATION, Map.of(
+                "tenantId", tenantId.toString(),
+                "chatRoomId", chatRoomId.toString(),
+                "messageId", messageId.toString()
+        ));
+    }
+
+    private Map<String, Object> awaitRoomEvent(
+            BlockingQueue<Map<String, Object>> events,
+            String expectedType,
+            UUID tenantId,
+            UUID chatRoomId
+    ) throws InterruptedException {
+        Map<String, Object> event = events.poll(10, TimeUnit.SECONDS);
+
+        assertThat(event).as("room event %s", expectedType).isNotNull();
+        assertThat(event.get("type")).isEqualTo(expectedType);
+        assertThat(event.get("tenantId")).isEqualTo(tenantId.toString());
+        assertThat(event.get("chatRoomId")).isEqualTo(chatRoomId.toString());
+        assertThat(((Number) event.get("sequence")).longValue()).isEqualTo(1L);
+
+        return event;
+    }
+
+    private void assertNoRoomEvent(BlockingQueue<Map<String, Object>> events) throws InterruptedException {
+        assertThat(events.poll(NO_EVENT_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isNull();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> payload(Map<String, Object> event) {
+        return (Map<String, Object>) event.get("payload");
+    }
+
+    private void assertMessageEditedPayload(
+            Map<String, Object> payload,
+            UUID messageId,
+            UUID chatRoomId,
+            String content
+    ) {
+        assertThat(payload.get("messageId")).isEqualTo(messageId.toString());
+        assertThat(payload.get("chatRoomId")).isEqualTo(chatRoomId.toString());
+        assertThat(((Number) payload.get("sequence")).longValue()).isEqualTo(1L);
+        assertThat(payload.get("content")).isEqualTo(content);
+        assertThat(payload.get("updatedAt")).isNotNull();
+    }
+
+    private void assertMessageDeletedPayload(
+            Map<String, Object> payload,
+            UUID messageId,
+            UUID chatRoomId
+    ) {
+        assertThat(payload.get("messageId")).isEqualTo(messageId.toString());
+        assertThat(payload.get("chatRoomId")).isEqualTo(chatRoomId.toString());
+        assertThat(((Number) payload.get("sequence")).longValue()).isEqualTo(1L);
+        assertThat(payload.get("deletedAt")).isNotNull();
+    }
+
     private String tokenFor(UUID userId, UUID tenantId) throws Exception {
         URI uri = URI.create(
                 "http://localhost:" + port + "/dev/token?userId=" + userId + "&tenantId=" + tenantId
@@ -198,6 +496,14 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
                 .matcher(responseBody);
         assertThat(matcher.find()).isTrue();
         return matcher.group(1);
+    }
+
+    private void insertActiveTenantUser(UUID tenantId, UUID userId, String name) throws Exception {
+        OffsetDateTime now = OffsetDateTime.parse("2026-04-08T00:00:00Z");
+
+        try (Connection connection = dataSource.getConnection()) {
+            insertActiveUser(connection, tenantId, userId, name, now);
+        }
     }
 
     private void insertActiveRoomWithMembers(UUID tenantId, UUID chatRoomId, UUID senderId, UUID receiverId)
@@ -333,6 +639,48 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
         }
     }
 
+    private MessageRow findMessage(UUID tenantId, UUID chatRoomId, UUID messageId) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     SELECT content, status, deleted_at
+                     FROM message
+                     WHERE tenant_id = ?
+                       AND chat_room_id = ?
+                       AND id = ?
+                     """)) {
+            statement.setObject(1, tenantId);
+            statement.setObject(2, chatRoomId);
+            statement.setObject(3, messageId);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                assertThat(resultSet.next()).isTrue();
+                return new MessageRow(
+                        resultSet.getString("content"),
+                        resultSet.getString("status"),
+                        resultSet.getObject("deleted_at", OffsetDateTime.class)
+                );
+            }
+        }
+    }
+
+    private long countMessages(UUID tenantId, UUID chatRoomId) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     SELECT count(*)
+                     FROM message
+                     WHERE tenant_id = ?
+                       AND chat_room_id = ?
+                     """)) {
+            statement.setObject(1, tenantId);
+            statement.setObject(2, chatRoomId);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                assertThat(resultSet.next()).isTrue();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
     private String roomEventsTopic(UUID tenantId, UUID chatRoomId) {
         return "/topic/tenants/" + tenantId + "/chat-rooms/" + chatRoomId + "/events";
     }
@@ -342,6 +690,12 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
             session.disconnect();
         }
     }
+
+    private record MessageRow(
+            String content,
+            String status,
+            OffsetDateTime deletedAt
+    ) {}
 
     private record StompTestClient(
             WebSocketStompClient client,

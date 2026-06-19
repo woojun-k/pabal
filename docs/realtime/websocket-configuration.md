@@ -81,6 +81,8 @@ Code:
 현재 `/app/**`에서 구현된 command destination은 다음과 같다.
 
 - `/app/chat.message.send`
+- `/app/chat.message.edit`
+- `/app/chat.message.delete`
 - `/app/chat.typing.start`
 - `/app/chat.typing.stop`
 

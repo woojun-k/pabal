@@ -416,6 +416,9 @@ Inbound command:
 
 | Destination | Payload |
 | --- | --- |
+| `/app/chat.message.send` | `{ "tenantId": "...", "chatRoomId": "...", "clientMessageId": "...", "content": "hello" }` |
+| `/app/chat.message.edit` | `{ "tenantId": "...", "chatRoomId": "...", "messageId": "...", "newContent": "edited" }` |
+| `/app/chat.message.delete` | `{ "tenantId": "...", "chatRoomId": "...", "messageId": "..." }` |
 | `/app/chat.typing.start` | `{ "tenantId": "...", "chatRoomId": "..." }` |
 | `/app/chat.typing.stop` | `{ "tenantId": "...", "chatRoomId": "..." }` |
 

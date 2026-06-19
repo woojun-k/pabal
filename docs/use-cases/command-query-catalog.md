@@ -70,6 +70,8 @@ Pabal의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출�
 | Use Case | Destination | Command | Handler | Output |
 | --- | --- | --- | --- | --- |
 | SendMessage | `/app/chat.message.send` | `SendMessageCommand` | `SendMessageCommandHandler` | `RoomEventEnvelope(type=MESSAGE_SENT)` to room event topic |
+| EditMessage | `/app/chat.message.edit` | `EditMessageCommand` | `EditMessageCommandHandler` | `RoomEventEnvelope(type=MESSAGE_EDITED)` to room event topic |
+| DeleteMessage | `/app/chat.message.delete` | `DeleteMessageCommand` | `DeleteMessageCommandHandler` | `RoomEventEnvelope(type=MESSAGE_DELETED)` to room event topic |
 | TypingStart | `/app/chat.typing.start` | `SendTypingCommand(status=STARTED)` | `SendTypingCommandHandler` | `TypingEventPayload` to typing topic |
 | TypingStop | `/app/chat.typing.stop` | `SendTypingCommand(status=STOPPED)` | `SendTypingCommandHandler` | `TypingEventPayload` to typing topic |
 
