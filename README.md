@@ -7,6 +7,7 @@ Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시
 ## 현재 구현 범위
 
 - 방 생성: direct, group, channel
+- participant 검증: `RoomParticipantPolicy`가 direct/group은 tenant member, channel은 workspace member 여부를 `RoomParticipantDirectoryPort`로 확인
 - direct 방 조회 또는 생성: 같은 tenant의 두 사용자 조합을 정렬한 unique mapping으로 중복 생성 방지
 - group 방 이름: 요청 이름이 없으면 요청자와 참여자 UUID 앞 8자리 기반 fallback 이름 자동 생성
 - channel 방 생성: application과 DB 모두 lower-case 기준으로 workspace별 채널명 unique 보장
@@ -48,8 +49,24 @@ Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시
 | Module | 역할 |
 | --- | --- |
 | `pabal-app` | Spring Boot executable application, runtime 설정, Flyway migration, local/test profile 리소스 |
-| `pabal-common` | 공통 API 오류 응답, 예외 코드, CQRS marker, domain event publisher, persistence base, UUIDv7 utility |
+| `pabal-common` | 예외 코드, CQRS marker, domain event publisher abstraction, persistence base, UUIDv7 utility |
+| `pabal-web` | 공통 `ApiError`, `GlobalExceptionHandler`, Spring 기반 `SpringDomainEventPublisher` 구현 |
 | `pabal-security` | HTTP JWT Resource Server 설정, JWT principal 변환, local/test token 발급, WebSocket endpoint property |
+| `pabal-tenant-domain` | Tenant 순수 도메인 모델, value object, domain exception |
+| `pabal-tenant-application` | Tenant command/query handler, repository port, `TenantContract` 구현 |
+| `pabal-tenant-contract` | Tenant persistence contract, state, persisted wrapper, mapper |
+| `pabal-tenant-api` | Tenant HTTP controller, request/response DTO, API mapper |
+| `pabal-tenant-infrastructure` | Tenant JPA adapter, repository adapter, system clock adapter |
+| `pabal-workspace-domain` | Workspace 순수 도메인 모델, member/role/status invariant, domain exception |
+| `pabal-workspace-application` | Workspace command/query handler, repository port, `WorkspaceContract` 구현 |
+| `pabal-workspace-contract` | Workspace persistence contract, state, persisted wrapper, mapper |
+| `pabal-workspace-api` | Workspace HTTP controller, request/response DTO, API mapper |
+| `pabal-workspace-infrastructure` | Workspace JPA adapter, repository adapter, system clock adapter |
+| `pabal-user-domain` | User 순수 도메인 모델, value object, domain exception |
+| `pabal-user-application` | User command/query handler, repository port, `UserContract` 구현 |
+| `pabal-user-contract` | User persistence contract, state, persisted wrapper, mapper |
+| `pabal-user-api` | User HTTP controller, request/response DTO, API mapper |
+| `pabal-user-infrastructure` | User JPA adapter, repository adapter, system clock adapter |
 | `pabal-messenger-domain` | Messenger 순수 도메인 모델, value object, domain event, domain exception, policy |
 | `pabal-messenger-application` | command/query handler, use case orchestration, transaction boundary, outbound port |
 | `pabal-messenger-contract` | domain과 infrastructure 사이의 persistence/realtime contract, state, wrapper, payload, envelope |
@@ -75,7 +92,6 @@ pabal-app
 
 pabal-common
 └── com.polarishb.pabal.common
-    ├── api
     ├── contract
     ├── cqrs
     ├── event
@@ -83,11 +99,40 @@ pabal-common
     ├── persistence
     └── util
 
+pabal-web
+└── com.polarishb.pabal.web
+    ├── api
+    └── event
+
 pabal-security
 └── com.polarishb.pabal.security
     ├── authentication
     ├── config
     └── dev
+
+pabal-tenant-domain / pabal-tenant-application / pabal-tenant-contract / pabal-tenant-api / pabal-tenant-infrastructure
+└── com.polarishb.pabal.tenant
+    ├── domain
+    ├── application
+    ├── contract
+    ├── api
+    └── infrastructure
+
+pabal-workspace-domain / pabal-workspace-application / pabal-workspace-contract / pabal-workspace-api / pabal-workspace-infrastructure
+└── com.polarishb.pabal.workspace
+    ├── domain
+    ├── application
+    ├── contract
+    ├── api
+    └── infrastructure
+
+pabal-user-domain / pabal-user-application / pabal-user-contract / pabal-user-api / pabal-user-infrastructure
+└── com.polarishb.pabal.user
+    ├── domain
+    ├── application
+    ├── contract
+    ├── api
+    └── infrastructure
 
 pabal-messenger-domain
 └── com.polarishb.pabal.messenger.domain
@@ -129,6 +174,7 @@ pabal-messenger-infrastructure
 - `domain`은 business invariant와 state transition을 담당합니다.
 - `contract`는 persistence/realtime boundary shape를 담습니다.
 - `infrastructure`는 JPA, JDBC/JPA repository, STOMP, WebSocket security channel, clock 같은 기술 구현을 담당합니다.
+- `web`은 공통 API 오류 응답과 Spring 기반 event publisher 구현을 담당합니다.
 - `security`는 messenger 전용 모듈이 아니라 애플리케이션 공통 보안 모듈입니다.
 - `common`은 특정 도메인에 종속되지 않는 공통 기반 코드만 둡니다.
 
@@ -586,7 +632,6 @@ Mockito inline mock maker는 Gradle test task의 Java agent로 명시 주입합�
 
 현재 구조는 계층 분리를 기준으로 정리되어 있지만, 운영 투입 전에는 다음 항목을 우선 확인해야 합니다.
 
-- room/direct/channel 생성 시 participant가 실제 tenant 소속 사용자라는 검증 추가
 - persistence unique violation 번역을 constraint metadata 기반으로 더 견고하게 정리
 - collection을 포함하는 command/query/result record의 defensive copy 일관화
 - validation/security/JWT 예외의 공통 `ApiError` 매핑 추가 검증
