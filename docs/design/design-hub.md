@@ -10,7 +10,7 @@ tags:
 > 상위 문서: [Pabal Wiki Home](../README.md)
 > 관련 문서: [Pabal 아키텍처 개요](../architecture/overview.md), [Pabal 런타임 흐름](../architecture/runtime-flow.md), [Pabal Persistence 경계와 데이터 변환](../architecture/persistence-boundary-and-mapping.md), [Pabal 멀티모듈 전환 전략](../architecture/multi-module-transition.md)
 
-이 문서는 실제 유지보수와 확장 작업에서 반복적으로 참조할 상세 설계 노트를 연결하는 허브다. 현재 문서 기준은 `pabal-app` 단일 배포와 `pabal-messenger-*` 멀티모듈 분리다.
+이 문서는 실제 유지보수와 확장 작업에서 반복적으로 참조할 상세 설계 노트를 연결하는 허브다. 현재 문서 기준은 `pabal-app` 단일 배포와 `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*` 멀티모듈 분리다.
 
 ## 핵심 상세 설계
 
@@ -52,6 +52,7 @@ tags:
 - infrastructure는 application port를 구현하고 JPA/STOMP/WebSocket security 세부사항을 가진다.
 - contract는 persistence/realtime 경계 shape를 안정화하되 비즈니스 규칙을 소유하지 않는다.
 - `pabal-common`에는 여러 모듈이 공유하는 최소 primitive만 둔다.
+- bounded context 간 조회는 `TenantContract`, `WorkspaceContract`, `UserContract` 같은 common contract로 제한하고 repository/JPA Entity를 직접 공유하지 않는다.
 - runtime resource와 Flyway migration은 `pabal-app`이 소유한다.
 
 ## 문서 항목 지도

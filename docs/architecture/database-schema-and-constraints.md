@@ -25,6 +25,8 @@ Pabal DB schema source of truth는 Flyway migration이다. Hibernate는 schema �
 - `V2__messenger_tables.sql`
 - `V3__tombstone_deleted_message_content.sql`
 - `V4__tenant_user_tables.sql`
+- `V5__tenant_tables.sql`
+- `V6__workspace_tables.sql`
 
 ## Schema 관리 원칙
 
@@ -40,6 +42,8 @@ Layer: App / Infrastructure
 
 ```mermaid
 flowchart LR
+    tenant["pabal_tenant"]
+    workspace["workspace"] --> workspace_member["workspace_member"]
     user["tenant_user"]
     room["chat_room"] --> member["chat_room_member"]
     room --> mapping["direct_chat_mapping"]
@@ -47,6 +51,10 @@ flowchart LR
     message --> reply["message.reply_to_message_id"]
     message --> last["chat_room.last_message_id"]
     message --> read["chat_room_member.last_read_message_id"]
+    tenant -. "application contract" .-> user
+    tenant -. "application contract" .-> workspace
+    workspace -. "logical workspaceId" .-> room
+    workspace_member -. "WorkspaceContract" .-> room
     user -. "logical userId" .-> member
     user -. "logical senderId" .-> message
     user -. "logical direct participant" .-> mapping
@@ -56,6 +64,9 @@ flowchart LR
 
 | Table | 대상 Entity | 주요 책임 |
 | --- | --- | --- |
+| `pabal_tenant` | `TenantEntity` | tenant 존재/상태/name 저장, tenant module source of truth |
+| `workspace` | `WorkspaceEntity` | tenant 안의 workspace 존재/상태/name/creator 저장 |
+| `workspace_member` | `WorkspaceMemberEntity` | workspace membership, role, active/left 상태 저장 |
 | `tenant_user` | `TenantUserEntity` | tenant 안의 사용자 존재/상태/name 저장, user module source of truth |
 | `chat_room` | `ChatRoomEntity` | DIRECT/GROUP/CHANNEL 공통 메타데이터, room 상태, last message snapshot |
 | `chat_room_member` | `ChatRoomMemberEntity` | room membership, active/left 상태, read cursor |
@@ -63,6 +74,40 @@ flowchart LR
 | `message` | `MessageEntity` | room-local sequence 기반 메시지 저장, reply, idempotency |
 
 ## 핵심 제약
+
+### pabal_tenant
+
+Layer: Infrastructure / Domain
+
+- `chk_pabal_tenant_status`: `ACTIVE`, `SUSPENDED`, `DELETED`
+- `chk_pabal_tenant_name_not_blank`: 공백 name 방지
+- `idx_pabal_tenant_status`: active tenant 존재 확인 조회
+
+`tenant_user.tenant_id`, `workspace.tenant_id`, messenger table의 `tenant_id`는 같은 tenant identity 값을 사용한다. User/Workspace/Messenger bounded context가 `pabal_tenant`를 직접 DB FK로 묶지는 않고, application contract인 `TenantContract`에서 active tenant 여부를 검증한다.
+
+### workspace
+
+Layer: Infrastructure / Domain
+
+- `uq_workspace_tenant_id_id`: tenant 포함 workspace 식별 FK target
+- `chk_workspace_status`: `ACTIVE`, `ARCHIVED`
+- `chk_workspace_name_not_blank`: 공백 name 방지
+- `idx_workspace_tenant_status`: tenant별 active workspace 조회
+
+`chat_room.workspace_id`는 workspace identity 값을 사용하지만 messenger table에서 `workspace`로 직접 FK를 두지 않는다. Messenger는 workspace membership 검증이 필요한 channel participant validation에서 `WorkspaceContract`를 사용한다.
+
+### workspace_member
+
+Layer: Infrastructure / Domain
+
+- `uq_workspace_member_tenant_workspace_user`: tenant + workspace + user 중복 membership 방지
+- `fk_workspace_member_workspace`: tenant + workspace FK
+- `chk_workspace_member_role`: `OWNER`, `ADMIN`, `MEMBER`
+- `chk_workspace_member_status`: `ACTIVE`, `LEFT`
+- `chk_workspace_member_left_at`: `ACTIVE`/`LEFT`와 `left_at` 정합성
+- `idx_workspace_member_active_lookup`: tenant/workspace/user/status 기반 membership 조회
+
+`workspace_member.user_id`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Workspace 생성과 membership 검증은 `UserContract`와 `WorkspaceContract`로 active tenant user 여부를 확인한다.
 
 ### tenant_user
 
@@ -73,7 +118,7 @@ Layer: Infrastructure / Domain
 - `chk_tenant_user_name_not_blank`: 공백 name 방지
 - `idx_tenant_user_tenant_status`: tenant별 active user 조회
 
-`chat_room_member.user_id`, `message.sender_id`, `direct_chat_mapping.user_id_min/user_id_max`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Messenger와 User bounded context의 결합은 DB FK가 아니라 application contract인 `UserContract`와 `RoomParticipantPolicy`에서 검증한다.
+`chat_room_member.user_id`, `message.sender_id`, `direct_chat_mapping.user_id_min/user_id_max`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Messenger와 User bounded context의 결합은 DB FK가 아니라 application contract인 `UserContract`와 `RoomParticipantPolicy`에서 검증한다. User 생성은 `TenantContract`로 active tenant 여부를 먼저 검증한다.
 
 ### chat_room
 

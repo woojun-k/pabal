@@ -44,6 +44,7 @@ ChatCommandController
 → SendMessageCommand
 → SendMessageCommandHandler
 → ChatRoomAccessSupport.loadSendableActiveMember
+→ RoomParticipantDirectoryPort.existsActiveTenantMember
 → MessageSendSupport.findDuplicate
 → Message.create
 → MessageSendSupportAdapter.send
@@ -59,6 +60,7 @@ ChatCommandController
 포인트:
 
 - `tenantId`, `userId`는 `PabalPrincipal`에서 추출한다.
+- `ChatRoomAccessSupport.loadSendableActiveMember`는 room active member 여부와 별도로 `RoomParticipantDirectoryPort.existsActiveTenantMember`를 통해 sender가 user module의 active tenant user인지 확인한다.
 - 중복 전송은 `clientMessageId` 기반으로 흡수한다.
 - 메시지 sequence는 `ChatRoomSequenceRepositoryImpl`이 `chat_room.last_message_sequence`를 증가시켜 할당한다.
 - application은 `MessageSendSupport` interface만 의존하고, 실제 `REQUIRES_NEW` transaction은 infrastructure의 `MessageSendSupportAdapter`가 가진다.
@@ -104,6 +106,7 @@ flowchart LR
     controller --> mapper["UserCommandMapper"]
     mapper --> command["CreateUserCommand"]
     command --> handler["CreateUserCommandHandler"]
+    handler --> tenantContract["TenantContract.existsActiveTenant"]
     handler --> domain["User.create"]
     handler --> port["UserRepository"]
     port --> adapter["UserRepositoryImpl"]
@@ -114,10 +117,42 @@ flowchart LR
 포인트:
 
 - `tenantId`, `userId`는 `PabalPrincipal`에서 추출하고 request body에는 `name`만 받는다.
+- `CreateUserCommandHandler`는 `TenantContract.existsActiveTenant`로 active tenant를 먼저 확인한다. 중복 userId가 이미 있으면 duplicate user 예외가 tenant 검증보다 먼저 발생한다.
 - `tenant_user`는 user module의 source of truth다.
 - Messenger가 participant 존재를 확인할 때는 `UserContractService`를 통해 active tenant user 여부를 조회한다.
 
-## 4. Realtime inbound 흐름
+## 4. Workspace HTTP 흐름
+
+Layer: API → Application → Domain → Application Port → Infrastructure Adapter
+
+대표 흐름: `createWorkspace`
+
+```mermaid
+flowchart LR
+    req["POST /api/v1/workspaces"] --> controller["WorkspaceCommandController"]
+    controller --> mapper["WorkspaceCommandMapper"]
+    mapper --> command["CreateWorkspaceCommand"]
+    command --> handler["CreateWorkspaceCommandHandler"]
+    handler --> tenantContract["TenantContract.existsActiveTenant"]
+    handler --> userContract["UserContract.existsUserInTenant"]
+    handler --> workspace["Workspace.create"]
+    handler --> workspaceRepo["WorkspaceRepository"]
+    handler --> member["WorkspaceMember.joinOwner"]
+    handler --> memberRepo["WorkspaceMemberRepository"]
+    workspaceRepo --> workspaceAdapter["WorkspaceRepositoryImpl"]
+    memberRepo --> memberAdapter["WorkspaceMemberRepositoryImpl"]
+    workspaceAdapter --> db[(PostgreSQL)]
+    memberAdapter --> db
+```
+
+포인트:
+
+- `tenantId`, `ownerId`는 `PabalPrincipal`에서 추출하고 request body에는 `name`만 받는다.
+- workspace 생성은 active tenant와 active tenant user owner를 모두 요구한다.
+- 생성된 workspace id로 owner `WorkspaceMember`를 만들고 `OWNER` role, `ACTIVE` status로 저장한다.
+- Messenger channel participant validation은 `WorkspaceContractService`를 통해 active workspace member를 batch 조회한다.
+
+## 5. Realtime inbound 흐름
 
 Layer: Infrastructure Security → API → Application → Application Port → Infrastructure Adapter
 
@@ -158,7 +193,7 @@ StompConnectAuthenticationInterceptor
 - message send는 HTTP `SendMessage`와 같은 application handler를 사용하고, commit 이후 room event로 broadcast된다.
 - typing은 DB 상태 변경 없이 `TypingEventPayload`를 topic으로 보낸다.
 
-## 5. Realtime outbound 흐름
+## 6. Realtime outbound 흐름
 
 Layer: Domain Event → Application Listener → Application Port → Infrastructure Adapter
 
@@ -183,7 +218,7 @@ flowchart LR
 - `MemberJoinedEventListener`
 - `MemberLeftEventListener`
 
-## 6. 읽을 때 추천하는 디버깅 순서
+## 7. 읽을 때 추천하는 디버깅 순서
 
 1. controller entry 확인
 2. mapper에서 principal이 command/query로 바뀌는 방식 확인

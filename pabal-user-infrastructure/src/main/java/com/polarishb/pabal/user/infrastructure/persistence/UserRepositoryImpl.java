@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -44,5 +46,16 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public boolean existsActiveByTenantIdAndId(UUID tenantId, UUID id) {
         return jpaRepository.existsByTenantIdAndIdAndStatus(tenantId, id, UserStatus.ACTIVE);
+    }
+
+    @Override
+    public Set<UUID> findActiveIdsByTenantIdAndIds(UUID tenantId, Set<UUID> ids) {
+        Objects.requireNonNull(tenantId, "tenantId must not be null");
+        Objects.requireNonNull(ids, "ids must not be null");
+        if (ids.isEmpty()) {
+            return Set.of();
+        }
+
+        return Set.copyOf(jpaRepository.findIdsByTenantIdAndIdInAndStatus(tenantId, ids, UserStatus.ACTIVE));
     }
 }

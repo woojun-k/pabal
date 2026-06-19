@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -21,6 +22,12 @@ public class UserContractService implements UserContract {
     @Transactional(readOnly = true)
     public boolean existsUserInTenant(UUID userId, UUID tenantId) {
         return userRepository.existsActiveByTenantIdAndId(tenantId, userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<UUID> findActiveUserIdsInTenant(UUID tenantId, Set<UUID> userIds) {
+        return userRepository.findActiveIdsByTenantIdAndIds(tenantId, userIds);
     }
 
     @Override

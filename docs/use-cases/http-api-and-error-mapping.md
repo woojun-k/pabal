@@ -36,6 +36,48 @@ Layer: API
 }
 ```
 
+## Tenant endpoints
+
+### CreateTenant
+
+`POST /api/v1/tenants`
+
+Request:
+
+```json
+{
+  "name": "Acme"
+}
+```
+
+Response:
+
+```json
+{
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Acme",
+  "status": "ACTIVE",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- 생성된 tenant는 `ACTIVE` 상태로 시작한다.
+- tenant id는 infrastructure JPA UUID v7 generator가 생성한다.
+
+주요 오류:
+
+- `CMN002 INVALID_INPUT`
+
+### GetTenant
+
+`GET /api/v1/tenants/{tenantId}` → `TenantResponse`
+
+주요 오류:
+
+- `TNT404001 TENANT_NOT_FOUND`
+
 ## User endpoints
 
 ### CreateMe
@@ -66,6 +108,7 @@ Response:
 
 - userId와 tenantId는 `PabalPrincipal`에서 가져온다.
 - request body에는 name만 받는다.
+- `CreateUserCommandHandler`는 `TenantContract.existsActiveTenant`로 active tenant를 확인한다.
 - 이미 같은 tenant/user가 존재하면 중복 user로 거부한다.
 
 주요 오류:
@@ -99,6 +142,57 @@ Response:
 주요 오류:
 
 - `USR404001 USER_NOT_FOUND`
+
+## Workspace endpoints
+
+### CreateWorkspace
+
+`POST /api/v1/workspaces`
+
+Request:
+
+```json
+{
+  "name": "Engineering"
+}
+```
+
+Response:
+
+```json
+{
+  "workspaceId": "018f0000-0000-7000-8000-000000000401",
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Engineering",
+  "status": "ACTIVE",
+  "ownerId": "018f0000-0000-7000-8000-000000000001",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- tenantId와 ownerId는 `PabalPrincipal`에서 가져온다.
+- request body에는 name만 받는다.
+- active tenant가 아니면 생성하지 않는다.
+- owner는 같은 tenant의 active user여야 한다.
+- 생성 직후 owner는 `workspace_member`에 `OWNER`, `ACTIVE`로 저장된다.
+
+주요 오류:
+
+- `CMN002 INVALID_INPUT`
+
+### GetWorkspace
+
+`GET /api/v1/workspaces/{workspaceId}` → `WorkspaceResponse`
+
+정책:
+
+- principal tenant 범위에서 workspace를 조회한다.
+
+주요 오류:
+
+- `WSP404001 WORKSPACE_NOT_FOUND`
 
 ## Message endpoints
 

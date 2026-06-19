@@ -33,7 +33,7 @@ Status: Implemented
 | --- | --- | --- | --- |
 | P1 | WebSocket 보안 테스트 보강 | Proposed | [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md), [Pabal 테스트 전략](../testing/testing-strategy.md) |
 | P1 | module boundary 자동 검증 | Planned | [Pabal 멀티모듈 전환 전략](multi-module-transition.md), [Pabal 패키지 구조와 레이어](package-structure-and-layers.md) |
-| P1 | workspace/channel 권한 source 정합화 | Planned | [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md) |
+| P1 | workspace/channel role-permission 정합화 | Partially Implemented | [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md) |
 | P2 | TypingStatus enum과 STOMP typing 구현 정렬 | Proposed | [Pabal Realtime 이벤트 스키마](../realtime/event-schema.md) |
 | P2 | unused realtime security 타입 정리 | Proposed | [Websocket 설정](../realtime/websocket-configuration.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md) |
 | P2 | Persistence 테스트 확장 | Proposed | [Pabal 테스트 케이스 카탈로그](../testing/test-case-catalog.md), [Pabal 데이터베이스 스키마와 제약](database-schema-and-constraints.md) |
@@ -133,20 +133,22 @@ Layer: Security / Infrastructure / Testing
 - `/app/**`는 authenticated only
 - unknown MESSAGE/SUBSCRIBE deny
 
-## 5. workspace/channel 권한 source 정합화
+## 5. workspace/channel role-permission 정합화
 
 Status: Partially Implemented
 Layer: Application / Security / Infrastructure
 
 현재 확인된 상태:
 
+- workspace와 workspace membership의 source of truth는 `workspace`, `workspace_member`와 `WorkspaceContract`로 구현되어 있다.
+- `RoomParticipantPolicy`는 channel participant validation 시 `WorkspaceContract`로 active workspace member를 batch 조회한다.
 - `ChatRoomAuthorizationService`는 channel create와 channel deletion을 fine-grained `MessengerPermission`으로 판정한다.
 - `PermissionPort`는 application boundary에 있고, `RbacPermissionAdapter`가 JWT authority를 permission으로 변환한다.
 - tenant admin/pabal admin은 모든 Messenger permission, workspace admin은 channel create와 any deletion, channel owner는 own deletion을 가진다.
 
 결정해야 할 정책:
 
-- workspace admin/channel owner role의 source of truth를 JWT claim으로 유지할 것인가, workspace membership 조회 port로 옮길 것인가?
+- workspace admin/channel owner permission 판정을 JWT claim으로 유지할 것인가, `workspace_member.role` 조회 기반으로 옮길 것인가?
 - room-scoped permission과 workspace-scoped permission을 운영 IAM에서 어떤 claim 형태로 발급할 것인가?
 - private channel invite/admin approval 정책을 join flow에 어떻게 연결할 것인가?
 - PostgreSQL RLS를 적용한다면 request tenant context를 DB session에 어떻게 주입할 것인가?
@@ -250,4 +252,4 @@ Layer: Onboarding / Testing / Documentation
 - [ ] `MessengerErrorCode`와 예외 매핑이 필요한가?
 - [ ] tenant/user authorization checkpoint가 있는가?
 - [ ] domain/application/api/infrastructure 테스트를 어디에 둘지 결정했는가?
-- [ ] 관련 Obsidian 문서를 갱신했는가?
+- [ ] 관련 `docs/` 문서를 갱신했는가?

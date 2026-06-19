@@ -14,7 +14,7 @@ tags:
 
 ## 개요
 
-Layer: Common → Application → Infrastructure
+Layer: Common → Web Support → Application → Infrastructure
 Status: Implemented
 
 현재 Pabal의 domain event는 같은 애플리케이션 프로세스 안에서 Spring application event로 발행된다. 외부 broker나 outbox 기반 durable event delivery는 아직 구현되어 있지 않다.
@@ -22,7 +22,7 @@ Status: Implemented
 현재 기준:
 
 - `DomainEventPublisher`: common layer abstraction
-- `SpringDomainEventPublisher`: Spring 기반 구현
+- `SpringDomainEventPublisher`: `pabal-web`의 Spring 기반 구현
 - application command/service: transaction 안에서 domain event 발행 예약
 - `MessageSendSupport`: application interface
 - `MessageSendSupportAdapter`: infrastructure adapter, message send transaction owner
@@ -32,7 +32,7 @@ Status: Implemented
 
 ## 발행 방식
 
-Layer: Common
+Layer: Web Support
 
 `SpringDomainEventPublisher`는 두 API를 가진다.
 

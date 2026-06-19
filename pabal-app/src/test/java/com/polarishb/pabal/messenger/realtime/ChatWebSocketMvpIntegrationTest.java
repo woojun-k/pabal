@@ -207,6 +207,9 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
+                insertActiveTenant(connection, tenantId, now);
+                insertActiveUser(connection, tenantId, senderId, "Sender", now);
+                insertActiveUser(connection, tenantId, receiverId, "Receiver", now);
                 insertActiveRoom(connection, tenantId, chatRoomId, senderId, now);
                 insertActiveMember(connection, tenantId, chatRoomId, senderId, now);
                 insertActiveMember(connection, tenantId, chatRoomId, receiverId, now);
@@ -215,6 +218,53 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
                 connection.rollback();
                 throw e;
             }
+        }
+    }
+
+    private void insertActiveTenant(Connection connection, UUID tenantId, OffsetDateTime now) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                        INSERT INTO pabal_tenant (
+                            id,
+                            name,
+                            status,
+                            version,
+                            created_at,
+                            updated_at
+                        )
+                        VALUES (?, 'mvp-tenant', 'ACTIVE', 0, ?, ?)
+                        """)) {
+            statement.setObject(1, tenantId);
+            statement.setObject(2, now);
+            statement.setObject(3, now);
+            statement.executeUpdate();
+        }
+    }
+
+    private void insertActiveUser(
+            Connection connection,
+            UUID tenantId,
+            UUID userId,
+            String name,
+            OffsetDateTime now
+    ) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                        INSERT INTO tenant_user (
+                            id,
+                            tenant_id,
+                            name,
+                            status,
+                            version,
+                            created_at,
+                            updated_at
+                        )
+                        VALUES (?, ?, ?, 'ACTIVE', 0, ?, ?)
+                        """)) {
+            statement.setObject(1, userId);
+            statement.setObject(2, tenantId);
+            statement.setString(3, name);
+            statement.setObject(4, now);
+            statement.setObject(5, now);
+            statement.executeUpdate();
         }
     }
 

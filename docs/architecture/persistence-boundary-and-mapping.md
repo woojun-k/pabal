@@ -24,7 +24,7 @@ Domain Model
 
 ## 핵심 경계 규칙
 
-- Layer: Domain - `User`, `Message`, `ChatRoom`, `ChatRoomMember`, `DirectChatMapping`은 JPA Entity를 모른다.
+- Layer: Domain - `Tenant`, `Workspace`, `WorkspaceMember`, `User`, `Message`, `ChatRoom`, `ChatRoomMember`, `DirectChatMapping`은 JPA Entity를 모른다.
 - Layer: Domain - domain은 `MessageState`, `PersistedMessage` 같은 contract persistence 모델을 import하지 않는다.
 - Layer: Contract - `State`, `Persisted*`, `PersistenceMapper`가 domain ↔ persistence shape 변환을 담당한다.
 - Layer: Application - repository port는 각 bounded context의 application `port.out.persistence`에 있다.
@@ -62,19 +62,25 @@ Message.snapshot
 
 | Domain Model | State | Persisted Wrapper | JPA Entity |
 | --- | --- | --- | --- |
+| `Tenant` | `TenantState` | `PersistedTenant` | `TenantEntity` |
+| `Workspace` | `WorkspaceState` | `PersistedWorkspace` | `WorkspaceEntity` |
+| `WorkspaceMember` | `WorkspaceMemberState` | `PersistedWorkspaceMember` | `WorkspaceMemberEntity` |
 | `User` | `UserState` | `PersistedUser` | `TenantUserEntity` |
 | `Message` | `MessageState` | `PersistedMessage` | `MessageEntity` |
 | `ChatRoom` | `ChatRoomState` | `PersistedChatRoom` | `ChatRoomEntity` |
 | `ChatRoomMember` | `ChatRoomMemberState` | `PersistedChatRoomMember` | `ChatRoomMemberEntity` |
 | `DirectChatMapping` | `DirectChatMappingState` | `PersistedDirectChatMapping` | `DirectChatMappingEntity` |
 
-각 aggregate는 domain snapshot을 통해 persistence shape로 넘어간다. `UserSnapshot`, `ChatRoomSnapshot`, `ChatRoomMemberSnapshot`, `DirectChatMappingSnapshot`, `MessageSnapshot`이 domain에 있고, contract `State`는 해당 snapshot을 감싼다. 예를 들어 `ChatRoomSnapshot`과 `ChatRoomState`는 `deletedAt`을 포함하며, `DELETED` 상태와 `deletedAt` 정합성을 snapshot 생성 시 검증한다.
+각 aggregate는 domain snapshot을 통해 persistence shape로 넘어간다. `TenantSnapshot`, `WorkspaceSnapshot`, `WorkspaceMemberSnapshot`, `UserSnapshot`, `ChatRoomSnapshot`, `ChatRoomMemberSnapshot`, `DirectChatMappingSnapshot`, `MessageSnapshot`이 domain에 있고, contract `State`는 해당 snapshot을 감싼다. 예를 들어 `ChatRoomSnapshot`과 `ChatRoomState`는 `deletedAt`을 포함하며, `DELETED` 상태와 `deletedAt` 정합성을 snapshot 생성 시 검증한다.
 
 ## Repository port와 adapter
 
 Layer: Application
 
 - `UserRepository`
+- `TenantRepository`
+- `WorkspaceRepository`
+- `WorkspaceMemberRepository`
 - `MessageRepository`, `MessageReadRepository`, `MessageWriteRepository`
 - `ChatRoomRepository`, `ChatRoomReadRepository`, `ChatRoomWriteRepository`
 - `ChatRoomMemberRepository`, `ChatRoomMemberReadRepository`, `ChatRoomMemberWriteRepository`
@@ -84,6 +90,9 @@ Layer: Application
 Layer: Infrastructure
 
 - `UserRepositoryImpl`은 `TenantUserEntity`와 `TenantUserJpaRepository`를 통해 user persistence port를 구현한다.
+- `TenantRepositoryImpl`은 `TenantEntity`와 `TenantJpaRepository`를 통해 tenant persistence port를 구현한다.
+- `WorkspaceRepositoryImpl`은 `WorkspaceEntity`와 `WorkspaceJpaRepository`를 통해 workspace persistence port를 구현한다.
+- `WorkspaceMemberRepositoryImpl`은 `WorkspaceMemberEntity`와 `WorkspaceMemberJpaRepository`를 통해 workspace membership persistence port를 구현한다.
 - `MessageRepositoryImpl`은 read/write port를 조합하는 facade adapter다.
 - `MessageWriteRepositoryImpl`은 `MessageEntity` 저장과 optimistic locking/version 검증을 담당한다.
 - `MessageReadRepositoryImpl`은 조회와 unread count native query를 담당한다.
@@ -99,9 +108,15 @@ Flyway migration은 `pabal-app/src/main/resources/db/migration`에 있다.
 - `V2__messenger_tables.sql`: `chat_room`, `chat_room_member`, `direct_chat_mapping`, `message`
 - `V3__tombstone_deleted_message_content.sql`: 기존 deleted message tombstone 보정
 - `V4__tenant_user_tables.sql`: `tenant_user`
+- `V5__tenant_tables.sql`: `pabal_tenant`
+- `V6__workspace_tables.sql`: `workspace`, `workspace_member`
 
 중요 제약:
 
+- `chk_pabal_tenant_status`: tenant 상태 `ACTIVE`, `SUSPENDED`, `DELETED`
+- `uq_workspace_tenant_id_id`: tenant 포함 workspace 식별 target
+- `uq_workspace_member_tenant_workspace_user`: tenant/workspace/user 중복 membership 방지
+- `fk_workspace_member_workspace`: tenant + workspace FK
 - `uq_tenant_user_tenant_id_id`: tenant/user identity uniqueness
 - `uq_message_client_id`: room/sender/clientMessageId 기반 idempotency
 - `uq_message_room_sequence`: room 내부 sequence uniqueness

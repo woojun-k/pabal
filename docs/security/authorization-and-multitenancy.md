@@ -16,7 +16,9 @@ tags:
 Layer: Security → API → Application → Application Port → Infrastructure
 
 - tenant/user context의 source of truth는 `PabalPrincipal`이다.
+- tenant 존재/상태 source of truth는 `pabal_tenant`이며, bounded context 간 조회는 `TenantContract`로 수행한다.
 - tenant 안의 user 존재/상태 source of truth는 `tenant_user`이며, bounded context 간 조회는 `UserContract`로 수행한다.
+- workspace 존재와 workspace membership source of truth는 `workspace`, `workspace_member`이며, Messenger는 `WorkspaceContract`로 active workspace member를 조회한다.
 - repository 조회 조건에는 `tenantId`가 포함되어야 한다.
 - room 접근은 room 상태와 active membership을 모두 확인해야 한다.
 - client-provided identity는 거부하거나 principal과 비교해야 한다.
@@ -29,6 +31,8 @@ Layer: API
 - `ChatQueryMapper`도 동일하게 principal에서 `tenantId`, `userId`를 추출한다.
 - `UserCommandMapper`는 `/users/me` 생성 시 principal의 `tenantId`, `userId`와 request `name`으로 command를 만든다.
 - `UserQueryMapper`는 `/users/me`에서는 principal user를, `/users/{userId}`에서는 path user와 principal tenant를 query에 넣는다.
+- `WorkspaceCommandMapper`는 `/workspaces` 생성 시 principal의 `tenantId`, `userId`와 request `name`으로 command를 만든다.
+- `WorkspaceQueryMapper`는 `/workspaces/{workspaceId}` 조회 시 principal tenant와 path workspaceId로 query를 만든다.
 - request body에는 userId/tenantId를 받지 않는다.
 - principal이 없으면 `AccessDeniedException`이 발생한다.
 
@@ -46,8 +50,11 @@ Layer: Application
 | channel create | `ChatRoomAuthorizationService` | `messenger:channel:create` permission |
 | room/channel invite | `RoomParticipantPolicy`, `ChatRoomAuthorizationService` | requester+participants batch membership 검증, group은 `messenger:room:invite`, channel은 `messenger:channel:invite` permission |
 | room deletion | `ChatRoomDeletionSupport`, `ChatRoomAuthorizationService` | own/any deletion permission |
-| user create/read | `CreateUserCommandHandler`, `GetUserQueryHandler` | principal tenant 범위의 user만 생성/조회 |
+| tenant create/read | `CreateTenantCommandHandler`, `GetTenantQueryHandler` | tenant source of truth 생성/조회 |
+| user create/read | `CreateUserCommandHandler`, `GetUserQueryHandler` | active tenant 안에서 principal user 생성, principal tenant 범위의 user 조회 |
+| workspace create/read | `CreateWorkspaceCommandHandler`, `GetWorkspaceQueryHandler` | active tenant와 active owner user 검증, principal tenant 범위의 workspace 조회 |
 | user existence | `UserContractService`, `RoomParticipantPolicy` | tenant active user 여부를 user module contract로 검증 |
+| workspace membership | `WorkspaceContractService`, `RoomParticipantPolicy` | channel participant가 active workspace member인지 workspace module contract로 검증 |
 
 ## RBAC와 fine-grained permission
 
@@ -96,6 +103,9 @@ Layer: Application Port / Infrastructure
 - `findByTenantIdAndChatRoomIdAndUserId`
 - `findAllActiveByTenantIdAndUserId`
 - `findByTenantIdAndUserIds`
+- `existsByTenantIdAndIdAndStatus`
+- `findActiveUserIdsInTenant`
+- `findActiveMemberIds`
 
 체크포인트:
 
@@ -127,7 +137,8 @@ CONNECT 단계에서는 `StompConnectAuthenticationInterceptor`가 JWT 인증 �
 Status: Partially Implemented
 
 - channel create/deletion은 RBAC adapter와 fine-grained permission으로 보호한다.
-- workspace/channel role의 source of truth는 아직 외부 Workspace/Identity 모델이 아니라 JWT authority에 있다.
+- workspace membership의 source of truth는 `workspace_member`와 `WorkspaceContract`로 구현되어 있다.
+- workspace/channel role 기반 permission 판정은 아직 `RbacPermissionAdapter`의 JWT authority를 사용한다. `workspace_member.role`과 Messenger permission을 직접 연결하는 정책은 후속 설계가 필요하다.
 - private channel direct self-join은 이미 거부한다. 초대/admin approval 기반 멤버 추가 흐름은 별도 membership policy로 확장해야 한다.
 - PostgreSQL RLS는 현재 적용하지 않았다. system-level DB credential을 쓰는 애플리케이션에서는 request tenant context를 세션 변수로 주입하는 별도 설계가 필요하다.
 

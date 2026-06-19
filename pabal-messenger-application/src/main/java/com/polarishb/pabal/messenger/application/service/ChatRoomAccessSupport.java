@@ -1,9 +1,11 @@
 package com.polarishb.pabal.messenger.application.service;
 
+import com.polarishb.pabal.messenger.application.port.out.identity.RoomParticipantDirectoryPort;
 import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
+import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
 import com.polarishb.pabal.messenger.domain.exception.MemberNotInRoomException;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomRepository;
@@ -18,6 +20,7 @@ public class ChatRoomAccessSupport {
 
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final RoomParticipantDirectoryPort participantDirectoryPort;
 
     public ChatRoomAccess loadSendableActiveMember(UUID tenantId, UUID chatRoomId, UUID userId) {
         PersistedChatRoom room = loadSendableRoom(tenantId, chatRoomId);
@@ -68,6 +71,13 @@ public class ChatRoomAccessSupport {
         ).orElseThrow(() -> new MemberNotInRoomException(userId));
 
         member.member().validateActive();
+        validateActiveTenantMember(tenantId, userId);
         return member;
+    }
+
+    private void validateActiveTenantMember(UUID tenantId, UUID userId) {
+        if (!participantDirectoryPort.existsActiveTenantMember(tenantId, userId)) {
+            throw new MemberNotActiveException(userId);
+        }
     }
 }

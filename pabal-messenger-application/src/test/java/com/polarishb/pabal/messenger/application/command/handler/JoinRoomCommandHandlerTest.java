@@ -2,6 +2,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.input.JoinRoomCommand;
+import com.polarishb.pabal.messenger.application.port.out.identity.RoomParticipantDirectoryPort;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomRepository;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
@@ -49,13 +50,17 @@ class JoinRoomCommandHandlerTest {
     @Mock
     private ClockPort clockPort;
 
+    @Mock
+    private RoomParticipantDirectoryPort participantDirectoryPort;
+
     private JoinRoomCommandHandler handler;
 
     @BeforeEach
     void setUp() {
         ChatRoomAccessSupport chatRoomAccessSupport = new ChatRoomAccessSupport(
                 chatRoomRepository,
-                chatRoomMemberRepository
+                chatRoomMemberRepository,
+                participantDirectoryPort
         );
         handler = new JoinRoomCommandHandler(
                 chatRoomMemberRepository,

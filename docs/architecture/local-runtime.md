@@ -112,6 +112,10 @@ Layer: App
 - `application-local.yaml`
 - `db/migration/V1__postgres_extensions_and_uuidv7.sql`
 - `db/migration/V2__messenger_tables.sql`
+- `db/migration/V3__tombstone_deleted_message_content.sql`
+- `db/migration/V4__tenant_user_tables.sql`
+- `db/migration/V5__tenant_tables.sql`
+- `db/migration/V6__workspace_tables.sql`
 - `application-test.yaml`은 test resource에 위치
 
 도메인, application, API, infrastructure 모듈은 실행 resource를 직접 소유하지 않는다. DB schema 문서는 [Pabal 데이터베이스 스키마와 제약](database-schema-and-constraints.md)을 기준으로 본다.

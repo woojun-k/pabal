@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +30,20 @@ class UserContractServiceTest {
         when(userRepository.existsActiveByTenantIdAndId(tenantId, userId)).thenReturn(true);
 
         assertThat(service.existsUserInTenant(userId, tenantId)).isTrue();
+    }
+
+    @Test
+    void findActiveUserIdsInTenant_delegates_to_bulk_active_tenant_user_lookup() {
+        UUID tenantId = UUID.randomUUID();
+        UUID activeUserId = UUID.randomUUID();
+        UUID disabledUserId = UUID.randomUUID();
+        Set<UUID> requestedUserIds = Set.of(activeUserId, disabledUserId);
+        when(userRepository.findActiveIdsByTenantIdAndIds(tenantId, requestedUserIds))
+                .thenReturn(Set.of(activeUserId));
+
+        Set<UUID> activeUserIds = service.findActiveUserIdsInTenant(tenantId, requestedUserIds);
+
+        assertThat(activeUserIds).containsExactly(activeUserId);
     }
 
     @Test

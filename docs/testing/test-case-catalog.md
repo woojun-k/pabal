@@ -100,14 +100,44 @@ When: 같은 userId로 `CreateUserCommand` 처리
 Then: `DuplicateUserException`, `USR409001`
 Related: [Pabal HTTP API 예시와 오류 매핑](../use-cases/http-api-and-error-mapping.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)
 
+## User create active tenant validation
+
+Layer: Application
+Target: `CreateUserCommandHandler`, `TenantContract`
+Purpose: 존재하지 않거나 inactive tenant에 user가 생성되지 않도록 보장
+Given: `TenantContract.existsActiveTenant(tenantId)`가 false
+When: `CreateUserCommand` 처리
+Then: `InvalidInputException`이 발생하고 clock/save는 호출되지 않음
+Related: [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
+
+## Workspace create owner membership
+
+Layer: Application / Infrastructure
+Target: `CreateWorkspaceCommandHandler`, `WorkspaceRepositoryImpl`, `WorkspaceMemberRepositoryImpl`
+Purpose: active tenant와 active tenant user owner만 workspace를 만들 수 있고 owner membership이 함께 생성되도록 보장
+Given: active tenant, active owner user
+When: `CreateWorkspaceCommand` 처리
+Then: `workspace`가 `ACTIVE`로 저장되고 `workspace_member`에 owner가 `OWNER`, `ACTIVE`로 저장됨
+Related: [Pabal HTTP API 예시와 오류 매핑](../use-cases/http-api-and-error-mapping.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)
+
 ## User contract participant validation
 
 Layer: App / Application / Infrastructure
-Target: `UserContractService`, `CurrentAuthenticationRoomParticipantDirectoryAdapter`, `RoomParticipantPolicy`
+Target: `UserContractService`, `ContractRoomParticipantDirectoryAdapter`, `RoomParticipantPolicy`
 Purpose: messenger가 user module의 active tenant user만 초대/참여자로 인정하도록 보장
 Given: requester와 participant가 `tenant_user`에 active 상태로 존재
-When: messenger participant directory가 current principal과 target user를 조회
+When: messenger participant directory가 target user set을 조회
 Then: `UserContract`를 통해 active tenant user 여부가 확인되고, 없는 user는 invitable 대상에서 제외
+Related: [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
+
+## Workspace contract participant validation
+
+Layer: App / Application / Infrastructure
+Target: `WorkspaceContractService`, `ContractRoomParticipantDirectoryAdapter`, `RoomParticipantPolicy`
+Purpose: messenger channel participant validation이 workspace module의 active workspace member만 인정하도록 보장
+Given: owner는 `workspace_member`에 active 상태로 존재하고 같은 tenant의 다른 user는 workspace member가 아님
+When: `RoomParticipantDirectoryPort.findWorkspaceMemberIds`가 target user set을 조회
+Then: `WorkspaceContract`를 통해 active workspace member만 반환되고, tenant user지만 workspace member가 아닌 user는 제외됨
 Related: [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
 
 ## Message edit/delete access recheck
@@ -142,7 +172,7 @@ Related: [Pabal HTTP API 예시와 오류 매핑](../use-cases/http-api-and-erro
 
 ## GlobalExceptionHandler validation detail
 
-Layer: Common / API
+Layer: Web / API
 Target: `GlobalExceptionHandler`
 Purpose: validation error를 `ApiError`로 정규화
 Given: invalid request body 또는 query parameter
@@ -165,7 +195,7 @@ Related: [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md), [Websocket 
 Layer: App / API / Application / Infrastructure
 Target: `ChatRealtimeCommandController`, `SendMessageCommandHandler`, `StompChatRealtimeAdapter`
 Purpose: WebSocket realtime 송수신 경로를 E2E로 증명
-Given: test fixture가 active `chat_room`, `chat_room_member`를 직접 구성하고 receiver가 room event topic을 subscribe
+Given: test fixture가 active `pabal_tenant`, `tenant_user`, `chat_room`, `chat_room_member`를 직접 구성하고 receiver가 room event topic을 subscribe
 When: sender가 `SEND /app/chat.message.send` payload를 전송
 Then: receiver가 room events topic에서 `MESSAGE_SENT` envelope를 수신
 Related: [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md), [Pabal Realtime 이벤트 스키마](../realtime/event-schema.md)

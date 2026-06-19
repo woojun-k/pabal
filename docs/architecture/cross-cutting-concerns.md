@@ -16,7 +16,9 @@ Layer: Security → API → Application → Infrastructure
 
 - `PabalJwtAuthenticationConverter`가 JWT claim에서 `tenantId`, `userId`, `subject`를 추출한다.
 - `PabalPrincipal`이 HTTP와 STOMP 인증 컨텍스트의 tenant/user 기준이다.
+- tenant 존재/상태는 tenant module의 `pabal_tenant`가 기준이며, user/workspace는 `TenantContract`로 active tenant를 확인한다.
 - user 존재/상태는 user module의 `tenant_user`가 기준이며, messenger는 `UserContract`를 통해 확인한다.
+- workspace membership은 workspace module의 `workspace_member`가 기준이며, messenger는 `WorkspaceContract`를 통해 확인한다.
 - API mapper는 principal의 tenant/user를 command/query에 넣는다.
 - repository port와 adapter 메서드는 `findByTenantId...` 형태로 tenant 조건을 명시한다.
 - STOMP subscription은 destination의 `{tenantId}`와 principal tenant가 일치해야 허용한다.
@@ -40,9 +42,9 @@ WebSocket/STOMP:
 
 ## 3. 예외 처리
 
-Layer: Common
+Layer: Web / Common
 
-- `GlobalExceptionHandler`가 `GlobalException`을 `ApiError`로 변환한다.
+- `pabal-web`의 `GlobalExceptionHandler`가 `GlobalException`을 `ApiError`로 변환한다.
 - validation 예외는 `CMN002 INVALID_INPUT` 기준의 detail 목록으로 정규화한다.
 - `AccessDeniedException`은 `CMN004 FORBIDDEN`으로 정규화한다.
 - optimistic locking, data integrity violation은 conflict 응답으로 정규화한다.
@@ -51,9 +53,9 @@ Layer: Common
 
 ## 4. 이벤트 발행
 
-Layer: Common → Application → Infrastructure
+Layer: Common → Web Support → Application → Infrastructure
 
-- `SpringDomainEventPublisher.publishAfterCommit`은 실제 transaction이 있을 때만 after-commit synchronization을 등록한다.
+- `pabal-web`의 `SpringDomainEventPublisher.publishAfterCommit`은 실제 transaction이 있을 때만 after-commit synchronization을 등록한다.
 - 메시지/멤버 이벤트 listener는 application layer에 있다.
 - listener는 contract realtime payload를 만들고 `ChatRealtimePort`를 호출한다.
 - STOMP 전송 구현은 `StompChatRealtimeAdapter`에 격리된다.
@@ -79,10 +81,10 @@ Layer: App / Infrastructure / Contract
 
 ## 7. Observability
 
-Layer: App / Common / Infrastructure
+Layer: App / Web / Common / Infrastructure
 
 - `spring-boot-starter-opentelemetry`와 local OTel collector가 준비되어 있다.
-- `GlobalExceptionHandler`는 `ApiError.traceId`와 logging MDC를 연결한다.
+- `pabal-web`의 `GlobalExceptionHandler`는 `ApiError.traceId`와 logging MDC를 연결한다.
 - `/actuator/health`는 인증 없이 접근 가능하다.
 - 운영 exporter와 alerting 정책은 아직 별도 결정이 필요하다.
 
@@ -91,7 +93,7 @@ Layer: App / Common / Infrastructure
 ## 운영상 주의점
 
 - 신규 repository method는 tenant 조건을 빠뜨리면 안 된다.
-- bounded context 간 user 조회는 repository 직접 의존이 아니라 `UserContract` 같은 contract 경계를 통해야 한다.
+- bounded context 간 tenant/user/workspace 조회는 repository 직접 의존이 아니라 `TenantContract`, `UserContract`, `WorkspaceContract` 같은 contract 경계를 통해야 한다.
 - 신규 realtime destination은 CONNECT 인증과 SUBSCRIBE 인가를 분리해서 설계해야 한다.
 - 신규 domain event는 after-commit 필요 여부를 명시해야 한다.
 - 신규 API error는 `ErrorCode`와 `GlobalExceptionHandler`의 정규화 규칙을 확인해야 한다.

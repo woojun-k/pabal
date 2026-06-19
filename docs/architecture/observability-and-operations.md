@@ -68,9 +68,9 @@ Collector config는 `docker/otel/otel-collector.local.yaml`에 있다.
 
 ## API error trace id
 
-Layer: Common
+Layer: Web / Common
 
-`GlobalExceptionHandler`는 `ApiError.traceId`를 채운다.
+`pabal-web`의 `GlobalExceptionHandler`는 `ApiError.traceId`를 채운다.
 
 ```text
 Span.current().getSpanContext().getTraceId()

@@ -107,6 +107,8 @@ Layer: Domain
 
 - `workspaceId`, `isPrivate`, `description`을 가진다.
 - `withPrivacy`, `withDescription`으로 immutable style 변경을 제공한다.
+- Messenger domain은 `workspaceId`를 identity 값으로 보관하지만 workspace membership을 직접 조회하지 않는다.
+- channel participant 검증은 application `RoomParticipantPolicy`와 infrastructure `ContractRoomParticipantDirectoryAdapter`가 `WorkspaceContract`를 통해 수행한다.
 
 ## Enum과 상태 모델
 

@@ -5,6 +5,8 @@ import java.util.UUID;
 
 public interface RoomParticipantDirectoryPort {
 
+    boolean existsActiveTenantMember(UUID tenantId, UUID userId);
+
     Set<UUID> findTenantMemberIds(UUID tenantId, Set<UUID> userIds);
 
     Set<UUID> findWorkspaceMemberIds(UUID tenantId, UUID workspaceId, Set<UUID> userIds);

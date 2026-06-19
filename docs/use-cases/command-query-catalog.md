@@ -17,13 +17,27 @@ Status: Implemented
 
 Pabal의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출된다. API controller는 외부 request를 application command/query record로 변환하고, application handler가 유스케이스를 처리한다.
 
+## Tenant HTTP 유스케이스
+
+| Use Case | Endpoint | Command/Query | Handler | 주요 domain/port | Event |
+| --- | --- | --- | --- | --- | --- |
+| CreateTenant | `POST /api/v1/tenants` | `CreateTenantCommand` | `CreateTenantCommandHandler` | `Tenant`, `TenantRepository` | none |
+| GetTenant | `GET /api/v1/tenants/{tenantId}` | `GetTenantQuery` | `GetTenantQueryHandler` | `TenantRepository`, `TenantDto` | none |
+
 ## User HTTP 유스케이스
 
 | Use Case | Endpoint | Command/Query | Handler | 주요 domain/port | Event |
 | --- | --- | --- | --- | --- | --- |
-| CreateMe | `POST /api/v1/users/me` | `CreateUserCommand` | `CreateUserCommandHandler` | `User`, `UserRepository` | none |
+| CreateMe | `POST /api/v1/users/me` | `CreateUserCommand` | `CreateUserCommandHandler` | `TenantContract`, `User`, `UserRepository` | none |
 | GetMe | `GET /api/v1/users/me` | `GetUserQuery` | `GetUserQueryHandler` | `UserRepository`, `UserDto` | none |
 | GetUser | `GET /api/v1/users/{userId}` | `GetUserQuery` | `GetUserQueryHandler` | `UserRepository`, `UserDto` | none |
+
+## Workspace HTTP 유스케이스
+
+| Use Case | Endpoint | Command/Query | Handler | 주요 domain/port | Event |
+| --- | --- | --- | --- | --- | --- |
+| CreateWorkspace | `POST /api/v1/workspaces` | `CreateWorkspaceCommand` | `CreateWorkspaceCommandHandler` | `TenantContract`, `UserContract`, `Workspace`, `WorkspaceMember`, `WorkspaceRepository`, `WorkspaceMemberRepository` | none |
+| GetWorkspace | `GET /api/v1/workspaces/{workspaceId}` | `GetWorkspaceQuery` | `GetWorkspaceQueryHandler` | `WorkspaceRepository`, `WorkspaceDto` | none |
 
 ## HTTP Command 유스케이스
 
@@ -67,8 +81,9 @@ Pabal의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출�
 - Leave: `ChatRoomAccessSupport.loadLeavableMember`
 - Edit/delete message: message sender 검증 전에 `chatRoomId` 포함 조회와 `ChatRoomAccessSupport.loadSendableActiveMember`를 다시 통과한다.
 - Channel create/delete: `ChatRoomAuthorizationService`가 `PermissionPort`에 fine-grained permission을 질의한다.
-- Room participant validation: `RoomParticipantPolicy`가 `RoomParticipantDirectoryPort`를 통해 current principal과 target user의 tenant membership을 검증한다.
-- User existence: messenger infrastructure는 common `UserContract`를 통해 user module의 active tenant user를 조회한다.
+- Room participant validation: `RoomParticipantPolicy`가 `RoomParticipantDirectoryPort`를 통해 requester와 target user의 tenant/workspace membership을 batch 검증한다.
+- Tenant user existence: messenger infrastructure의 `ContractRoomParticipantDirectoryAdapter`는 common `UserContract`를 통해 user module의 active tenant user를 조회한다.
+- Workspace membership: `ContractRoomParticipantDirectoryAdapter`는 common `WorkspaceContract`를 통해 workspace module의 active workspace member를 조회한다.
 
 ## 구현상 중요한 세부
 

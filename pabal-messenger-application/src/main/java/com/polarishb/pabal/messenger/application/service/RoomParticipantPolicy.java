@@ -5,12 +5,11 @@ import com.polarishb.pabal.messenger.domain.exception.RoomParticipantNotInvitabl
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -77,8 +76,10 @@ public class RoomParticipantPolicy {
     }
 
     private Set<UUID> memberIds(UUID requesterId, List<UUID> participantIds) {
-        return Stream.concat(Stream.of(Objects.requireNonNull(requesterId)), participantIds.stream())
-                .collect(LinkedHashSet::new, Set::add, Set::addAll);
+        Set<UUID> memberIds = new HashSet<>(participantIds.size() + 1);
+        memberIds.add(Objects.requireNonNull(requesterId, "requesterId must not be null"));
+        memberIds.addAll(participantIds);
+        return memberIds;
     }
 
     private void validateAllInvitable(
@@ -87,7 +88,7 @@ public class RoomParticipantPolicy {
             Set<UUID> requestedMemberIds,
             Set<UUID> invitableMemberIds
     ) {
-        Set<UUID> missingMemberIds = new LinkedHashSet<>(requestedMemberIds);
+        Set<UUID> missingMemberIds = new HashSet<>(requestedMemberIds);
         missingMemberIds.removeAll(invitableMemberIds == null ? Set.of() : invitableMemberIds);
 
         if (!missingMemberIds.isEmpty()) {

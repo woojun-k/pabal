@@ -1,5 +1,7 @@
 package com.polarishb.pabal.user.application.command.handler;
 
+import com.polarishb.pabal.common.contract.TenantContract;
+import com.polarishb.pabal.common.exception.InvalidInputException;
 import com.polarishb.pabal.user.application.command.input.CreateUserCommand;
 import com.polarishb.pabal.user.application.command.output.CreateUserResult;
 import com.polarishb.pabal.user.application.port.out.persistence.UserRepository;
@@ -30,6 +32,9 @@ class CreateUserCommandHandlerTest {
     private UserRepository userRepository;
 
     @Mock
+    private TenantContract tenantContract;
+
+    @Mock
     private ClockPort clockPort;
 
     @InjectMocks
@@ -41,6 +46,7 @@ class CreateUserCommandHandlerTest {
         UUID tenantId = UUID.randomUUID();
         Instant now = Instant.parse("2026-04-08T00:00:00Z");
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(tenantContract.existsActiveTenant(tenantId)).thenReturn(true);
         when(clockPort.now()).thenReturn(now);
         when(userRepository.save(any(User.class)))
                 .thenAnswer(invocation -> persisted(invocation.getArgument(0), 0L));
@@ -52,6 +58,7 @@ class CreateUserCommandHandlerTest {
         assertThat(result.name()).isEqualTo("Alice");
         assertThat(result.status()).isEqualTo("ACTIVE");
         assertThat(result.createdAt()).isEqualTo(now);
+        verify(tenantContract).existsActiveTenant(tenantId);
         verify(clockPort).now();
         verify(userRepository).save(any(User.class));
     }
@@ -71,6 +78,22 @@ class CreateUserCommandHandlerTest {
         assertThatThrownBy(() -> handler.handle(new CreateUserCommand(userId, tenantId, "Alice")))
                 .isInstanceOf(DuplicateUserException.class);
 
+        verifyNoInteractions(tenantContract);
+        verifyNoInteractions(clockPort);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void handle_rejects_inactive_tenant_before_clock_and_save() {
+        UUID userId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(tenantContract.existsActiveTenant(tenantId)).thenReturn(false);
+
+        assertThatThrownBy(() -> handler.handle(new CreateUserCommand(userId, tenantId, "Alice")))
+                .isInstanceOf(InvalidInputException.class);
+
+        verify(tenantContract).existsActiveTenant(tenantId);
         verifyNoInteractions(clockPort);
         verify(userRepository, never()).save(any(User.class));
     }

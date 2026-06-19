@@ -17,7 +17,18 @@ tags:
 pabal
 ├─ pabal-app
 ├─ pabal-common
+├─ pabal-web
 ├─ pabal-security
+├─ pabal-tenant-domain
+├─ pabal-tenant-contract
+├─ pabal-tenant-application
+├─ pabal-tenant-api
+├─ pabal-tenant-infrastructure
+├─ pabal-workspace-domain
+├─ pabal-workspace-contract
+├─ pabal-workspace-application
+├─ pabal-workspace-api
+├─ pabal-workspace-infrastructure
 ├─ pabal-user-domain
 ├─ pabal-user-contract
 ├─ pabal-user-application
@@ -39,11 +50,22 @@ pabal
 | 모듈 | Layer | 대표 패키지/클래스 | 책임 |
 | --- | --- | --- | --- |
 | `pabal-app` | App | `PabalApplication`, `application.yaml`, Flyway migration | 실행 애플리케이션, auto configuration 조립, resource 소유 |
-| `pabal-common` | Common | `ApiError`, `GlobalExceptionHandler`, `SpringDomainEventPublisher`, `CommandHandler` | 전역 API/error/event/CQRS/UUID v7 공통 규약 |
+| `pabal-common` | Common | `CommandHandler`, `DomainEventPublisher`, `TenantContract`, `WorkspaceContract`, `UserContract`, `UuidV7` | event/CQRS/UUID v7 primitive와 context 간 최소 contract |
+| `pabal-web` | Web Support | `ApiError`, `GlobalExceptionHandler`, `SpringDomainEventPublisher` | 전역 API error response, Spring MVC exception mapping, Spring event publisher 구현 |
 | `pabal-security` | Security | `PabalJwtAuthenticationConverter`, `PabalPrincipal`, `SecurityConfig`, `LocalJwtConfig` | JWT 인증, principal mapping, HTTP security |
+| `pabal-tenant-domain` | Domain | `Tenant`, `TenantName`, `TenantStatus` | tenant 상태, 이름 invariant, tenant domain exception |
+| `pabal-tenant-contract` | Contract | `TenantState`, `PersistedTenant`, `TenantPersistenceMapper` | tenant persistence 경계 shape와 mapper |
+| `pabal-tenant-application` | Application | `CreateTenantCommandHandler`, `GetTenantQueryHandler`, `TenantContractService` | tenant command/query orchestration, repository port, 공통 `TenantContract` 구현 |
+| `pabal-tenant-api` | API | `TenantCommandController`, `TenantQueryController` | `/api/v1/tenants/**` HTTP entrypoint |
+| `pabal-tenant-infrastructure` | Infrastructure | `TenantRepositoryImpl`, `TenantEntity`, `TenantJpaRepository` | `pabal_tenant` JPA 구현, tenant clock adapter |
+| `pabal-workspace-domain` | Domain | `Workspace`, `WorkspaceMember`, `WorkspaceRole` | workspace와 workspace member 상태, role/status invariant |
+| `pabal-workspace-contract` | Contract | `WorkspaceState`, `PersistedWorkspace`, `WorkspaceMemberState` | workspace persistence 경계 shape와 mapper |
+| `pabal-workspace-application` | Application | `CreateWorkspaceCommandHandler`, `GetWorkspaceQueryHandler`, `WorkspaceContractService` | workspace command/query orchestration, member repository port, 공통 `WorkspaceContract` 구현 |
+| `pabal-workspace-api` | API | `WorkspaceCommandController`, `WorkspaceQueryController` | `/api/v1/workspaces/**` HTTP entrypoint, principal 기반 request mapping |
+| `pabal-workspace-infrastructure` | Infrastructure | `WorkspaceRepositoryImpl`, `WorkspaceMemberRepositoryImpl`, `WorkspaceEntity`, `WorkspaceMemberEntity` | `workspace`, `workspace_member` JPA 구현, workspace clock adapter |
 | `pabal-user-domain` | Domain | `User`, `UserName`, `UserStatus` | tenant user 상태, 이름/상태 invariant, user domain exception |
 | `pabal-user-contract` | Contract | `UserState`, `PersistedUser`, `UserPersistenceMapper` | user persistence 경계 shape와 mapper |
-| `pabal-user-application` | Application | `CreateUserCommandHandler`, `GetUserQueryHandler`, `UserContractService` | user command/query orchestration, repository port, 공통 `UserContract` 구현 |
+| `pabal-user-application` | Application | `CreateUserCommandHandler`, `GetUserQueryHandler`, `UserContractService` | user command/query orchestration, repository port, tenant 검증, 공통 `UserContract` 구현 |
 | `pabal-user-api` | API | `UserCommandController`, `UserQueryController`, `UserCommandMapper`, `UserQueryMapper` | `/api/v1/users/**` HTTP entrypoint, principal 기반 request mapping |
 | `pabal-user-infrastructure` | Infrastructure | `UserRepositoryImpl`, `TenantUserEntity`, `TenantUserJpaRepository` | tenant_user JPA 구현, user clock adapter |
 | `pabal-messenger-domain` | Domain | `ChatRoom`, `ChatRoomMember`, `Message`, `DirectChatMapping` | 비즈니스 상태 전이, invariant, domain event, domain exception |
@@ -58,6 +80,12 @@ pabal
 flowchart LR
     app["pabal-app"] --> common["pabal-common"]
     app --> security["pabal-security"]
+    app --> tenant_api["pabal-tenant-api"]
+    app --> tenant_application["pabal-tenant-application"]
+    app --> tenant_infrastructure["pabal-tenant-infrastructure"]
+    app --> workspace_api["pabal-workspace-api"]
+    app --> workspace_application["pabal-workspace-application"]
+    app --> workspace_infrastructure["pabal-workspace-infrastructure"]
     app --> user_api["pabal-user-api"]
     app --> user_application["pabal-user-application"]
     app --> user_infrastructure["pabal-user-infrastructure"]
@@ -66,6 +94,33 @@ flowchart LR
     app --> messenger_infrastructure["pabal-messenger-infrastructure"]
 
     security --> common
+    tenant_domain["pabal-tenant-domain"] --> common
+    tenant_contract["pabal-tenant-contract"] --> tenant_domain
+    tenant_contract --> common
+    tenant_application --> tenant_domain
+    tenant_application --> tenant_contract
+    tenant_application --> common
+    tenant_api --> tenant_application
+    tenant_api --> common
+    tenant_infrastructure --> tenant_application
+    tenant_infrastructure --> tenant_domain
+    tenant_infrastructure --> tenant_contract
+    tenant_infrastructure --> common
+
+    workspace_domain["pabal-workspace-domain"] --> common
+    workspace_contract["pabal-workspace-contract"] --> workspace_domain
+    workspace_contract --> common
+    workspace_application --> workspace_domain
+    workspace_application --> workspace_contract
+    workspace_application --> common
+    workspace_api --> workspace_application
+    workspace_api --> security
+    workspace_api --> common
+    workspace_infrastructure --> workspace_application
+    workspace_infrastructure --> workspace_domain
+    workspace_infrastructure --> workspace_contract
+    workspace_infrastructure --> common
+
     user_domain["pabal-user-domain"] --> common
     user_contract["pabal-user-contract"] --> user_domain
     user_contract --> common
@@ -119,8 +174,8 @@ flowchart LR
 - `{bounded-context}-application → {bounded-context}-infrastructure`
 - `{bounded-context}-api → {bounded-context}-infrastructure`
 - `{bounded-context}-contract → {bounded-context}-infrastructure`
-- `common → user-*` 또는 `messenger-*`
-- `security → user-*` 또는 `messenger-*`
+- `common → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
+- `security → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
 - `pabal-security → spring-messaging`
 
 ## 레이어 규칙 요약
@@ -138,8 +193,12 @@ flowchart LR
 ## 코드 탐색 기준
 
 - 메시지 전송은 `ChatCommandController`에서 시작해 `SendMessageCommandHandler`, application `MessageSendSupport` port, infrastructure `MessageSendSupportAdapter`로 따라간다.
+- tenant 생성/조회는 `TenantCommandController`/`TenantQueryController`에서 시작해 `CreateTenantCommandHandler`/`GetTenantQueryHandler`, `TenantRepository`, `TenantRepositoryImpl`로 따라간다.
+- workspace 생성/조회는 `WorkspaceCommandController`/`WorkspaceQueryController`에서 시작해 `CreateWorkspaceCommandHandler`/`GetWorkspaceQueryHandler`, `WorkspaceRepository`, `WorkspaceMemberRepository`, `WorkspaceRepositoryImpl`/`WorkspaceMemberRepositoryImpl`로 따라간다.
 - user 생성/조회는 `UserCommandController`/`UserQueryController`에서 시작해 `CreateUserCommandHandler`/`GetUserQueryHandler`, `UserRepository`, `UserRepositoryImpl`로 따라간다.
-- messenger가 user 존재를 확인하는 경계는 common `UserContract`와 user application의 `UserContractService`다.
+- user 생성은 common `TenantContract`와 tenant application의 `TenantContractService`로 active tenant를 확인한다.
+- workspace 생성은 `TenantContract`와 `UserContract`로 active tenant와 owner tenant user를 확인한다.
+- messenger가 tenant user와 workspace member를 확인하는 경계는 `ContractRoomParticipantDirectoryAdapter`, common `UserContract`/`WorkspaceContract`, user/workspace application contract service다.
 - room/member 접근 검증은 `ChatRoomAccessSupport`, `ChatRoomReadAccessSupport`를 확인한다.
 - repository port는 `pabal-messenger-application/src/main/java/.../port/out/persistence`에 있다.
 - adapter 구현체는 `pabal-messenger-infrastructure/src/main/java/.../persistence` 아래에 있다.

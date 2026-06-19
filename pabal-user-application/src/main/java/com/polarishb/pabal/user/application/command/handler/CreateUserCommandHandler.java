@@ -1,6 +1,8 @@
 package com.polarishb.pabal.user.application.command.handler;
 
 import com.polarishb.pabal.common.cqrs.CommandHandler;
+import com.polarishb.pabal.common.contract.TenantContract;
+import com.polarishb.pabal.common.exception.InvalidInputException;
 import com.polarishb.pabal.user.application.command.input.CreateUserCommand;
 import com.polarishb.pabal.user.application.command.output.CreateUserResult;
 import com.polarishb.pabal.user.application.port.out.persistence.UserRepository;
@@ -19,6 +21,7 @@ import java.time.Instant;
 public class CreateUserCommandHandler implements CommandHandler<CreateUserCommand, CreateUserResult> {
 
     private final UserRepository userRepository;
+    private final TenantContract tenantContract;
     private final ClockPort clockPort;
 
     @Override
@@ -28,6 +31,10 @@ public class CreateUserCommandHandler implements CommandHandler<CreateUserComman
                 .ifPresent(existing -> {
                     throw new DuplicateUserException(existing.state().id());
                 });
+
+        if (!tenantContract.existsActiveTenant(command.tenantId())) {
+            throw new InvalidInputException("활성 tenant가 아닙니다");
+        }
 
         Instant now = clockPort.now();
         User user = User.create(

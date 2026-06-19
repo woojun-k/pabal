@@ -12,7 +12,7 @@ tags:
 
 ## 개요
 
-현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-security`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
+현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-web`, `pabal-security`, `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
 
 ## 실행 환경
 
@@ -30,10 +30,10 @@ Layer: Testing / App
 
 ## 현재 테스트 파일 맵
 
-### Common / App support
+### Common / Web / App support
 
-- `pabal-common/src/test/java/com/polarishb/pabal/common/api/GlobalExceptionHandlerTest.java`
-- `pabal-app/src/test/java/com/polarishb/pabal/common/event/SpringDomainEventPublisherIntegrationTest.java`
+- `pabal-web/src/test/java/com/polarishb/pabal/web/api/GlobalExceptionHandlerTest.java`
+- `pabal-app/src/test/java/com/polarishb/pabal/web/event/SpringDomainEventPublisherIntegrationTest.java`
 - `pabal-app/src/test/java/com/polarishb/pabal/support/AbstractPostgresIntegrationTest.java`
 - `pabal-app/src/test/java/com/polarishb/pabal/support/AbstractRedisIntegrationTest.java`
 
@@ -51,6 +51,16 @@ Layer: Testing / App
 - `pabal-user-application/src/test/java/.../UserContractServiceTest.java`
 - `pabal-user-infrastructure/src/test/java/.../UserRepositoryImplTest.java`
 - `pabal-app/src/test/java/com/polarishb/pabal/user/integration/UserMessengerIntegrationTest.java`
+
+### Tenant
+
+- `pabal-tenant-application/src/test/java/.../CreateTenantCommandHandlerTest.java`
+- `pabal-tenant-infrastructure/src/test/java/.../TenantRepositoryImplTest.java`
+
+### Workspace
+
+- `pabal-workspace-application/src/test/java/.../CreateWorkspaceCommandHandlerTest.java`
+- `pabal-workspace-infrastructure/src/test/java/.../WorkspaceRepositoryImplTest.java`
 
 ### Domain
 
@@ -164,6 +174,7 @@ Layer: Infrastructure / App
 - message content 1~5000 정책은 API/domain/DB 회귀 테스트로 보호한다.
 - unique constraint 기반 idempotency는 application 선조회와 DB conflict translation을 모두 검증한다.
 - tenant 조건이 포함된 FK/unique/read query를 우선 검증한다.
+- `workspace_member`는 tenant + workspace 복합 FK와 tenant/workspace/user unique 제약을 실제 PostgreSQL slice test로 검증한다.
 
 관련 schema 설명은 [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)에서 본다.
 
@@ -185,10 +196,15 @@ Layer: Common / Application / Infrastructure
 
 Layer: App / Application / Infrastructure
 
+- tenant 생성은 `pabal_tenant` migration과 JPA mapping을 함께 검증한다.
 - user 생성/조회는 `tenant_user` migration과 JPA mapping을 함께 검증한다.
+- workspace 생성/조회는 `workspace`, `workspace_member` migration과 JPA mapping을 함께 검증한다.
+- `TenantContractService`는 active tenant 조회 contract를 보장한다.
 - `UserContractService`는 active tenant user 조회 contract를 보장한다.
+- `WorkspaceContractService`는 active workspace member 조회 contract를 보장한다.
 - messenger participant validation은 user module의 active tenant user를 `UserContract`로 조회하는 통합 테스트를 둔다.
-- messenger application은 user repository나 user JPA entity에 직접 의존하지 않는다.
+- messenger workspace participant validation은 workspace module의 active workspace member를 `WorkspaceContract`로 조회하는 통합 테스트를 둔다.
+- messenger application은 tenant/user/workspace repository나 JPA entity에 직접 의존하지 않는다.
 
 ## 현재 기준 우선 보강 포인트
 

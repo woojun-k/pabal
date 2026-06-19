@@ -27,22 +27,38 @@ Pabal Messenger는 `pabal-app`이 모든 모듈을 조립해 단일 애플리케
 6. `compose.local.yaml`
 7. `pabal-app/src/main/resources/db/migration/V2__messenger_tables.sql`
 8. `pabal-app/src/main/resources/db/migration/V4__tenant_user_tables.sql`
-9. `pabal-common/src/main/java/com/polarishb/pabal/common/api/GlobalExceptionHandler.java`
-10. `pabal-common/src/main/java/com/polarishb/pabal/common/event/SpringDomainEventPublisher.java`
-11. `pabal-user-application/src/main/java/com/polarishb/pabal/user/application/service/UserContractService.java`
-12. `pabal-messenger-api/src/main/java/com/polarishb/pabal/messenger/api/command/http/ChatCommandController.java`
-13. `pabal-messenger-application/src/main/java/com/polarishb/pabal/messenger/application/command/handler/SendMessageCommandHandler.java`
-14. `pabal-messenger-domain/src/main/java/com/polarishb/pabal/messenger/domain/model/Message.java`
-15. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/persistence/write/MessageWriteRepositoryImpl.java`
-16. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/config/WebSocketBrokerConfig.java`
+9. `pabal-app/src/main/resources/db/migration/V5__tenant_tables.sql`
+10. `pabal-app/src/main/resources/db/migration/V6__workspace_tables.sql`
+11. `pabal-web/src/main/java/com/polarishb/pabal/web/api/GlobalExceptionHandler.java`
+12. `pabal-web/src/main/java/com/polarishb/pabal/web/event/SpringDomainEventPublisher.java`
+13. `pabal-tenant-application/src/main/java/com/polarishb/pabal/tenant/application/service/TenantContractService.java`
+14. `pabal-workspace-application/src/main/java/com/polarishb/pabal/workspace/application/service/WorkspaceContractService.java`
+15. `pabal-user-application/src/main/java/com/polarishb/pabal/user/application/service/UserContractService.java`
+16. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/identity/ContractRoomParticipantDirectoryAdapter.java`
+17. `pabal-messenger-api/src/main/java/com/polarishb/pabal/messenger/api/command/http/ChatCommandController.java`
+18. `pabal-messenger-application/src/main/java/com/polarishb/pabal/messenger/application/command/handler/SendMessageCommandHandler.java`
+19. `pabal-messenger-domain/src/main/java/com/polarishb/pabal/messenger/domain/model/Message.java`
+20. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/persistence/write/MessageWriteRepositoryImpl.java`
+21. `pabal-messenger-infrastructure/src/main/java/com/polarishb/pabal/messenger/infrastructure/config/WebSocketBrokerConfig.java`
 
 ## 3. 모듈 지도
 
 | 모듈 | Layer | 먼저 볼 패키지 | 역할 |
 | --- | --- | --- | --- |
 | `pabal-app` | App | `com.polarishb.pabal` | Spring Boot 실행, 모듈 조립, resource/migration 보관 |
-| `pabal-common` | Common | `common.api`, `common.event`, `common.cqrs` | 공통 API error, event publisher, CQRS marker, UUID v7 |
+| `pabal-common` | Common | `common.event`, `common.cqrs`, `common.contract` | event publisher abstraction, CQRS marker, context contract, UUID v7 |
+| `pabal-web` | Web Support | `web.api`, `web.event` | 공통 API error, Spring MVC exception handler, Spring event publisher 구현 |
 | `pabal-security` | Security | `security.authentication`, `security.config` | JWT decoder/converter, `PabalPrincipal`, HTTP security |
+| `pabal-tenant-domain` | Domain | `domain.model`, `domain.exception` | tenant aggregate, name/status invariant |
+| `pabal-tenant-contract` | Contract | `contract.persistence` | tenant persistence 경계 shape |
+| `pabal-tenant-application` | Application | `command.handler`, `query.handler`, `service` | tenant 유스케이스, `TenantContract` 구현 |
+| `pabal-tenant-api` | API | `api.command`, `api.query` | tenant HTTP controller와 mapper |
+| `pabal-tenant-infrastructure` | Infrastructure | `persistence`, `time` | `pabal_tenant` JPA adapter |
+| `pabal-workspace-domain` | Domain | `domain.model`, `domain.exception` | workspace와 workspace member aggregate, role/status invariant |
+| `pabal-workspace-contract` | Contract | `contract.persistence` | workspace persistence 경계 shape |
+| `pabal-workspace-application` | Application | `command.handler`, `query.handler`, `service` | workspace 유스케이스, `WorkspaceContract` 구현 |
+| `pabal-workspace-api` | API | `api.command`, `api.query` | workspace HTTP controller와 mapper |
+| `pabal-workspace-infrastructure` | Infrastructure | `persistence`, `time` | `workspace`, `workspace_member` JPA adapter |
 | `pabal-user-domain` | Domain | `domain.model`, `domain.exception` | user aggregate, name/status invariant |
 | `pabal-user-contract` | Contract | `contract.persistence` | user persistence 경계 shape |
 | `pabal-user-application` | Application | `command.handler`, `query.handler`, `service` | user 유스케이스, `UserContract` 구현 |
@@ -162,6 +178,8 @@ DomainEventPublisher.publishAfterCommit
 
 - `tenantId`를 request body나 path에서 신뢰하는 것. HTTP에서는 `PabalPrincipal` 기준으로 command/query를 만든다.
 - messenger에서 user module repository/JPA entity를 직접 참조하는 것. user 존재 확인은 `UserContract`를 통해 한다.
+- messenger에서 workspace module repository/JPA entity를 직접 참조하는 것. workspace membership 확인은 `WorkspaceContract`를 통해 한다.
+- user/workspace에서 tenant repository/JPA entity를 직접 참조하는 것. active tenant 확인은 `TenantContract`를 통해 한다.
 - domain에 JPA Entity, `MessageState`, `PersistedMessage`를 넣는 것.
 - application handler에서 JPA repository를 직접 참조하는 것.
 - API controller에 비즈니스 규칙을 넣는 것.
@@ -197,4 +215,4 @@ DomainEventPublisher.publishAfterCommit
 - [ ] realtime event/payload가 필요한가?
 - [ ] after-commit event 발행이 필요한가?
 - [ ] layer별 테스트 위치를 결정했는가?
-- [ ] 관련 Obsidian 문서를 갱신했는가?
+- [ ] 관련 `docs/` 문서를 갱신했는가?

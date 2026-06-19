@@ -65,6 +65,22 @@ Layer: Domain / Application
 | `USR404001` | `USER_NOT_FOUND` | 404 | `UserNotFoundException` |
 | `USR409001` | `DUPLICATE_USER` | 409 | `DuplicateUserException` |
 
+## Tenant 도메인 에러
+
+Layer: Domain / Application
+
+| Code | Name | HTTP | 대표 예외 |
+| --- | --- | --- | --- |
+| `TNT404001` | `TENANT_NOT_FOUND` | 404 | `TenantNotFoundException` |
+
+## Workspace 도메인 에러
+
+Layer: Domain / Application
+
+| Code | Name | HTTP | 대표 예외 |
+| --- | --- | --- | --- |
+| `WSP404001` | `WORKSPACE_NOT_FOUND` | 404 | `WorkspaceNotFoundException` |
+
 ## 기술 예외 정규화
 
 | Exception | HTTP | Code | 설명 |

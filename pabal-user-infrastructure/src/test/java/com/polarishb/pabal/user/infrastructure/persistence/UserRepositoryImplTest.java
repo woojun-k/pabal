@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,5 +49,38 @@ class UserRepositoryImplTest extends AbstractUserPostgresDataJpaTest {
         userRepository.save(user);
 
         assertThat(userRepository.existsActiveByTenantIdAndId(tenantId, userId)).isFalse();
+    }
+
+    @Test
+    void findActiveIdsByTenantIdAndIds_returns_only_active_requested_tenant_users() {
+        UUID tenantId = UUID.randomUUID();
+        UUID otherTenantId = UUID.randomUUID();
+        UUID activeUserId = UUID.randomUUID();
+        UUID disabledUserId = UUID.randomUUID();
+        UUID otherTenantUserId = UUID.randomUUID();
+        UUID missingUserId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-04-08T00:00:00Z");
+        User disabledUser = User.create(disabledUserId, tenantId, "Disabled", now);
+        disabledUser.disable(now.plusSeconds(60));
+
+        userRepository.save(User.create(activeUserId, tenantId, "Active", now));
+        userRepository.save(disabledUser);
+        userRepository.save(User.create(otherTenantUserId, otherTenantId, "Other Tenant", now));
+
+        Set<UUID> activeIds = userRepository.findActiveIdsByTenantIdAndIds(
+                tenantId,
+                Set.of(activeUserId, disabledUserId, otherTenantUserId, missingUserId)
+        );
+
+        assertThat(activeIds).containsExactly(activeUserId);
+    }
+
+    @Test
+    void findActiveIdsByTenantIdAndIds_returns_empty_without_querying_empty_id_set() {
+        UUID tenantId = UUID.randomUUID();
+
+        Set<UUID> activeIds = userRepository.findActiveIdsByTenantIdAndIds(tenantId, Set.of());
+
+        assertThat(activeIds).isEmpty();
     }
 }
