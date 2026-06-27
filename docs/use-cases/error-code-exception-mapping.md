@@ -72,6 +72,11 @@ Layer: Domain / Application
 | Code | Name | HTTP | 대표 예외 |
 | --- | --- | --- | --- |
 | `TNT404001` | `TENANT_NOT_FOUND` | 404 | `TenantNotFoundException` |
+| `TNT404002` | `TENANT_REGISTRATION_NOT_FOUND` | 404 | `TenantRegistrationNotFoundException` |
+| `TNT409001` | `TENANT_DOMAIN_ALREADY_REGISTERED` | 409 | `TenantDomainAlreadyRegisteredException` |
+| `TNT409002` | `TENANT_DOMAIN_VERIFICATION_FAILED` | 409 | `TenantDomainVerificationFailedException` |
+| `TNT409003` | `TENANT_REGISTRATION_NOT_PENDING` | 409 | `TenantRegistrationNotPendingException` |
+| `TNT410001` | `TENANT_REGISTRATION_EXPIRED` | 410 | `TenantRegistrationExpiredException` |
 
 ## Workspace 도메인 에러
 

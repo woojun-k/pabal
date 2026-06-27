@@ -29,7 +29,7 @@ Layer: Security
 
 HTTP:
 
-- `SecurityConfig`는 `/actuator/health`, WebSocket endpoint, `/dev/*`를 제외한 요청을 인증 요구로 둔다.
+- `SecurityConfig`는 `/actuator/health`, WebSocket endpoint, `/api/v1/tenant-registrations/**`, `/dev/**`를 제외한 요청을 인증 요구로 둔다.
 - JWT resource server는 `JwtDecoder`와 `PabalJwtAuthenticationConverter`를 사용한다.
 - local/test profile은 `LocalJwtConfig`, 운영 profile은 `IssuerJwtDecoderConfig`를 사용한다.
 

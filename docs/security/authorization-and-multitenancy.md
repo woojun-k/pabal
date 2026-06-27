@@ -27,6 +27,7 @@ Layer: Security → API → Application → Application Port → Infrastructure
 
 Layer: API
 
+- `/api/v1/tenant-registrations/**`는 tenant 생성 전 onboarding 경로이므로 public이다. 이 경로는 principal tenant/user를 신뢰하지 않고 DNS TXT 소유권 검증으로 tenant 활성화를 통제한다.
 - `ChatCommandMapper`는 `Authentication`에서 `PabalPrincipal`을 추출한다.
 - `ChatQueryMapper`도 동일하게 principal에서 `tenantId`, `userId`를 추출한다.
 - `UserCommandMapper`는 `/users/me` 생성 시 principal의 `tenantId`, `userId`와 request `name`으로 command를 만든다.
@@ -50,7 +51,8 @@ Layer: Application
 | channel create | `ChatRoomAuthorizationService` | `messenger:channel:create` permission |
 | room/channel invite | `RoomParticipantPolicy`, `ChatRoomAuthorizationService` | requester+participants batch membership 검증, group은 `messenger:room:invite`, channel은 `messenger:channel:invite` permission |
 | room deletion | `ChatRoomDeletionSupport`, `ChatRoomAuthorizationService` | own/any deletion permission |
-| tenant create/read | `CreateTenantCommandHandler`, `GetTenantQueryHandler` | tenant source of truth 생성/조회 |
+| tenant registration | `RequestTenantRegistrationCommandHandler`, `PollTenantDomainVerificationsCommandHandler`, `VerifyTenantDomainCommandHandler` | public onboarding 요청, scheduler DNS TXT polling 후 tenant 활성화 |
+| tenant dev create/read | `CreateTenantCommandHandler`, `GetTenantQueryHandler` | local/test profile의 `/dev/tenants/**` seed/debug 경로 |
 | user create/read | `CreateUserCommandHandler`, `GetUserQueryHandler` | active tenant 안에서 principal user 생성, principal tenant 범위의 user 조회 |
 | workspace create/read | `CreateWorkspaceCommandHandler`, `GetWorkspaceQueryHandler` | active tenant와 active owner user 검증, principal tenant 범위의 workspace 조회 |
 | user existence | `UserContractService`, `RoomParticipantPolicy` | tenant active user 여부를 user module contract로 검증 |
@@ -137,6 +139,7 @@ CONNECT 단계에서는 `StompConnectAuthenticationInterceptor`가 JWT 인증 �
 Status: Partially Implemented
 
 - channel create/deletion은 RBAC adapter와 fine-grained permission으로 보호한다.
+- tenant registration은 DNS TXT verification 기반 MVP로 구현되어 있다. `PENDING_VERIFICATION` row를 queue item처럼 사용해 기본 600초 간격으로 자동 polling하고, 즉시 recheck는 local/test dev endpoint로만 유지한다. requester identity, tenant owner/admin bootstrap, domain 추가/이전 정책은 후속 설계가 필요하다.
 - workspace membership의 source of truth는 `workspace_member`와 `WorkspaceContract`로 구현되어 있다.
 - workspace/channel role 기반 permission 판정은 아직 `RbacPermissionAdapter`의 JWT authority를 사용한다. `workspace_member.role`과 Messenger permission을 직접 연결하는 정책은 후속 설계가 필요하다.
 - private channel direct self-join은 이미 거부한다. 초대/admin approval 기반 멤버 추가 흐름은 별도 membership policy로 확장해야 한다.

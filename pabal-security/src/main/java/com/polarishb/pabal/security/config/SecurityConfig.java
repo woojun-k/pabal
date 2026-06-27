@@ -1,6 +1,5 @@
 package com.polarishb.pabal.security.config;
 
-import com.polarishb.pabal.security.config.WebsocketEndpointProperties;
 import com.polarishb.pabal.security.authentication.PabalJwtAuthenticationConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -30,7 +29,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers(wsPath, wsPath + "/**").permitAll()
-                        .requestMatchers("/dev/*").permitAll()
+                        .requestMatchers("/api/v1/tenant-registrations", "/api/v1/tenant-registrations/**").permitAll()
+                        .requestMatchers("/dev/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(

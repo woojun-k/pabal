@@ -478,7 +478,8 @@ HTTP 보안은 stateless JWT Resource Server입니다.
 
 - `/actuator/health`: permit all
 - WebSocket endpoint: HTTP handshake permit all, STOMP `CONNECT`에서 token 인증
-- `/dev/*`: permit all, local/test profile 개발용
+- `/api/v1/tenant-registrations/**`: permit all, tenant onboarding용
+- `/dev/**`: permit all, local/test profile 개발용
 - 그 외 모든 요청: authenticated
 
 JWT 설정은 다음 값을 사용합니다.

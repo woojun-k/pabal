@@ -63,8 +63,10 @@ flowchart LR
     end
 
     subgraph TENANT["pabal-tenant-*"]
-        tenantApi["TenantCommandController / TenantQueryController"] --> tenantApp["CreateTenant / GetTenant"]
+        tenantApi["TenantRegistrationController"] --> tenantApp["RequestRegistration / VerifyDomain"]
+        tenantDevApi["DevTenantController"] --> tenantDevApp["CreateTenant / GetTenant"]
         tenantApp --> tenantTable["pabal_tenant"]
+        tenantDevApp --> tenantTable
         tenantApp --> tenantContract["TenantContract"]
     end
 

@@ -78,7 +78,8 @@ Code: `SecurityConfig`
 
 - `/actuator/health`
 - websocket endpoint path와 하위 path
-- `/dev/*`
+- `/api/v1/tenant-registrations/**`
+- `/dev/**`
 
 그 외:
 

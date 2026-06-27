@@ -1,7 +1,9 @@
 package com.polarishb.pabal.support;
 
 import com.polarishb.pabal.tenant.infrastructure.persistence.TenantRepositoryImpl;
+import com.polarishb.pabal.tenant.infrastructure.persistence.TenantRegistrationRepositoryImpl;
 import com.polarishb.pabal.tenant.infrastructure.persistence.jpa.TenantJpaRepository;
+import com.polarishb.pabal.tenant.infrastructure.persistence.jpa.TenantRegistrationJpaRepository;
 import com.polarishb.pabal.tenant.infrastructure.persistence.jpa.entity.TenantEntity;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
@@ -65,8 +67,14 @@ public abstract class AbstractTenantPostgresDataJpaTest {
 
     @SpringBootConfiguration
     @EntityScan(basePackageClasses = TenantEntity.class)
-    @EnableJpaRepositories(basePackageClasses = TenantJpaRepository.class)
-    @Import(TenantRepositoryImpl.class)
+    @EnableJpaRepositories(basePackageClasses = {
+            TenantJpaRepository.class,
+            TenantRegistrationJpaRepository.class
+    })
+    @Import({
+            TenantRepositoryImpl.class,
+            TenantRegistrationRepositoryImpl.class
+    })
     static class PersistenceTestApplication {
     }
 }

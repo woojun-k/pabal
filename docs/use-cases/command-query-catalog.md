@@ -21,8 +21,17 @@ Pabal의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출�
 
 | Use Case | Endpoint | Command/Query | Handler | 주요 domain/port | Event |
 | --- | --- | --- | --- | --- | --- |
-| CreateTenant | `POST /api/v1/tenants` | `CreateTenantCommand` | `CreateTenantCommandHandler` | `Tenant`, `TenantRepository` | none |
-| GetTenant | `GET /api/v1/tenants/{tenantId}` | `GetTenantQuery` | `GetTenantQueryHandler` | `TenantRepository`, `TenantDto` | none |
+| RequestTenantRegistration | `POST /api/v1/tenant-registrations` | `RequestTenantRegistrationCommand` | `RequestTenantRegistrationCommandHandler` | `TenantRegistration`, `TenantRegistrationRepository`, `TenantVerificationTokenGeneratorPort` | none |
+| RenewTenantRegistrationToken | `POST /api/v1/tenant-registrations/{registrationId}/verification-token` | `RenewTenantRegistrationTokenCommand` | `RenewTenantRegistrationTokenCommandHandler` | `TenantRegistration`, `TenantVerificationTokenGeneratorPort` | none |
+| GetTenantRegistration | `GET /api/v1/tenant-registrations/{registrationId}` | `GetTenantRegistrationQuery` | `GetTenantRegistrationQueryHandler` | `TenantRegistrationRepository`, `TenantRegistrationDto` | none |
+| VerifyTenantDomain | scheduler internal, dev `POST /dev/tenant-registrations/{registrationId}/domain-verification` | `VerifyTenantDomainCommand` | `VerifyTenantDomainCommandHandler` | `TenantRegistration`, `DnsTxtLookupPort`, `Tenant`, `TenantRepository` | none |
+
+## Tenant Dev HTTP 유스케이스
+
+| Use Case | Endpoint | Command/Query | Handler | 주요 domain/port | Event |
+| --- | --- | --- | --- | --- | --- |
+| DevCreateTenant | `POST /dev/tenants` | `CreateTenantCommand` | `CreateTenantCommandHandler` | `Tenant`, `TenantRepository` | none |
+| DevGetTenant | `GET /dev/tenants/{tenantId}` | `GetTenantQuery` | `GetTenantQueryHandler` | `TenantRepository`, `TenantDto` | none |
 
 ## User HTTP 유스케이스
 
@@ -89,6 +98,11 @@ Pabal의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출�
 
 ## 구현상 중요한 세부
 
+- `RequestTenantRegistrationCommandHandler`는 domain을 lower-case canonical form으로 정규화하고 `_pabal-verification.{domain}` TXT record에 넣을 `pabal-verification={token}` 값을 발급한다.
+- `VerifyTenantDomainCommandHandler`는 registration row를 pessimistic lock으로 읽은 뒤 DNS TXT record를 확인하고, 성공하면 tenant를 생성한 뒤 registration을 `ACTIVATED`로 전환한다.
+- `PollTenantDomainVerificationsCommandHandler`는 `PENDING_VERIFICATION` registration을 queue item처럼 읽어 DNS TXT verification을 자동 재시도한다. infrastructure scheduler가 기본 600초 간격으로 호출하며, 직접 검증 trigger는 local/test dev endpoint로만 노출한다.
+- `RenewTenantRegistrationTokenCommandHandler`는 `PENDING_VERIFICATION` registration의 verification token과 `expiresAt`을 새 값으로 회전한다.
+- `ExpireTenantRegistrationsCommandHandler`는 만료된 `PENDING_VERIFICATION` registration을 `EXPIRED`로 닫는다. infrastructure scheduler가 기본 600초 간격으로 호출하고, registration 새 요청 시에도 먼저 만료 sweep을 실행한다.
 - `SendMessageCommandHandler`와 `SendReplyCommandHandler`는 `clientMessageId` 기반 중복을 먼저 조회하고, race condition은 `uq_message_client_id` 제약과 `DuplicateMessageException` 재조회로 흡수한다.
 - `GetOrCreateDirectRoomCommandHandler`는 기존 mapping을 먼저 조회하고, concurrent create race는 `DuplicateDirectChatMappingException` 후 재조회로 흡수한다.
 - `MarkReadCommandHandler`는 cursor가 실제로 전진한 경우에만 `MessageReadEvent`를 발행한다.

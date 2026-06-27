@@ -16,6 +16,7 @@ Layer: API
 
 - Base path: `/api/v1`
 - 인증: Bearer JWT
+- 예외: `/api/v1/tenant-registrations/**`는 tenant가 아직 없을 수 있는 onboarding 경로이므로 public이다.
 - principal source: `PabalPrincipal(userId, tenantId, subject)`
 - HTTP request body의 tenant/user 값은 신뢰하지 않는다. API mapper가 authentication에서 tenant/user를 추출해 command/query에 넣는다.
 - 외부 HTTP 경로에는 내부 CQRS 구조인 `command`, `query`를 노출하지 않는다.
@@ -38,9 +39,101 @@ Layer: API
 
 ## Tenant endpoints
 
-### CreateTenant
+### RequestTenantRegistration
 
-`POST /api/v1/tenants`
+`POST /api/v1/tenant-registrations`
+
+Request:
+
+```json
+{
+  "tenantName": "Acme",
+  "domainName": "example.com"
+}
+```
+
+Response:
+
+```json
+{
+  "registrationId": "018f0000-0000-7000-8000-000000000201",
+  "tenantName": "Acme",
+  "domainName": "example.com",
+  "status": "PENDING_VERIFICATION",
+  "verificationDnsName": "_pabal-verification.example.com",
+  "verificationTxtValue": "pabal-verification=...",
+  "expiresAt": "2026-05-06T00:00:00Z",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- domain은 canonical lower-case form으로 정규화한다.
+- 같은 domain에 대해 `PENDING_VERIFICATION`, `VERIFIED`, `ACTIVATED` registration이 있으면 새 요청을 거부한다.
+- client는 `verificationDnsName`에 `verificationTxtValue`를 TXT record로 등록해야 한다.
+- verification token은 registration마다 발급되며 현재 TTL은 7일이다.
+- 만료된 pending registration은 scheduled expiration sweep과 새 요청 진입 시점의 expiration sweep에서 `EXPIRED`로 닫힌다.
+- DNS TXT 검증은 pending registration을 queue item처럼 사용해 기본 600초 간격으로 자동 polling한다.
+- 즉시 recheck endpoint는 운영 public API로 공개하지 않고 local/test dev endpoint로만 유지한다.
+- token 소실/회전이 필요하면 `RenewTenantRegistrationToken` endpoint로 token과 만료 시각을 갱신한다.
+
+주요 오류:
+
+- `TNT409001 TENANT_DOMAIN_ALREADY_REGISTERED`
+- `CMN002 INVALID_INPUT`
+
+### RenewTenantRegistrationToken
+
+`POST /api/v1/tenant-registrations/{registrationId}/verification-token`
+
+정책:
+
+- `PENDING_VERIFICATION` 상태에서만 허용한다.
+- 새 verification token을 발급하고 `expiresAt`을 현재 시각 기준 7일 뒤로 연장한다.
+- 기존 DNS TXT 값을 새 값으로 교체해야 한다.
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND`
+- `TNT409003 TENANT_REGISTRATION_NOT_PENDING`
+
+### GetTenantRegistration
+
+`GET /api/v1/tenant-registrations/{registrationId}` → `TenantRegistrationDetailResponse`
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND`
+
+### DevVerifyTenantDomain
+
+`POST /dev/tenant-registrations/{registrationId}/domain-verification`
+
+정책:
+
+- 운영 public API로는 직접 verification 요청을 노출하지 않는다. 운영 기본 흐름은 registration 생성 후 scheduler polling이다.
+- 이 endpoint는 local/test profile에서 즉시 검증 테스트와 seed/debug 목적으로만 사용한다.
+- 서버가 `_pabal-verification.{domain}` TXT record를 조회한다.
+- expected TXT value와 일치하면 tenant를 `ACTIVE`로 생성하고 registration을 `ACTIVATED`로 전환한다.
+- verification은 registration 만료 전에만 가능하다.
+- 자동 polling도 같은 handler를 사용하며, 불일치는 정상적인 pending 상태로 보고 다음 600초 polling까지 대기한다.
+- DNS TXT lookup timeout/retry는 현재 JNDI DNS provider 기본 동작을 따른다. 운영 DNS resolver timeout 정책은 별도 adapter 설정으로 분리할 수 있다.
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND`
+- `TNT409002 TENANT_DOMAIN_VERIFICATION_FAILED`
+- `TNT409003 TENANT_REGISTRATION_NOT_PENDING`
+- `TNT410001 TENANT_REGISTRATION_EXPIRED`
+
+## Tenant dev endpoints
+
+이 endpoint들은 local/test profile의 개발 지원용이다. 운영 onboarding은 `tenant-registrations`를 사용한다.
+
+### DevCreateTenant
+
+`POST /dev/tenants`
 
 Request:
 
@@ -70,9 +163,9 @@ Response:
 
 - `CMN002 INVALID_INPUT`
 
-### GetTenant
+### DevGetTenant
 
-`GET /api/v1/tenants/{tenantId}` → `TenantResponse`
+`GET /dev/tenants/{tenantId}` → `TenantDevResponse`
 
 주요 오류:
 

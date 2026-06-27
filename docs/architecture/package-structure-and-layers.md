@@ -55,8 +55,8 @@ pabal
 | `pabal-security` | Security | `PabalJwtAuthenticationConverter`, `PabalPrincipal`, `SecurityConfig`, `LocalJwtConfig` | JWT 인증, principal mapping, HTTP security |
 | `pabal-tenant-domain` | Domain | `Tenant`, `TenantName`, `TenantStatus` | tenant 상태, 이름 invariant, tenant domain exception |
 | `pabal-tenant-contract` | Contract | `TenantState`, `PersistedTenant`, `TenantPersistenceMapper` | tenant persistence 경계 shape와 mapper |
-| `pabal-tenant-application` | Application | `CreateTenantCommandHandler`, `GetTenantQueryHandler`, `TenantContractService` | tenant command/query orchestration, repository port, 공통 `TenantContract` 구현 |
-| `pabal-tenant-api` | API | `TenantCommandController`, `TenantQueryController` | `/api/v1/tenants/**` HTTP entrypoint |
+| `pabal-tenant-application` | Application | `RequestTenantRegistrationCommandHandler`, `VerifyTenantDomainCommandHandler`, `CreateTenantCommandHandler`, `TenantContractService` | tenant registration orchestration, dev seed command/query, repository port, 공통 `TenantContract` 구현 |
+| `pabal-tenant-api` | API | `TenantRegistrationCommandController`, `TenantRegistrationQueryController`, `DevTenantCommandController`, `DevTenantQueryController` | `/api/v1/tenant-registrations/**` onboarding entrypoint, local/test `/dev/tenants/**` entrypoint |
 | `pabal-tenant-infrastructure` | Infrastructure | `TenantRepositoryImpl`, `TenantEntity`, `TenantJpaRepository` | `pabal_tenant` JPA 구현, tenant clock adapter |
 | `pabal-workspace-domain` | Domain | `Workspace`, `WorkspaceMember`, `WorkspaceRole` | workspace와 workspace member 상태, role/status invariant |
 | `pabal-workspace-contract` | Contract | `WorkspaceState`, `PersistedWorkspace`, `WorkspaceMemberState` | workspace persistence 경계 shape와 mapper |
@@ -193,7 +193,8 @@ flowchart LR
 ## 코드 탐색 기준
 
 - 메시지 전송은 `ChatCommandController`에서 시작해 `SendMessageCommandHandler`, application `MessageSendSupport` port, infrastructure `MessageSendSupportAdapter`로 따라간다.
-- tenant 생성/조회는 `TenantCommandController`/`TenantQueryController`에서 시작해 `CreateTenantCommandHandler`/`GetTenantQueryHandler`, `TenantRepository`, `TenantRepositoryImpl`로 따라간다.
+- tenant 등록은 `TenantRegistrationCommandController`에서 시작해 `RequestTenantRegistrationCommandHandler`, scheduler의 `PollTenantDomainVerificationsCommandHandler`, `VerifyTenantDomainCommandHandler`, `TenantRegistrationRepository`, DNS TXT lookup adapter로 따라간다.
+- tenant 직접 생성/조회는 local/test profile의 `DevTenantCommandController`/`DevTenantQueryController`에서 시작한다. 운영 onboarding 경로로 사용하지 않는다.
 - workspace 생성/조회는 `WorkspaceCommandController`/`WorkspaceQueryController`에서 시작해 `CreateWorkspaceCommandHandler`/`GetWorkspaceQueryHandler`, `WorkspaceRepository`, `WorkspaceMemberRepository`, `WorkspaceRepositoryImpl`/`WorkspaceMemberRepositoryImpl`로 따라간다.
 - user 생성/조회는 `UserCommandController`/`UserQueryController`에서 시작해 `CreateUserCommandHandler`/`GetUserQueryHandler`, `UserRepository`, `UserRepositoryImpl`로 따라간다.
 - user 생성은 common `TenantContract`와 tenant application의 `TenantContractService`로 active tenant를 확인한다.
