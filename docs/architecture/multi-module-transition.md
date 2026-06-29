@@ -22,6 +22,8 @@ pabal-app
 pabal-common
 pabal-web
 pabal-security
+pabal-authorization
+pabal-infra-redis
 pabal-tenant-domain
 pabal-tenant-application
 pabal-tenant-contract
@@ -54,9 +56,10 @@ pabal-messenger-infrastructure
 {bounded-context}-application → {bounded-context}-contract
 {bounded-context}-contract → {bounded-context}-domain
 {bounded-context}-infrastructure → {bounded-context}-application/{bounded-context}-domain/{bounded-context}-contract
-security → common
+security → authorization/common
+authorization → infra-redis/common
 web → common
-app → *-api/*-application/*-infrastructure/security/common/web
+app → *-api/*-application/*-infrastructure/security/authorization/infra-redis/common/web
 ```
 
 `common`은 모든 모듈이 사용할 수 있지만, 특정 tenant/workspace/user/messenger 구현을 알아서는 안 된다. `TenantContract`, `WorkspaceContract`, `UserContract`처럼 bounded context 간에 필요한 최소 조회 contract만 둘 수 있다.
@@ -71,6 +74,7 @@ app → *-api/*-application/*-infrastructure/security/common/web
 {bounded-context}-api → {bounded-context}-infrastructure
 {bounded-context}-contract → {bounded-context}-infrastructure
 security → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
+authorization → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 web → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 common → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 ```
@@ -104,8 +108,26 @@ Layer: Web Support
 Layer: Security
 
 - JWT claim mapping과 `PabalPrincipal`을 소유한다.
+- `CurrentAuthenticationProvider`, refresh token lifecycle, HTTP security wiring을 소유한다.
+- RBAC permission store/cache와 authority matching은 `pabal-authorization`에 둔다.
 - STOMP 전용 `DestinationUserNameProvider`를 소유하지 않는다.
 - room/member authorization 정책은 messenger application/infrastructure에 남긴다.
+
+### pabal-authorization
+
+Layer: Authorization
+
+- `AuthorityNormalizer`, `PermissionAuthorityMatcher`, `RbacPermissionStore`, `JdbcRbacPermissionStore`를 소유한다.
+- JWT role/permission authority와 DB-backed RBAC permission을 application `PermissionPort` adapter가 사용할 수 있는 형태로 제공한다.
+- tenant/workspace/user/messenger repository나 JPA Entity를 직접 참조하지 않는다.
+
+### pabal-infra-redis
+
+Layer: Shared Infrastructure
+
+- Redis starter dependency boundary를 제공한다.
+- authorization cache와 향후 bounded context별 cache/pub-sub adapter가 Redis dependency를 중복 선언하지 않게 한다.
+- business cache key 정책이나 authorization rule을 소유하지 않는다.
 
 ### pabal-tenant-domain
 
@@ -283,7 +305,9 @@ Status: Partial
 - [x] `message.content` 길이 정책 불일치 정리
 - [x] channel create/deletion RBAC permission port 도입
 - [x] workspace membership source of truth 모듈화
-- [ ] workspace/channel role permission을 workspace membership role과 정합화
+- [x] workspace/channel role permission을 workspace membership role과 정합화
+- [x] authorization/RBAC 조회를 `pabal-authorization`으로 분리
+- [x] Redis dependency boundary를 `pabal-infra-redis`로 분리
 - [ ] unused realtime security 타입 정리 여부 결정
 - [ ] WebSocket 보안 테스트 보강
 - [ ] realtime contract versioning 도입 여부 결정

@@ -5,6 +5,8 @@ include(
     "pabal-common",
     "pabal-web",
     "pabal-security",
+    "pabal-authorization",
+    "pabal-infra-redis",
     "pabal-tenant-domain",
     "pabal-tenant-contract",
     "pabal-tenant-application",

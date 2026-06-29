@@ -9,6 +9,7 @@ import com.polarishb.pabal.workspace.contract.persistence.WorkspaceMemberPersist
 import com.polarishb.pabal.workspace.contract.persistence.WorkspacePersistenceMapper;
 import com.polarishb.pabal.workspace.domain.model.Workspace;
 import com.polarishb.pabal.workspace.domain.model.WorkspaceMember;
+import com.polarishb.pabal.workspace.domain.model.type.WorkspaceRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -64,6 +65,11 @@ class WorkspaceRepositoryImplTest extends AbstractWorkspacePostgresDataJpaTest {
                 savedWorkspace.state().id(),
                 ownerId
         )).isTrue();
+        assertThat(workspaceMemberRepository.findActiveRole(
+                tenantId,
+                savedWorkspace.state().id(),
+                ownerId
+        )).contains(WorkspaceRole.OWNER);
         assertThat(workspaceMemberRepository.findActiveUserIds(
                 tenantId,
                 savedWorkspace.state().id(),

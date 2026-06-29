@@ -5,6 +5,8 @@ plugins {
 dependencies {
     implementation(project(":pabal-common"))
     implementation(project(":pabal-security"))
+    implementation(project(":pabal-authorization"))
+    implementation(project(":pabal-infra-redis"))
     implementation(project(":pabal-messenger-application"))
     implementation(project(":pabal-messenger-domain"))
     implementation(project(":pabal-messenger-contract"))
@@ -15,8 +17,6 @@ dependencies {
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.security.messaging)
     implementation(libs.spring.boot.starter.oauth2.resource.server)
-    implementation(libs.spring.boot.starter.data.redis)
-    implementation(libs.spring.boot.starter.data.redis.reactive)
     implementation(libs.spring.boot.starter.kafka)
 
     runtimeOnly(libs.postgresql)

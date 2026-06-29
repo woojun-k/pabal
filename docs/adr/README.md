@@ -23,3 +23,4 @@ ADR(Architecture Decision Record)은 프로젝트의 주요 설계 결정을 기
 | [0008](0008-use-uuid-v7-for-primary-identifiers.md) | Accepted | 기본 식별자는 UUID v7을 사용한다. |
 | [0009](0009-keep-stomp-user-destination-adapter-outside-security.md) | Accepted | STOMP user destination adapter는 security 밖에 둔다. |
 | [0010](0010-own-tenant-workspace-membership-in-separate-contexts.md) | Accepted | Tenant와 Workspace membership은 별도 bounded context가 소유하고 Messenger는 contract로 조회한다. |
+| [0011](0011-manage-authorization-as-cross-cutting-policy.md) | Accepted | 인가는 cross-cutting RBAC permission policy로 관리한다. |

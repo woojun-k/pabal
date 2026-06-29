@@ -15,6 +15,8 @@ dependencies {
     implementation(project(":pabal-common"))
     implementation(project(":pabal-web"))
     implementation(project(":pabal-security"))
+    implementation(project(":pabal-authorization"))
+    implementation(project(":pabal-infra-redis"))
     implementation(project(":pabal-tenant-api"))
     implementation(project(":pabal-tenant-application"))
     implementation(project(":pabal-tenant-infrastructure"))

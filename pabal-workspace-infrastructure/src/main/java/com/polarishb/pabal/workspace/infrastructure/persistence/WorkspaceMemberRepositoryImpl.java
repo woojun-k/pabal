@@ -4,12 +4,14 @@ import com.polarishb.pabal.workspace.application.port.out.persistence.WorkspaceM
 import com.polarishb.pabal.workspace.contract.persistence.PersistedWorkspaceMember;
 import com.polarishb.pabal.workspace.contract.persistence.WorkspaceMemberPersistenceMapper;
 import com.polarishb.pabal.workspace.domain.model.type.WorkspaceMemberStatus;
+import com.polarishb.pabal.workspace.domain.model.type.WorkspaceRole;
 import com.polarishb.pabal.workspace.infrastructure.persistence.jpa.WorkspaceMemberJpaRepository;
 import com.polarishb.pabal.workspace.infrastructure.persistence.jpa.entity.WorkspaceMemberEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -50,5 +52,15 @@ public class WorkspaceMemberRepositoryImpl implements WorkspaceMemberRepository 
                 userIds,
                 WorkspaceMemberStatus.ACTIVE
         ));
+    }
+
+    @Override
+    public Optional<WorkspaceRole> findActiveRole(UUID tenantId, UUID workspaceId, UUID userId) {
+        return jpaRepository.findRoleByTenantIdAndWorkspaceIdAndUserIdAndStatus(
+                tenantId,
+                workspaceId,
+                userId,
+                WorkspaceMemberStatus.ACTIVE
+        );
     }
 }

@@ -90,16 +90,16 @@ PostgreSQL과 Redis는 volume을 사용한다.
 
 Layer: Security
 
-`LocalDevTokenController`는 `local`, `test` profile에서만 활성화된다.
+`LocalDevTokenController`는 `local`, `test` profile에서만 활성화된다. 응답은 짧은 access token만 포함하며, refresh token row를 DB에 저장하지 않는다.
 
 ```text
 GET /dev/token?userId={uuid}&tenantId={uuid}
 GET /dev/token?userId={uuid}&tenantId={uuid}&role=workspace_admin&scope=messenger:channel:create
 ```
 
-발급된 token은 `PabalJwtAuthenticationConverter`를 거쳐 `PabalPrincipal(userId, tenantId, subject)`로 변환된다. `role`과 `scope` parameter는 JWT authority로 들어가 RBAC 테스트에 사용할 수 있다. HTTP command/query와 STOMP CONNECT는 모두 이 principal을 기준으로 tenant/user를 얻는다.
+발급된 token은 `PabalJwtAuthenticationConverter`를 거쳐 `PabalPrincipal(userId, tenantId, subject)`로 변환된다. `role`, `scope`, `permission` parameter는 JWT authority로 들어가 RBAC 테스트에 사용할 수 있다. HTTP command/query와 STOMP CONNECT는 모두 이 principal을 기준으로 tenant/user를 얻는다.
 
-관련 설계는 [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md)를 기준으로 본다.
+관련 설계는 [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md)와 [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md)을 기준으로 본다.
 
 ## App module의 소유 자원
 
@@ -126,7 +126,7 @@ Layer: App
 - [ ] `PABAL_POSTGRES_DB`, `PABAL_POSTGRES_USER`, `PABAL_POSTGRES_PASSWORD`가 설정됐는가?
 - [ ] `PABAL_JWT_LOCAL_SECRET`이 HS256에 충분한 길이로 설정됐는가?
 - [ ] `/actuator/health`가 열리는가?
-- [ ] `/dev/token`으로 local token을 받을 수 있는가?
+- [ ] `/dev/token`으로 local access token을 받을 수 있는가?
 - [ ] `/websocket` STOMP CONNECT에서 bearer token이 통과하는가?
 - [ ] Flyway migration이 성공하고 JPA validate가 통과하는가?
 

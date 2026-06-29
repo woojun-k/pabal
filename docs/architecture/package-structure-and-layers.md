@@ -9,7 +9,7 @@ tags:
 # Pabal 패키지 구조와 레이어
 
 > 상위 문서: [Pabal 아키텍처 개요](overview.md)
-> 관련 문서: [Pabal 런타임 흐름](runtime-flow.md), [Pabal 크로스커팅 관심사](cross-cutting-concerns.md), [Pabal Persistence 경계와 데이터 변환](persistence-boundary-and-mapping.md), [Pabal 멀티모듈 전환 전략](multi-module-transition.md)
+> 관련 문서: [Pabal 런타임 흐름](runtime-flow.md), [Pabal 크로스커팅 관심사](cross-cutting-concerns.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal Persistence 경계와 데이터 변환](persistence-boundary-and-mapping.md), [Pabal 멀티모듈 전환 전략](multi-module-transition.md)
 
 ## 현재 모듈 구조
 
@@ -19,6 +19,8 @@ pabal
 ├─ pabal-common
 ├─ pabal-web
 ├─ pabal-security
+├─ pabal-authorization
+├─ pabal-infra-redis
 ├─ pabal-tenant-domain
 ├─ pabal-tenant-contract
 ├─ pabal-tenant-application
@@ -50,9 +52,11 @@ pabal
 | 모듈 | Layer | 대표 패키지/클래스 | 책임 |
 | --- | --- | --- | --- |
 | `pabal-app` | App | `PabalApplication`, `application.yaml`, Flyway migration | 실행 애플리케이션, auto configuration 조립, resource 소유 |
-| `pabal-common` | Common | `CommandHandler`, `DomainEventPublisher`, `TenantContract`, `WorkspaceContract`, `UserContract`, `UuidV7` | event/CQRS/UUID v7 primitive와 context 간 최소 contract |
+| `pabal-common` | Common | `CommandHandler`, `DomainEventPublisher`, `FineGrainedPermission`, `AuthorizationScope`, `TenantContract`, `WorkspaceContract`, `UserContract`, `WorkspaceMemberRole`, `UuidV7` | event/CQRS/UUID v7 primitive, permission abstraction, context 간 최소 contract |
 | `pabal-web` | Web Support | `ApiError`, `GlobalExceptionHandler`, `SpringDomainEventPublisher` | 전역 API error response, Spring MVC exception mapping, Spring event publisher 구현 |
-| `pabal-security` | Security | `PabalJwtAuthenticationConverter`, `PabalPrincipal`, `SecurityConfig`, `LocalJwtConfig` | JWT 인증, principal mapping, HTTP security |
+| `pabal-security` | Security | `PabalJwtAuthenticationConverter`, `PabalPrincipal`, `CurrentAuthenticationProvider`, `RefreshTokenService`, `JdbcRefreshTokenStore`, `SecurityConfig`, `LocalJwtConfig` | JWT 인증, principal/context mapping, access/refresh token lifecycle, HTTP security |
+| `pabal-authorization` | Authorization | `AuthorityNormalizer`, `PermissionAuthorityMatcher`, `RbacPermissionStore`, `JdbcRbacPermissionStore` | authority normalization/matching, RBAC permission 조회/cache, persisted authorization policy access |
+| `pabal-infra-redis` | Shared Infrastructure | Spring Data Redis starter dependencies | Redis 기반 cache/pub-sub adapter가 공통으로 사용할 Redis infrastructure dependency 집약 |
 | `pabal-tenant-domain` | Domain | `Tenant`, `TenantName`, `TenantStatus` | tenant 상태, 이름 invariant, tenant domain exception |
 | `pabal-tenant-contract` | Contract | `TenantState`, `PersistedTenant`, `TenantPersistenceMapper` | tenant persistence 경계 shape와 mapper |
 | `pabal-tenant-application` | Application | `RequestTenantRegistrationCommandHandler`, `VerifyTenantDomainCommandHandler`, `CreateTenantCommandHandler`, `TenantContractService` | tenant registration orchestration, dev seed command/query, repository port, 공통 `TenantContract` 구현 |
@@ -80,6 +84,8 @@ pabal
 flowchart LR
     app["pabal-app"] --> common["pabal-common"]
     app --> security["pabal-security"]
+    app --> authorization["pabal-authorization"]
+    app --> redis["pabal-infra-redis"]
     app --> tenant_api["pabal-tenant-api"]
     app --> tenant_application["pabal-tenant-application"]
     app --> tenant_infrastructure["pabal-tenant-infrastructure"]
@@ -94,6 +100,9 @@ flowchart LR
     app --> messenger_infrastructure["pabal-messenger-infrastructure"]
 
     security --> common
+    security --> authorization
+    authorization --> common
+    authorization --> redis
     tenant_domain["pabal-tenant-domain"] --> common
     tenant_contract["pabal-tenant-contract"] --> tenant_domain
     tenant_contract --> common
@@ -148,6 +157,8 @@ flowchart LR
     messenger_infrastructure --> messenger_domain
     messenger_infrastructure --> messenger_contract
     messenger_infrastructure --> security
+    messenger_infrastructure --> authorization
+    messenger_infrastructure --> redis
     messenger_infrastructure --> common
 ```
 
@@ -160,11 +171,12 @@ flowchart LR
 - `{bounded-context}-application → common`
 - `{bounded-context}-contract → {bounded-context}-domain/common`
 - `{bounded-context}-infrastructure → {bounded-context}-application/domain/contract/common`
-- `messenger-infrastructure → security/common`
+- `messenger-infrastructure → security/authorization/infra-redis/common`
 - `user-api → security/common`
-- `security → common`
+- `security → authorization/common`
+- `authorization → infra-redis/common`
 - `{bounded-context}-domain → common`
-- `app → *-api/*-application/*-infrastructure/security/common`
+- `app → *-api/*-application/*-infrastructure/security/authorization/infra-redis/common`
 
 ## 금지 의존
 
@@ -176,6 +188,7 @@ flowchart LR
 - `{bounded-context}-contract → {bounded-context}-infrastructure`
 - `common → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
 - `security → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
+- `authorization → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
 - `pabal-security → spring-messaging`
 
 ## 레이어 규칙 요약
@@ -188,6 +201,7 @@ flowchart LR
 | Contract | persistence/realtime 경계 shape | 비즈니스 규칙 소유 |
 | Infrastructure | DB/WS/security/time 구현 | 유스케이스 정책 결정 |
 | Security | JWT 인증과 principal 정규화 | messenger room/member 정책, STOMP 전용 user-name provider |
+| Authorization | authority normalization과 RBAC permission lookup | bounded context repository/JPA 직접 접근 |
 | Common | 전역 공통 규약 제공 | 특정 bounded context 의존 |
 
 ## 코드 탐색 기준

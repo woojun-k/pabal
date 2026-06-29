@@ -23,6 +23,7 @@ tags:
 - [Pabal Realtime 이벤트 스키마](../realtime/event-schema.md)
 - [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md)
 - [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md)
+- [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md)
 - [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
 
 ## 아키텍처 전환 문서
@@ -65,5 +66,6 @@ tags:
 | Domain model과 JPA Entity는 어떻게 분리되는가? | [Pabal Persistence 경계와 데이터 변환](../architecture/persistence-boundary-and-mapping.md) |
 | 이벤트는 언제 발행되고 realtime으로 어떻게 나가는가? | [Pabal 이벤트 발행과 트랜잭션 경계](../architecture/event-and-transaction-boundary.md), [Pabal Realtime 이벤트 스키마](../realtime/event-schema.md) |
 | STOMP 연결/인가 문제는 어디서 확인하는가? | [Websocket 설정](../realtime/websocket-configuration.md), [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md) |
+| JWT role, scoped permission, module role source는 어떻게 매핑하는가? | [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md) |
 | trace id와 local observability는 어디서 보는가? | [Pabal Observability와 운영 설정](../architecture/observability-and-operations.md) |
 | 어떤 테스트를 어디에 추가하는가? | [Pabal 테스트 전략](../testing/testing-strategy.md), [Pabal 테스트 케이스 카탈로그](../testing/test-case-catalog.md) |

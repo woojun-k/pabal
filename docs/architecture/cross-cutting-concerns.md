@@ -8,7 +8,7 @@ tags:
 # Pabal 크로스커팅 관심사
 
 > 상위 문서: [Pabal 아키텍처 개요](overview.md)
-> 관련 문서: [Pabal 패키지 구조와 레이어](package-structure-and-layers.md), [Pabal 런타임 흐름](runtime-flow.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 공통 모듈 설계](common-module-design.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md), [Pabal Observability와 운영 설정](observability-and-operations.md)
+> 관련 문서: [Pabal 패키지 구조와 레이어](package-structure-and-layers.md), [Pabal 런타임 흐름](runtime-flow.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 공통 모듈 설계](common-module-design.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md), [Pabal Observability와 운영 설정](observability-and-operations.md)
 
 ## 1. 멀티테넌시
 
@@ -29,7 +29,8 @@ Layer: Security
 
 HTTP:
 
-- `SecurityConfig`는 `/actuator/health`, WebSocket endpoint, `/api/v1/tenant-registrations/**`, `/dev/**`를 제외한 요청을 인증 요구로 둔다.
+- `SecurityConfig`는 `/actuator/health`, WebSocket endpoint, `/api/v1/tenant-registrations/**`를 제외한 요청을 인증 요구로 둔다. `/dev/**`는 `local` 또는 `test` profile에서만 허용한다.
+- `/api/v1/auth/tokens/refresh`, `/api/v1/auth/tokens/revoke`는 refresh token 자체가 credential이므로 access token 없이 허용한다.
 - JWT resource server는 `JwtDecoder`와 `PabalJwtAuthenticationConverter`를 사용한다.
 - local/test profile은 `LocalJwtConfig`, 운영 profile은 `IssuerJwtDecoderConfig`를 사용한다.
 
@@ -39,6 +40,15 @@ WebSocket/STOMP:
 - STOMP CONNECT에서 `StompConnectAuthenticationInterceptor`가 bearer token을 인증한다.
 - 인증 결과는 `PabalPrincipal`을 담은 JWT authentication이고, STOMP accessor user는 messenger infrastructure의 `StompAuthenticationToken`으로 감싼다.
 - SUBSCRIBE authorization은 `StompMessageAuthorizationConfig`와 `RoomSubscriptionAuthorizationManager`가 담당한다.
+
+권한 거버넌스:
+
+- JWT converter는 authority normalization만 수행한다.
+- role-permission matrix는 application permission contract, `rbac_*` DB store, infrastructure authorization adapter에서 관리한다.
+- role은 coarse-grained RBAC 입력이고, application은 fine-grained permission을 요구한다.
+- access token은 짧게 유지하고 refresh token은 `security_refresh_token` hash store에서 rotate/revoke한다.
+- workspace owner/admin은 `workspace_member.role` source of truth와 JWT authority 양쪽에서 판정한다.
+- module 간 권한 판단은 `TenantContract`, `UserContract`, `WorkspaceContract` 같은 common contract로만 수행한다.
 
 ## 3. 예외 처리
 

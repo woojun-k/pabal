@@ -1,6 +1,7 @@
 package com.polarishb.pabal.security.dev;
 
 import com.polarishb.pabal.security.config.JwtSecurityProperties;
+import com.polarishb.pabal.security.token.JwtAuthorityClaims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -21,43 +22,49 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Profile({"local", "test"})
 public class LocalDevTokenController {
-    private final JwtEncoder jwtEncoder;
     private final JwtSecurityProperties jwtProperties;
+    private final JwtEncoder jwtEncoder;
 
     @GetMapping("/dev/token")
     public Map<String, String> token(
             @RequestParam UUID userId,
             @RequestParam UUID tenantId,
             @RequestParam(required = false, name = "scope") List<String> scopes,
-            @RequestParam(required = false, name = "role") List<String> roles
+            @RequestParam(required = false, name = "role") List<String> roles,
+            @RequestParam(required = false, name = "permission") List<String> permissions
     ) {
+        JwtAuthorityClaims authorityClaims = JwtAuthorityClaims.of(scopes, roles, permissions);
         Instant now = Instant.now();
-
+        Instant expiresAt = now.plus(jwtProperties.accessTokenMaxTtl());
         JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
-                .issuer("local-dev")
+                .issuer(jwtProperties.issuerUri())
                 .subject(userId.toString())
                 .issuedAt(now)
-                .expiresAt(now.plusSeconds(60 * 60))
+                .expiresAt(expiresAt)
                 .audience(List.of(jwtProperties.audience()))
                 .claim(jwtProperties.userIdClaim(), userId.toString())
                 .claim(jwtProperties.tenantIdClaim(), tenantId.toString())
                 .claim(jwtProperties.principalClaim(), userId.toString());
 
-        if (scopes != null && !scopes.isEmpty()) {
-            claimsBuilder.claim("scope", String.join(" ", scopes));
+        if (!authorityClaims.scopes().isEmpty()) {
+            claimsBuilder.claim("scope", String.join(" ", authorityClaims.scopes()));
         }
-        if (roles != null && !roles.isEmpty()) {
-            claimsBuilder.claim("roles", roles);
+        if (!authorityClaims.roles().isEmpty()) {
+            claimsBuilder.claim("roles", authorityClaims.roles());
         }
-
-        JwtClaimsSet claims = claimsBuilder.build();
-
-        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        if (!authorityClaims.permissions().isEmpty()) {
+            claimsBuilder.claim("permissions", authorityClaims.permissions());
+        }
 
         String accessToken = jwtEncoder.encode(
-                JwtEncoderParameters.from(header, claims)
+                JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claimsBuilder.build())
         ).getTokenValue();
 
-        return Map.of("accessToken", accessToken);
+        return Map.of(
+                "tokenType", "Bearer",
+                "accessToken", accessToken,
+                "accessTokenExpiresAt", expiresAt.toString(),
+                "audience", jwtProperties.audience()
+        );
     }
 }

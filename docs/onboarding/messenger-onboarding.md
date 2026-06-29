@@ -48,7 +48,9 @@ Pabal Messenger는 `pabal-app`이 모든 모듈을 조립해 단일 애플리케
 | `pabal-app` | App | `com.polarishb.pabal` | Spring Boot 실행, 모듈 조립, resource/migration 보관 |
 | `pabal-common` | Common | `common.event`, `common.cqrs`, `common.contract` | event publisher abstraction, CQRS marker, context contract, UUID v7 |
 | `pabal-web` | Web Support | `web.api`, `web.event` | 공통 API error, Spring MVC exception handler, Spring event publisher 구현 |
-| `pabal-security` | Security | `security.authentication`, `security.config` | JWT decoder/converter, `PabalPrincipal`, HTTP security |
+| `pabal-security` | Security | `security.authentication`, `security.context`, `security.token`, `security.config` | JWT decoder/converter, `PabalPrincipal`, refresh token lifecycle, HTTP security |
+| `pabal-authorization` | Authorization | `authorization` | authority normalization/matching, RBAC permission lookup/cache |
+| `pabal-infra-redis` | Shared Infrastructure | Gradle dependency boundary | Redis starter dependency for authorization cache and future module cache layers |
 | `pabal-tenant-domain` | Domain | `domain.model`, `domain.exception` | tenant aggregate, name/status invariant |
 | `pabal-tenant-contract` | Contract | `contract.persistence` | tenant persistence 경계 shape |
 | `pabal-tenant-application` | Application | `command.handler`, `query.handler`, `service` | tenant 유스케이스, `TenantContract` 구현 |

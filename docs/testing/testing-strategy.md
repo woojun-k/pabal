@@ -8,11 +8,11 @@ tags:
 # Pabal 테스트 전략
 
 > 상위 문서: [Pabal 상세 설계 허브](../design/design-hub.md)
-> 관련 문서: [Pabal 테스트 케이스 카탈로그](test-case-catalog.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 멀티모듈 전환 전략](../architecture/multi-module-transition.md), [Pabal 로컬 개발과 런타임 구성](../architecture/local-runtime.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md), [Pabal 이벤트 발행과 트랜잭션 경계](../architecture/event-and-transaction-boundary.md)
+> 관련 문서: [Pabal 테스트 케이스 카탈로그](test-case-catalog.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 멀티모듈 전환 전략](../architecture/multi-module-transition.md), [Pabal 로컬 개발과 런타임 구성](../architecture/local-runtime.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md), [Pabal 이벤트 발행과 트랜잭션 경계](../architecture/event-and-transaction-boundary.md)
 
 ## 개요
 
-현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-web`, `pabal-security`, `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
+현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-web`, `pabal-security`, `pabal-authorization`, `pabal-infra-redis`, `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
 
 ## 실행 환경
 
@@ -41,6 +41,8 @@ Layer: Testing / App
 
 - `pabal-security/src/test/java/com/polarishb/pabal/security/authentication/PabalJwtAuthenticationTokenTest.java`
 - `pabal-security/src/test/java/com/polarishb/pabal/security/authentication/PabalJwtAuthenticationConverterTest.java`
+- `pabal-authorization/src/test/java/com/polarishb/pabal/authorization/PermissionAuthorityMatcherTest.java`
+- `pabal-security/src/test/java/com/polarishb/pabal/security/token/RefreshTokenServiceTest.java`
 - `pabal-security/src/test/java/com/polarishb/pabal/security/context/SecurityContextCurrentAuthenticationProviderTest.java`
 
 ### User
@@ -153,7 +155,9 @@ Layer: Infrastructure
 - optimistic locking
 - native query와 tenant filter
 - STOMP destination 전송
-- security context adapter와 RBAC authority mapping
+- security context adapter와 RBAC authority/DB permission mapping
+- JWT role, persisted RBAC permission, scoped permission, module-owned role source mapping
+- refresh token rotation, revoke, short access token TTL
 
 ### Integration Test
 
@@ -202,8 +206,10 @@ Layer: App / Application / Infrastructure
 - `TenantContractService`는 active tenant 조회 contract를 보장한다.
 - `UserContractService`는 active tenant user 조회 contract를 보장한다.
 - `WorkspaceContractService`는 active workspace member 조회 contract를 보장한다.
+- `WorkspaceContractService`는 active workspace member role 조회 contract를 보장한다.
 - messenger participant validation은 user module의 active tenant user를 `UserContract`로 조회하는 통합 테스트를 둔다.
 - messenger workspace participant validation은 workspace module의 active workspace member를 `WorkspaceContract`로 조회하는 통합 테스트를 둔다.
+- messenger authorization adapter는 workspace module의 active workspace owner/admin role을 `WorkspaceContract`로 조회해 permission grant로 변환한다.
 - messenger application은 tenant/user/workspace repository나 JPA entity에 직접 의존하지 않는다.
 
 ## 현재 기준 우선 보강 포인트

@@ -51,7 +51,9 @@ Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시
 | `pabal-app` | Spring Boot executable application, runtime 설정, Flyway migration, local/test profile 리소스 |
 | `pabal-common` | 예외 코드, CQRS marker, domain event publisher abstraction, persistence base, UUIDv7 utility |
 | `pabal-web` | 공통 `ApiError`, `GlobalExceptionHandler`, Spring 기반 `SpringDomainEventPublisher` 구현 |
-| `pabal-security` | HTTP JWT Resource Server 설정, JWT principal 변환, local/test token 발급, WebSocket endpoint property |
+| `pabal-security` | HTTP JWT Resource Server 설정, JWT principal 변환, access/refresh token lifecycle, local/test token 발급, WebSocket endpoint property |
+| `pabal-authorization` | Authority normalization/matching, RBAC permission 조회/cache, persisted authorization policy access |
+| `pabal-infra-redis` | Redis starter dependency boundary for authorization cache and future module cache layers |
 | `pabal-tenant-domain` | Tenant 순수 도메인 모델, value object, domain exception |
 | `pabal-tenant-application` | Tenant command/query handler, repository port, `TenantContract` 구현 |
 | `pabal-tenant-contract` | Tenant persistence contract, state, persisted wrapper, mapper |
@@ -108,7 +110,15 @@ pabal-security
 └── com.polarishb.pabal.security
     ├── authentication
     ├── config
-    └── dev
+    ├── context
+    ├── dev
+    └── token
+
+pabal-authorization
+└── com.polarishb.pabal.authorization
+
+pabal-infra-redis
+└── Redis dependency boundary module
 
 pabal-tenant-domain / pabal-tenant-application / pabal-tenant-contract / pabal-tenant-api / pabal-tenant-infrastructure
 └── com.polarishb.pabal.tenant
@@ -479,7 +489,7 @@ HTTP 보안은 stateless JWT Resource Server입니다.
 - `/actuator/health`: permit all
 - WebSocket endpoint: HTTP handshake permit all, STOMP `CONNECT`에서 token 인증
 - `/api/v1/tenant-registrations/**`: permit all, tenant onboarding용
-- `/dev/**`: permit all, local/test profile 개발용
+- `/dev/**`: local/test profile에서만 permit all, 개발용
 - 그 외 모든 요청: authenticated
 
 JWT 설정은 다음 값을 사용합니다.
@@ -490,9 +500,19 @@ JWT 설정은 다음 값을 사용합니다.
 - `pabal.security.jwt.tenant-id-claim`
 - `pabal.security.jwt.principal-claim`
 - `pabal.security.jwt.clock-skew`
+- `pabal.security.jwt.access-token-min-ttl`: 기본 60분
+- `pabal.security.jwt.access-token-max-ttl`: 기본 90분
+- `pabal.security.jwt.refresh-token-ttl`: 기본 7일
 - `pabal.security.jwt.local-secret`: local/test profile 전용
 
-local/test profile에서는 HS256 local secret 기반 `JwtDecoder`/`JwtEncoder`를 사용하고 `/dev/token`으로 개발용 token을 발급할 수 있습니다. `role`과 `scope` query parameter로 RBAC 테스트용 authority도 넣을 수 있습니다.
+local/test profile에서는 HS256 local secret 기반 `JwtDecoder`/`JwtEncoder`를 사용하고 `/dev/token`으로 개발용 access token을 발급할 수 있습니다. 이 endpoint는 refresh token row를 DB에 저장하지 않습니다. `role`, `scope`, `permission` query parameter로 RBAC 테스트용 authority도 넣을 수 있습니다. 운영 권한 조합은 `rbac_permission`, `rbac_role`, `rbac_role_permission`, `rbac_user_role` 기반 DB RBAC store에서 해석합니다.
+
+Refresh token endpoint:
+
+- `POST /api/v1/auth/tokens/refresh`: opaque refresh token을 검증하고 새 access/refresh token pair로 rotate
+- `POST /api/v1/auth/tokens/revoke`: refresh token revoke
+
+Refresh token 원문은 DB에 저장하지 않고 `security_refresh_token.token_hash`로만 저장합니다.
 
 ## 오류 응답과 로깅
 
@@ -553,6 +573,14 @@ curl "http://localhost:8080/dev/token?userId=018f0000-0000-7000-8000-00000000000
 ```
 
 응답의 `accessToken`을 HTTP API 호출 시 bearer token으로 사용합니다.
+
+```bash
+curl \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d "{\"refreshToken\":\"${REFRESH_TOKEN}\"}" \
+  "http://localhost:8080/api/v1/auth/tokens/refresh"
+```
 
 ```bash
 curl \

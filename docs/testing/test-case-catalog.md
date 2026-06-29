@@ -8,7 +8,7 @@ tags:
 # Pabal 테스트 케이스 카탈로그
 
 > 상위 문서: [Pabal 상세 설계 허브](../design/design-hub.md)
-> 관련 문서: [Pabal 테스트 전략](testing-strategy.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal 엔드포인트 시퀀스 다이어그램](../use-cases/endpoint-sequence-diagrams.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
+> 관련 문서: [Pabal 테스트 전략](testing-strategy.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal 엔드포인트 시퀀스 다이어그램](../use-cases/endpoint-sequence-diagrams.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
 
 ## SendMessage 중복 전송
 
@@ -85,10 +85,20 @@ Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [
 Layer: Application / Infrastructure / Security
 Target: `ChatRoomAuthorizationService`, `RbacPermissionAdapter`, `PabalJwtAuthenticationConverter`
 Purpose: role은 coarse-grained, use case 권한은 fine-grained permission으로 판정
-Given: tenant admin, workspace admin, channel owner, scoped permission authority
+Given: persisted RBAC permission, tenant owner/admin, workspace owner/admin JWT role, workspace_member owner/admin role, channel owner, scoped permission authority
 When: channel create, deletion schedule, immediate delete 권한 확인
-Then: role/scope에 맞는 permission만 허용하고 다른 tenant/requester principal은 거부
-Related: [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md)
+Then: DB/JWT role/scope에 맞는 permission만 허용하고 다른 tenant/requester principal은 거부
+Related: [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md)
+
+## Refresh token lifecycle
+
+Layer: Security
+Target: `RefreshTokenService`, `RefreshTokenStore`, `JdbcRefreshTokenStore`
+Purpose: 짧은 access token과 opaque refresh token rotation으로 장기 세션을 통제하고 중복 refresh 요청 UX를 보정
+Given: 유효한 refresh token, used/revoked refresh token, `X-Request-ID`, user token revoke
+When: access token 재발급, duplicate refresh replay, revoke를 수행
+Then: 새 access/refresh token pair를 발급하고 3초 grace period 안의 중복 요청은 기존 token pair를 반환하며, grace period 이후 재사용은 token family revoke로 차단한다
+Related: [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md)
 
 ## User create duplicate
 

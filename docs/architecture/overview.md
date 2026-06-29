@@ -108,7 +108,9 @@ flowchart LR
 ## 패키지 수준에서 본 책임 분리
 
 - `pabal-common`: 공통 에러 응답, 예외, CQRS marker, event publisher, base persistence, UUID v7
-- `pabal-security`: JWT decoder/converter, `PabalPrincipal`, HTTP security, local token
+- `pabal-security`: JWT decoder/converter, `PabalPrincipal`, access/refresh token lifecycle, HTTP security, local token
+- `pabal-authorization`: authority normalization/matching, RBAC permission lookup/cache
+- `pabal-infra-redis`: Redis dependency boundary for authorization cache and future module cache layers
 - `pabal-tenant-api`: tenant HTTP 진입점과 request/response 매핑
 - `pabal-tenant-application`: tenant command/query, repository port, `TenantContract` 구현
 - `pabal-tenant-domain`: tenant aggregate, name/status invariant, tenant exception

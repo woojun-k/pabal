@@ -5,7 +5,7 @@ plugins {
 dependencies {
     api(project(":pabal-user-domain"))
     api(project(":pabal-user-contract"))
-    implementation(project(":pabal-common"))
+    api(project(":pabal-common"))
 
     implementation(libs.spring.context)
     implementation(libs.spring.tx)

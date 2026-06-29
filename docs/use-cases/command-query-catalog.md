@@ -106,7 +106,8 @@ Pabal의 HTTP 계약은 `/api/v1` 아래의 리소스 중심 endpoint로 노출�
 - `SendMessageCommandHandler`와 `SendReplyCommandHandler`는 `clientMessageId` 기반 중복을 먼저 조회하고, race condition은 `uq_message_client_id` 제약과 `DuplicateMessageException` 재조회로 흡수한다.
 - `GetOrCreateDirectRoomCommandHandler`는 기존 mapping을 먼저 조회하고, concurrent create race는 `DuplicateDirectChatMappingException` 후 재조회로 흡수한다.
 - `MarkReadCommandHandler`는 cursor가 실제로 전진한 경우에만 `MessageReadEvent`를 발행한다.
-- channel create/deletion 권한은 `MessengerPermission` 기준으로 분리한다. `RbacPermissionAdapter`는 tenant admin/workspace admin/channel owner role과 scoped permission authority를 application `PermissionPort`로 변환한다.
+- channel create/deletion 권한은 `MessengerPermission` 기준으로 분리한다. `RbacPermissionAdapter`는 persisted RBAC permission, tenant owner/admin, workspace owner/admin, channel owner role과 scoped permission authority를 application `PermissionPort`로 변환한다. workspace owner/admin은 JWT authority뿐 아니라 `workspace_member.role` 기준으로도 판정한다.
+- access/refresh token lifecycle은 business command/query가 아니라 security cross-cutting flow다. `RefreshTokenService`가 opaque refresh token rotation과 access token 재발급을 담당한다.
 
 ## 같이 봐야 하는 문서
 

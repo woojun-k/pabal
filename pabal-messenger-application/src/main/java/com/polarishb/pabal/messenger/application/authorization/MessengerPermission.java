@@ -1,6 +1,8 @@
 package com.polarishb.pabal.messenger.application.authorization;
 
-public enum MessengerPermission {
+import com.polarishb.pabal.common.authorization.FineGrainedPermission;
+
+public enum MessengerPermission implements FineGrainedPermission {
 
     CHANNEL_CREATE("messenger:channel:create"),
     CHANNEL_INVITE("messenger:channel:invite"),

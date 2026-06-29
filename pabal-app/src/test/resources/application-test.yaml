@@ -39,6 +39,12 @@ pabal:
       principal-claim: ${PABAL_TEST_JWT_PRINCIPAL_CLAIM:preferred_username}
       clock-skew: ${PABAL_TEST_JWT_CLOCK_SKEW:60s}
       local-secret: ${PABAL_TEST_JWT_LOCAL_SECRET:01234567890123456789012345678901}
+      access-token-min-ttl: ${PABAL_TEST_JWT_ACCESS_TOKEN_MIN_TTL:60m}
+      access-token-max-ttl: ${PABAL_TEST_JWT_ACCESS_TOKEN_MAX_TTL:90m}
+      refresh-token-ttl: ${PABAL_TEST_JWT_REFRESH_TOKEN_TTL:7d}
+    refresh-token:
+      reuse-grace-period: ${PABAL_TEST_REFRESH_TOKEN_REUSE_GRACE_PERIOD:3s}
+      request-idempotency-ttl: ${PABAL_TEST_REFRESH_TOKEN_REQUEST_IDEMPOTENCY_TTL:30s}
   websocket:
     endpoint:
       path: "/ws"

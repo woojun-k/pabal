@@ -21,6 +21,12 @@ pabal:
       tenant-id-claim: tenant_id
       principal-claim: sub
       clock-skew: 30s
+      access-token-min-ttl: 60m
+      access-token-max-ttl: 90m
+      refresh-token-ttl: 7d
+    refresh-token:
+      reuse-grace-period: 3s
+      request-idempotency-ttl: 30s
 
   websocket:
     relay:

@@ -16,10 +16,57 @@ Layer: API
 
 - Base path: `/api/v1`
 - 인증: Bearer JWT
-- 예외: `/api/v1/tenant-registrations/**`는 tenant가 아직 없을 수 있는 onboarding 경로이므로 public이다.
+- 예외: `/api/v1/tenant-registrations/**`는 tenant가 아직 없을 수 있는 onboarding 경로이므로 public이다. `/api/v1/auth/tokens/refresh`, `/api/v1/auth/tokens/revoke`는 refresh token 자체가 credential이므로 public이다.
 - principal source: `PabalPrincipal(userId, tenantId, subject)`
 - HTTP request body의 tenant/user 값은 신뢰하지 않는다. API mapper가 authentication에서 tenant/user를 추출해 command/query에 넣는다.
 - 외부 HTTP 경로에는 내부 CQRS 구조인 `command`, `query`를 노출하지 않는다.
+
+## Auth token endpoints
+
+### RefreshToken
+
+`POST /api/v1/auth/tokens/refresh`
+
+Request:
+
+```json
+{
+  "refreshToken": "opaque-refresh-token"
+}
+```
+
+Response:
+
+```json
+{
+  "tokenType": "Bearer",
+  "accessToken": "jwt-access-token",
+  "accessTokenExpiresAt": "2026-04-29T00:15:00Z",
+  "refreshToken": "new-opaque-refresh-token",
+  "refreshTokenExpiresAt": "2026-05-06T00:00:00Z"
+}
+```
+
+정책:
+
+- refresh token 원문은 DB에 저장하지 않고 `security_refresh_token.token_hash`로만 저장한다.
+- refresh 성공 시 기존 refresh token은 revoke되고 새 refresh token으로 rotate된다.
+- revoke되었거나 만료된 refresh token은 `401 Unauthorized`로 응답한다.
+- access token TTL은 발급 시 60~90분 사이에서 무작위로 할당하고, refresh token 기본 TTL은 7일이다.
+
+### RevokeRefreshToken
+
+`POST /api/v1/auth/tokens/revoke`
+
+Request:
+
+```json
+{
+  "refreshToken": "opaque-refresh-token"
+}
+```
+
+Response: `204 No Content`
 
 ## 공통 에러 포맷
 
@@ -499,7 +546,7 @@ Request:
 - `messenger:channel:create` fine-grained permission이 필요하다.
 - `participantIds`는 requester와 함께 workspace membership을 batch 검증한다.
 - 초대 대상이 있으면 `messenger:channel:invite` fine-grained permission도 필요하다.
-- `ROLE_TENANT_ADMIN`, `ROLE_PABAL_ADMIN`, `ROLE_WORKSPACE_ADMIN`은 RBAC adapter에서 channel create/invite permission으로 매핑된다.
+- `ROLE_TENANT_OWNER`, `ROLE_TENANT_ADMIN`, `ROLE_PABAL_ADMIN`, `ROLE_WORKSPACE_OWNER`, `ROLE_WORKSPACE_ADMIN`과 active `workspace_member.role` `OWNER`/`ADMIN`은 RBAC adapter에서 channel create/invite permission으로 매핑된다.
 
 주요 오류:
 
@@ -550,6 +597,7 @@ Response:
 - 삭제 예약 any scope: `messenger:channel:delete:schedule:any`
 - 즉시 삭제 owner scope: `messenger:channel:delete:execute:own`
 - 즉시 삭제 any scope: `messenger:channel:delete:execute:any`
+- persisted RBAC permission 또는 tenant owner/admin/pabal admin은 모든 channel 삭제 permission을 가진다. workspace owner/admin은 해당 workspace channel의 any 삭제 permission을 가진다.
 
 주요 오류:
 
