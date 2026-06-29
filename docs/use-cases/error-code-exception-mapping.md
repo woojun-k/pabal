@@ -49,10 +49,42 @@ Layer: Domain / Application
 | `MSG403006` | `ROOM_OPERATION_NOT_ALLOWED` | 403 | `RoomOperationNotAllowedException` |
 | `MSG403007` | `ROOM_JOIN_FORBIDDEN` | 403 | `RoomJoinForbiddenException` |
 | `MSG403008` | `CHANNEL_PERMISSION_DENIED` | 403 | `ChannelPermissionDeniedException` |
+| `MSG403009` | `ROOM_INVITE_PERMISSION_DENIED` | 403 | `RoomInvitePermissionDeniedException` |
+| `MSG403010` | `ROOM_PARTICIPANT_NOT_INVITABLE` | 403 | `RoomParticipantNotInvitableException` |
 | `MSG409001` | `DUPLICATE_MESSAGE` | 409 | `DuplicateMessageException` |
 | `MSG409002` | `DUPLICATE_DIRECT_MAPPING` | 409 | `DuplicateDirectChatMappingException` |
 | `MSG409003` | `DUPLICATE_CHANNEL_NAME` | 409 | `DuplicateChannelNameException` |
 | `MSG409004` | `MEMBER_ALREADY_ACTIVE` | 409 | `MemberAlreadyActiveException` |
+
+## User 도메인 에러
+
+Layer: Domain / Application
+
+| Code | Name | HTTP | 대표 예외 |
+| --- | --- | --- | --- |
+| `USR404001` | `USER_NOT_FOUND` | 404 | `UserNotFoundException` |
+| `USR409001` | `DUPLICATE_USER` | 409 | `DuplicateUserException` |
+
+## Tenant 도메인 에러
+
+Layer: Domain / Application
+
+| Code | Name | HTTP | 대표 예외 |
+| --- | --- | --- | --- |
+| `TNT404001` | `TENANT_NOT_FOUND` | 404 | `TenantNotFoundException` |
+| `TNT404002` | `TENANT_REGISTRATION_NOT_FOUND` | 404 | `TenantRegistrationNotFoundException` |
+| `TNT409001` | `TENANT_DOMAIN_ALREADY_REGISTERED` | 409 | `TenantDomainAlreadyRegisteredException` |
+| `TNT409002` | `TENANT_DOMAIN_VERIFICATION_FAILED` | 409 | `TenantDomainVerificationFailedException` |
+| `TNT409003` | `TENANT_REGISTRATION_NOT_PENDING` | 409 | `TenantRegistrationNotPendingException` |
+| `TNT410001` | `TENANT_REGISTRATION_EXPIRED` | 410 | `TenantRegistrationExpiredException` |
+
+## Workspace 도메인 에러
+
+Layer: Domain / Application
+
+| Code | Name | HTTP | 대표 예외 |
+| --- | --- | --- | --- |
+| `WSP404001` | `WORKSPACE_NOT_FOUND` | 404 | `WorkspaceNotFoundException` |
 
 ## 기술 예외 정규화
 

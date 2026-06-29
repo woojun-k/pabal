@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Repository
@@ -71,7 +72,7 @@ public class ChatRoomSequenceRepositoryImpl implements ChatRoomSequenceRepositor
                 .addValue("chatRoomId", chatRoomId)
                 .addValue("messageId", messageId)
                 .addValue("messageSequence", messageSequence)
-                .addValue("messageAt", messageAt);
+                .addValue("messageAt", messageAt.atOffset(ZoneOffset.UTC));
 
         jdbcTemplate.update(UPDATE_LAST_MESSAGE_SNAPSHOT_SQL, parameters);
     }

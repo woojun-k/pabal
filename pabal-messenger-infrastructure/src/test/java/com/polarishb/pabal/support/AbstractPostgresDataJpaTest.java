@@ -1,7 +1,17 @@
 package com.polarishb.pabal.support;
 
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
+import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.MessageReadJpaRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.write.MessageWriteJpaRepository;
+import com.polarishb.pabal.messenger.infrastructure.persistence.ChatRoomMemberRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.ChatRoomRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.ChatRoomSequenceRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.DirectChatMappingRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.MessageRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.read.ChatRoomMemberReadRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.read.ChatRoomReadRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.read.DirectChatMappingReadRepositoryImpl;
+import com.polarishb.pabal.messenger.infrastructure.persistence.read.MessageReadRepositoryImpl;
 import com.polarishb.pabal.messenger.infrastructure.persistence.write.ChatRoomWriteRepositoryImpl;
 import com.polarishb.pabal.messenger.infrastructure.persistence.write.ChatRoomMemberWriteRepositoryImpl;
 import com.polarishb.pabal.messenger.infrastructure.persistence.write.DirectChatMappingWriteRepositoryImpl;
@@ -68,12 +78,24 @@ public abstract class AbstractPostgresDataJpaTest {
 
     @SpringBootConfiguration
     @EntityScan(basePackageClasses = MessageEntity.class)
-    @EnableJpaRepositories(basePackageClasses = MessageWriteJpaRepository.class)
+    @EnableJpaRepositories(basePackageClasses = {
+            MessageWriteJpaRepository.class,
+            MessageReadJpaRepository.class
+    })
     @Import({
             ChatRoomWriteRepositoryImpl.class,
             ChatRoomMemberWriteRepositoryImpl.class,
             DirectChatMappingWriteRepositoryImpl.class,
-            MessageWriteRepositoryImpl.class
+            MessageWriteRepositoryImpl.class,
+            ChatRoomReadRepositoryImpl.class,
+            ChatRoomMemberReadRepositoryImpl.class,
+            DirectChatMappingReadRepositoryImpl.class,
+            MessageReadRepositoryImpl.class,
+            ChatRoomRepositoryImpl.class,
+            ChatRoomMemberRepositoryImpl.class,
+            DirectChatMappingRepositoryImpl.class,
+            MessageRepositoryImpl.class,
+            ChatRoomSequenceRepositoryImpl.class
     })
     static class PersistenceTestApplication {
     }

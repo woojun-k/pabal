@@ -1,11 +1,15 @@
 package com.polarishb.pabal.security.authentication;
 
+import com.polarishb.pabal.authorization.AuthorityNormalizer;
 import com.polarishb.pabal.security.config.JwtSecurityProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
@@ -28,23 +32,43 @@ public class PabalJwtAuthenticationConverter implements Converter<Jwt, AbstractA
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
-        String userIdRaw = jwt.getClaimAsString(properties.userIdClaim());
-        String tenantIdRaw = jwt.getClaimAsString(properties.tenantIdClaim());
-        String subject = jwt.getClaimAsString(properties.principalClaim());
-
-        if (userIdRaw == null || tenantIdRaw == null || subject == null) {
-            throw new IllegalArgumentException("Required JWT claims are missing");
-        }
+        String userIdRaw = requiredClaim(jwt, properties.userIdClaim());
+        String tenantIdRaw = requiredClaim(jwt, properties.tenantIdClaim());
+        String subject = requiredClaim(jwt, properties.principalClaim());
 
         PabalPrincipal principal = new PabalPrincipal(
-                UUID.fromString(userIdRaw),
-                UUID.fromString(tenantIdRaw),
+                parseUuid(userIdRaw, properties.userIdClaim()),
+                parseUuid(tenantIdRaw, properties.tenantIdClaim()),
                 subject
         );
 
         Collection<GrantedAuthority> authorities = authorities(jwt);
 
         return new PabalJwtAuthenticationToken(principal, jwt, authorities);
+    }
+
+    private String requiredClaim(Jwt jwt, String claimName) {
+        String value = jwt.getClaimAsString(claimName);
+        if (value == null) {
+            throw invalidToken("Required JWT claim '%s' is missing".formatted(claimName));
+        }
+        return value;
+    }
+
+    private UUID parseUuid(String value, String claimName) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            throw invalidToken("JWT claim '%s' is not a valid UUID: %s".formatted(claimName, value));
+        }
+    }
+
+    private OAuth2AuthenticationException invalidToken(String message) {
+        return new OAuth2AuthenticationException(new OAuth2Error(
+                OAuth2ErrorCodes.INVALID_TOKEN,
+                message,
+                null
+        ));
     }
 
     private Collection<GrantedAuthority> authorities(Jwt jwt) {
@@ -79,7 +103,7 @@ public class PabalJwtAuthenticationConverter implements Converter<Jwt, AbstractA
 
     private void addRoles(List<String> authorities, Object claim) {
         for (String role : claimValues(claim)) {
-            authorities.add(normalizeRole(role));
+            authorities.add(AuthorityNormalizer.role(role));
         }
     }
 
@@ -117,10 +141,5 @@ public class PabalJwtAuthenticationConverter implements Converter<Jwt, AbstractA
         }
 
         return List.of();
-    }
-
-    private String normalizeRole(String role) {
-        String value = role.trim().toUpperCase().replace('-', '_');
-        return value.startsWith("ROLE_") ? value : "ROLE_" + value;
     }
 }

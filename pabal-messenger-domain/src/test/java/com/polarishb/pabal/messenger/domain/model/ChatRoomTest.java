@@ -158,14 +158,12 @@ class ChatRoomTest {
                 "team room",
                 createdAt
         );
-        room.scheduleForDeletion(scheduledAt);
+        ChatRoom deleted = room.scheduleForDeletion(scheduledAt).deleteImmediately(deletedAt);
 
-        room.deleteImmediately(deletedAt);
-
-        assertThat(room.getStatus()).isEqualTo(RoomStatus.DELETED);
-        assertThat(room.getScheduledDeletionAt()).isNull();
-        assertThat(room.getUpdatedAt()).isEqualTo(deletedAt);
-        assertThat(room.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(deleted.getStatus()).isEqualTo(RoomStatus.DELETED);
+        assertThat(deleted.getScheduledDeletionAt()).isNull();
+        assertThat(deleted.getUpdatedAt()).isEqualTo(deletedAt);
+        assertThat(deleted.getDeletedAt()).isEqualTo(deletedAt);
     }
 
     @Test
@@ -181,17 +179,17 @@ class ChatRoomTest {
                 createdAt
         );
 
-        room.scheduleForDeletion(createdAt.plusSeconds(60));
+        ChatRoom pending = room.scheduleForDeletion(createdAt.plusSeconds(60));
 
-        assertThat(room.canSend()).isFalse();
-        assertThat(room.canRead()).isFalse();
-        assertThat(room.canSubscribe()).isFalse();
-        assertThat(room.canJoin()).isFalse();
+        assertThat(pending.canSend()).isFalse();
+        assertThat(pending.canRead()).isFalse();
+        assertThat(pending.canSubscribe()).isFalse();
+        assertThat(pending.canJoin()).isFalse();
 
-        assertThatThrownBy(room::validateCanSend).isInstanceOf(RoomOperationNotAllowedException.class);
-        assertThatThrownBy(room::validateCanRead).isInstanceOf(RoomOperationNotAllowedException.class);
-        assertThatThrownBy(room::validateCanSubscribe).isInstanceOf(RoomOperationNotAllowedException.class);
-        assertThatThrownBy(room::validateCanJoin).isInstanceOf(RoomOperationNotAllowedException.class);
+        assertThatThrownBy(pending::validateCanSend).isInstanceOf(RoomOperationNotAllowedException.class);
+        assertThatThrownBy(pending::validateCanRead).isInstanceOf(RoomOperationNotAllowedException.class);
+        assertThatThrownBy(pending::validateCanSubscribe).isInstanceOf(RoomOperationNotAllowedException.class);
+        assertThatThrownBy(pending::validateCanJoin).isInstanceOf(RoomOperationNotAllowedException.class);
     }
 
     @Test
@@ -202,12 +200,13 @@ class ChatRoomTest {
         UUID firstMessageId = UUID.randomUUID();
         UUID secondMessageId = UUID.randomUUID();
 
-        room.updateLastMessage(firstMessageId, 10L, createdAt.plusSeconds(10));
-        room.updateLastMessage(secondMessageId, 9L, createdAt.plusSeconds(20));
+        ChatRoom updated = room
+                .updateLastMessage(firstMessageId, 10L, createdAt.plusSeconds(10))
+                .updateLastMessage(secondMessageId, 9L, createdAt.plusSeconds(20));
 
-        assertThat(room.getLastMessageId()).isEqualTo(firstMessageId);
-        assertThat(room.getLastMessageSequence()).isEqualTo(10L);
-        assertThat(room.getLastMessageAt()).isEqualTo(createdAt.plusSeconds(10));
+        assertThat(updated.getLastMessageId()).isEqualTo(firstMessageId);
+        assertThat(updated.getLastMessageSequence()).isEqualTo(10L);
+        assertThat(updated.getLastMessageAt()).isEqualTo(createdAt.plusSeconds(10));
     }
 
     @Test
@@ -223,14 +222,15 @@ class ChatRoomTest {
                 createdAt
         );
 
-        room.scheduleForDeletion(createdAt.plusSeconds(60));
-        room.deleteImmediately(createdAt.plusSeconds(120));
+        ChatRoom deleted = room
+                .scheduleForDeletion(createdAt.plusSeconds(60))
+                .deleteImmediately(createdAt.plusSeconds(120));
 
-        assertThatThrownBy(() -> room.scheduleForDeletion(createdAt.plusSeconds(180)))
+        assertThatThrownBy(() -> deleted.scheduleForDeletion(createdAt.plusSeconds(180)))
                 .isInstanceOf(InvalidRoomStatusTransitionException.class);
 
-        assertThat(room.getStatus()).isEqualTo(RoomStatus.DELETED);
-        assertThat(room.getScheduledDeletionAt()).isNull();
+        assertThat(deleted.getStatus()).isEqualTo(RoomStatus.DELETED);
+        assertThat(deleted.getScheduledDeletionAt()).isNull();
     }
 
     @Test
@@ -246,11 +246,11 @@ class ChatRoomTest {
                 createdAt
         );
 
-        room.scheduleForDeletion(createdAt.plusSeconds(60));
+        ChatRoom pending = room.scheduleForDeletion(createdAt.plusSeconds(60));
 
-        assertThatThrownBy(() -> room.scheduleForDeletion(createdAt.plusSeconds(120)))
+        assertThatThrownBy(() -> pending.scheduleForDeletion(createdAt.plusSeconds(120)))
                 .isInstanceOf(InvalidRoomStatusTransitionException.class);
 
-        assertThat(room.getStatus()).isEqualTo(RoomStatus.PENDING_DELETION);
+        assertThat(pending.getStatus()).isEqualTo(RoomStatus.PENDING_DELETION);
     }
 }

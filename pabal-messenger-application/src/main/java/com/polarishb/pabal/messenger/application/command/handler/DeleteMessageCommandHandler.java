@@ -50,11 +50,11 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
                 command.requesterId()
         );
 
-        // 메시지 삭제
-        message.delete(clockPort.now());
+        // 메시지 삭제 (불변 전이: 새 인스턴스를 state 기준점에 다시 묶는다)
+        Message deleted = message.delete(clockPort.now());
 
         // 저장
-        PersistedMessage updated = messageRepository.update(persisted);
+        PersistedMessage updated = messageRepository.update(persisted.withMessage(deleted));
 
         message = updated.message();
 

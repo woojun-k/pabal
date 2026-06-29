@@ -7,6 +7,7 @@ Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시
 ## 현재 구현 범위
 
 - 방 생성: direct, group, channel
+- participant 검증: `RoomParticipantPolicy`가 direct/group은 tenant member, channel은 workspace member 여부를 `RoomParticipantDirectoryPort`로 확인
 - direct 방 조회 또는 생성: 같은 tenant의 두 사용자 조합을 정렬한 unique mapping으로 중복 생성 방지
 - group 방 이름: 요청 이름이 없으면 요청자와 참여자 UUID 앞 8자리 기반 fallback 이름 자동 생성
 - channel 방 생성: application과 DB 모두 lower-case 기준으로 workspace별 채널명 unique 보장
@@ -48,8 +49,26 @@ Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시
 | Module | 역할 |
 | --- | --- |
 | `pabal-app` | Spring Boot executable application, runtime 설정, Flyway migration, local/test profile 리소스 |
-| `pabal-common` | 공통 API 오류 응답, 예외 코드, CQRS marker, domain event publisher, persistence base, UUIDv7 utility |
-| `pabal-security` | HTTP JWT Resource Server 설정, JWT principal 변환, local/test token 발급, WebSocket endpoint property |
+| `pabal-common` | 예외 코드, CQRS marker, domain event publisher abstraction, persistence base, UUIDv7 utility |
+| `pabal-web` | 공통 `ApiError`, `GlobalExceptionHandler`, Spring 기반 `SpringDomainEventPublisher` 구현 |
+| `pabal-security` | HTTP JWT Resource Server 설정, JWT principal 변환, access/refresh token lifecycle, local/test token 발급, WebSocket endpoint property |
+| `pabal-authorization` | Authority normalization/matching, RBAC permission 조회/cache, persisted authorization policy access |
+| `pabal-infra-redis` | Redis starter dependency boundary for authorization cache and future module cache layers |
+| `pabal-tenant-domain` | Tenant 순수 도메인 모델, value object, domain exception |
+| `pabal-tenant-application` | Tenant command/query handler, repository port, `TenantContract` 구현 |
+| `pabal-tenant-contract` | Tenant persistence contract, state, persisted wrapper, mapper |
+| `pabal-tenant-api` | Tenant HTTP controller, request/response DTO, API mapper |
+| `pabal-tenant-infrastructure` | Tenant JPA adapter, repository adapter, system clock adapter |
+| `pabal-workspace-domain` | Workspace 순수 도메인 모델, member/role/status invariant, domain exception |
+| `pabal-workspace-application` | Workspace command/query handler, repository port, `WorkspaceContract` 구현 |
+| `pabal-workspace-contract` | Workspace persistence contract, state, persisted wrapper, mapper |
+| `pabal-workspace-api` | Workspace HTTP controller, request/response DTO, API mapper |
+| `pabal-workspace-infrastructure` | Workspace JPA adapter, repository adapter, system clock adapter |
+| `pabal-user-domain` | User 순수 도메인 모델, value object, domain exception |
+| `pabal-user-application` | User command/query handler, repository port, `UserContract` 구현 |
+| `pabal-user-contract` | User persistence contract, state, persisted wrapper, mapper |
+| `pabal-user-api` | User HTTP controller, request/response DTO, API mapper |
+| `pabal-user-infrastructure` | User JPA adapter, repository adapter, system clock adapter |
 | `pabal-messenger-domain` | Messenger 순수 도메인 모델, value object, domain event, domain exception, policy |
 | `pabal-messenger-application` | command/query handler, use case orchestration, transaction boundary, outbound port |
 | `pabal-messenger-contract` | domain과 infrastructure 사이의 persistence/realtime contract, state, wrapper, payload, envelope |
@@ -75,7 +94,6 @@ pabal-app
 
 pabal-common
 └── com.polarishb.pabal.common
-    ├── api
     ├── contract
     ├── cqrs
     ├── event
@@ -83,11 +101,48 @@ pabal-common
     ├── persistence
     └── util
 
+pabal-web
+└── com.polarishb.pabal.web
+    ├── api
+    └── event
+
 pabal-security
 └── com.polarishb.pabal.security
     ├── authentication
     ├── config
-    └── dev
+    ├── context
+    ├── dev
+    └── token
+
+pabal-authorization
+└── com.polarishb.pabal.authorization
+
+pabal-infra-redis
+└── Redis dependency boundary module
+
+pabal-tenant-domain / pabal-tenant-application / pabal-tenant-contract / pabal-tenant-api / pabal-tenant-infrastructure
+└── com.polarishb.pabal.tenant
+    ├── domain
+    ├── application
+    ├── contract
+    ├── api
+    └── infrastructure
+
+pabal-workspace-domain / pabal-workspace-application / pabal-workspace-contract / pabal-workspace-api / pabal-workspace-infrastructure
+└── com.polarishb.pabal.workspace
+    ├── domain
+    ├── application
+    ├── contract
+    ├── api
+    └── infrastructure
+
+pabal-user-domain / pabal-user-application / pabal-user-contract / pabal-user-api / pabal-user-infrastructure
+└── com.polarishb.pabal.user
+    ├── domain
+    ├── application
+    ├── contract
+    ├── api
+    └── infrastructure
 
 pabal-messenger-domain
 └── com.polarishb.pabal.messenger.domain
@@ -129,6 +184,7 @@ pabal-messenger-infrastructure
 - `domain`은 business invariant와 state transition을 담당합니다.
 - `contract`는 persistence/realtime boundary shape를 담습니다.
 - `infrastructure`는 JPA, JDBC/JPA repository, STOMP, WebSocket security channel, clock 같은 기술 구현을 담당합니다.
+- `web`은 공통 API 오류 응답과 Spring 기반 event publisher 구현을 담당합니다.
 - `security`는 messenger 전용 모듈이 아니라 애플리케이션 공통 보안 모듈입니다.
 - `common`은 특정 도메인에 종속되지 않는 공통 기반 코드만 둡니다.
 
@@ -370,6 +426,9 @@ Inbound command:
 
 | Destination | Payload |
 | --- | --- |
+| `/app/chat.message.send` | `{ "tenantId": "...", "chatRoomId": "...", "clientMessageId": "...", "content": "hello" }` |
+| `/app/chat.message.edit` | `{ "tenantId": "...", "chatRoomId": "...", "messageId": "...", "newContent": "edited" }` |
+| `/app/chat.message.delete` | `{ "tenantId": "...", "chatRoomId": "...", "messageId": "..." }` |
 | `/app/chat.typing.start` | `{ "tenantId": "...", "chatRoomId": "..." }` |
 | `/app/chat.typing.stop` | `{ "tenantId": "...", "chatRoomId": "..." }` |
 
@@ -429,7 +488,8 @@ HTTP 보안은 stateless JWT Resource Server입니다.
 
 - `/actuator/health`: permit all
 - WebSocket endpoint: HTTP handshake permit all, STOMP `CONNECT`에서 token 인증
-- `/dev/*`: permit all, local/test profile 개발용
+- `/api/v1/tenant-registrations/**`: permit all, tenant onboarding용
+- `/dev/**`: local/test profile에서만 permit all, 개발용
 - 그 외 모든 요청: authenticated
 
 JWT 설정은 다음 값을 사용합니다.
@@ -440,9 +500,19 @@ JWT 설정은 다음 값을 사용합니다.
 - `pabal.security.jwt.tenant-id-claim`
 - `pabal.security.jwt.principal-claim`
 - `pabal.security.jwt.clock-skew`
+- `pabal.security.jwt.access-token-min-ttl`: 기본 60분
+- `pabal.security.jwt.access-token-max-ttl`: 기본 90분
+- `pabal.security.jwt.refresh-token-ttl`: 기본 7일
 - `pabal.security.jwt.local-secret`: local/test profile 전용
 
-local/test profile에서는 HS256 local secret 기반 `JwtDecoder`/`JwtEncoder`를 사용하고 `/dev/token`으로 개발용 token을 발급할 수 있습니다. `role`과 `scope` query parameter로 RBAC 테스트용 authority도 넣을 수 있습니다.
+local/test profile에서는 HS256 local secret 기반 `JwtDecoder`/`JwtEncoder`를 사용하고 `/dev/token`으로 개발용 access token을 발급할 수 있습니다. 이 endpoint는 refresh token row를 DB에 저장하지 않습니다. `role`, `scope`, `permission` query parameter로 RBAC 테스트용 authority도 넣을 수 있습니다. 운영 권한 조합은 `rbac_permission`, `rbac_role`, `rbac_role_permission`, `rbac_user_role` 기반 DB RBAC store에서 해석합니다.
+
+Refresh token endpoint:
+
+- `POST /api/v1/auth/tokens/refresh`: opaque refresh token을 검증하고 새 access/refresh token pair로 rotate
+- `POST /api/v1/auth/tokens/revoke`: refresh token revoke
+
+Refresh token 원문은 DB에 저장하지 않고 `security_refresh_token.token_hash`로만 저장합니다.
 
 ## 오류 응답과 로깅
 
@@ -503,6 +573,14 @@ curl "http://localhost:8080/dev/token?userId=018f0000-0000-7000-8000-00000000000
 ```
 
 응답의 `accessToken`을 HTTP API 호출 시 bearer token으로 사용합니다.
+
+```bash
+curl \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d "{\"refreshToken\":\"${REFRESH_TOKEN}\"}" \
+  "http://localhost:8080/api/v1/auth/tokens/refresh"
+```
 
 ```bash
 curl \
@@ -586,7 +664,6 @@ Mockito inline mock maker는 Gradle test task의 Java agent로 명시 주입합�
 
 현재 구조는 계층 분리를 기준으로 정리되어 있지만, 운영 투입 전에는 다음 항목을 우선 확인해야 합니다.
 
-- room/direct/channel 생성 시 participant가 실제 tenant 소속 사용자라는 검증 추가
 - persistence unique violation 번역을 constraint metadata 기반으로 더 견고하게 정리
 - collection을 포함하는 command/query/result record의 defensive copy 일관화
 - validation/security/JWT 예외의 공통 `ApiError` 매핑 추가 검증

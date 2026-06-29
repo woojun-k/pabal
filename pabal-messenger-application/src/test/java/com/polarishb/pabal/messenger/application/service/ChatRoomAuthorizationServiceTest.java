@@ -4,6 +4,7 @@ import com.polarishb.pabal.messenger.application.authorization.MessengerPermissi
 import com.polarishb.pabal.messenger.application.authorization.PermissionCheck;
 import com.polarishb.pabal.messenger.application.port.out.authorization.PermissionPort;
 import com.polarishb.pabal.messenger.domain.exception.ChannelPermissionDeniedException;
+import com.polarishb.pabal.messenger.domain.exception.RoomInvitePermissionDeniedException;
 import com.polarishb.pabal.messenger.domain.exception.UnauthorizedRoomDeletionException;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
@@ -101,6 +102,46 @@ class ChatRoomAuthorizationServiceTest {
         assertThat(checkCaptor.getValue().requesterId()).isEqualTo(requesterId);
         assertThat(checkCaptor.getValue().workspaceId()).isEqualTo(workspaceId);
         assertThat(checkCaptor.getValue().permission()).isEqualTo(MessengerPermission.CHANNEL_CREATE);
+    }
+
+    @Test
+    void requireChannelInvite_requires_channel_invite_permission() {
+        UUID tenantId = uuid(100);
+        UUID requesterId = uuid(1);
+        UUID workspaceId = uuid(300);
+
+        when(permissionPort.hasPermission(org.mockito.ArgumentMatchers.any(PermissionCheck.class)))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> authorizationService.requireChannelInvite(tenantId, requesterId, workspaceId))
+                .isInstanceOf(ChannelPermissionDeniedException.class);
+
+        ArgumentCaptor<PermissionCheck> checkCaptor = ArgumentCaptor.forClass(PermissionCheck.class);
+        verify(permissionPort).hasPermission(checkCaptor.capture());
+        assertThat(checkCaptor.getValue().tenantId()).isEqualTo(tenantId);
+        assertThat(checkCaptor.getValue().requesterId()).isEqualTo(requesterId);
+        assertThat(checkCaptor.getValue().workspaceId()).isEqualTo(workspaceId);
+        assertThat(checkCaptor.getValue().permission()).isEqualTo(MessengerPermission.CHANNEL_INVITE);
+    }
+
+    @Test
+    void requireRoomInvite_requires_tenant_scoped_room_invite_permission() {
+        UUID tenantId = uuid(100);
+        UUID requesterId = uuid(1);
+
+        when(permissionPort.hasPermission(org.mockito.ArgumentMatchers.any(PermissionCheck.class)))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> authorizationService.requireRoomInvite(tenantId, requesterId))
+                .isInstanceOf(RoomInvitePermissionDeniedException.class);
+
+        ArgumentCaptor<PermissionCheck> checkCaptor = ArgumentCaptor.forClass(PermissionCheck.class);
+        verify(permissionPort).hasPermission(checkCaptor.capture());
+        assertThat(checkCaptor.getValue().tenantId()).isEqualTo(tenantId);
+        assertThat(checkCaptor.getValue().requesterId()).isEqualTo(requesterId);
+        assertThat(checkCaptor.getValue().workspaceId()).isNull();
+        assertThat(checkCaptor.getValue().chatRoomId()).isNull();
+        assertThat(checkCaptor.getValue().permission()).isEqualTo(MessengerPermission.ROOM_INVITE);
     }
 
     private ChatRoom channel(UUID tenantId, UUID roomId, UUID workspaceId, UUID createdBy) {

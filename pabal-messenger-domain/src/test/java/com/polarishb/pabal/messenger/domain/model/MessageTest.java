@@ -101,10 +101,9 @@ class MessageTest {
                 createdAt
         );
 
-        message.assignSequence(10L);
-        message.assignSequence(9L);
+        Message sequenced = message.assignSequence(10L).assignSequence(9L);
 
-        assertThat(message.getSequence()).isEqualTo(10L);
+        assertThat(sequenced.getSequence()).isEqualTo(10L);
     }
 
     @Test
@@ -120,11 +119,11 @@ class MessageTest {
                 createdAt
         );
 
-        message.edit("after", editedAt);
+        Message edited = message.edit("after", editedAt);
 
-        assertThat(message.getContent().value()).isEqualTo("after");
-        assertThat(message.getStatus()).isEqualTo(MessageStatus.EDITED);
-        assertThat(message.getUpdatedAt()).isEqualTo(editedAt);
+        assertThat(edited.getContent().value()).isEqualTo("after");
+        assertThat(edited.getStatus()).isEqualTo(MessageStatus.EDITED);
+        assertThat(edited.getUpdatedAt()).isEqualTo(editedAt);
     }
 
     @Test
@@ -138,9 +137,9 @@ class MessageTest {
                 "before",
                 createdAt
         );
-        message.delete(createdAt.plusSeconds(30));
+        Message deleted = message.delete(createdAt.plusSeconds(30));
 
-        assertThatThrownBy(() -> message.edit("after", createdAt.plusSeconds(60)))
+        assertThatThrownBy(() -> deleted.edit("after", createdAt.plusSeconds(60)))
                 .isInstanceOf(MessageAlreadyDeletedException.class);
     }
 
@@ -157,12 +156,13 @@ class MessageTest {
                 createdAt
         );
 
-        message.delete(deletedAt);
+        Message deleted = message.delete(deletedAt);
 
-        assertThat(message.getStatus()).isEqualTo(MessageStatus.DELETED);
-        assertThat(message.getUpdatedAt()).isEqualTo(deletedAt);
-        assertThat(message.getDeletedAt()).isEqualTo(deletedAt);
-        assertThatThrownBy(() -> message.delete(deletedAt.plusSeconds(30)))
+        assertThat(deleted.getContent().value()).isEqualTo(MessageContent.DELETED_TOMBSTONE_VALUE);
+        assertThat(deleted.getStatus()).isEqualTo(MessageStatus.DELETED);
+        assertThat(deleted.getUpdatedAt()).isEqualTo(deletedAt);
+        assertThat(deleted.getDeletedAt()).isEqualTo(deletedAt);
+        assertThatThrownBy(() -> deleted.delete(deletedAt.plusSeconds(30)))
                 .isInstanceOf(MessageAlreadyDeletedException.class);
     }
 }

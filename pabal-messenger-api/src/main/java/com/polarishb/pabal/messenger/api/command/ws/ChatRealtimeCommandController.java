@@ -1,7 +1,16 @@
 package com.polarishb.pabal.messenger.api.command.ws;
 
+import com.polarishb.pabal.messenger.api.command.ws.request.DeleteMessageWsRequest;
+import com.polarishb.pabal.messenger.api.command.ws.request.EditMessageWsRequest;
+import com.polarishb.pabal.messenger.api.command.ws.request.SendMessageWsRequest;
 import com.polarishb.pabal.messenger.api.command.ws.request.TypingRequest;
+import com.polarishb.pabal.messenger.application.command.handler.DeleteMessageCommandHandler;
+import com.polarishb.pabal.messenger.application.command.handler.EditMessageCommandHandler;
+import com.polarishb.pabal.messenger.application.command.handler.SendMessageCommandHandler;
 import com.polarishb.pabal.messenger.application.command.handler.SendTypingCommandHandler;
+import com.polarishb.pabal.messenger.application.command.input.DeleteMessageCommand;
+import com.polarishb.pabal.messenger.application.command.input.EditMessageCommand;
+import com.polarishb.pabal.messenger.application.command.input.SendMessageCommand;
 import com.polarishb.pabal.messenger.application.command.input.SendTypingCommand;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
 import jakarta.validation.Valid;
@@ -21,7 +30,54 @@ public class ChatRealtimeCommandController {
     private static final String TYPING_STARTED = "STARTED";
     private static final String TYPING_STOPPED = "STOPPED";
 
+    private final SendMessageCommandHandler sendMessageCommandHandler;
+    private final EditMessageCommandHandler editMessageCommandHandler;
+    private final DeleteMessageCommandHandler deleteMessageCommandHandler;
     private final SendTypingCommandHandler sendTypingCommandHandler;
+
+    @MessageMapping("/chat.message.send")
+    public void sendMessage(@Valid SendMessageWsRequest request, Principal principal) {
+        validateTenant(request.tenantId(), principal);
+
+        sendMessageCommandHandler.handle(
+                new SendMessageCommand(
+                        request.tenantId(),
+                        extractUserId(principal),
+                        request.chatRoomId(),
+                        request.clientMessageId(),
+                        request.content()
+                )
+        );
+    }
+
+    @MessageMapping("/chat.message.edit")
+    public void editMessage(@Valid EditMessageWsRequest request, Principal principal) {
+        validateTenant(request.tenantId(), principal);
+
+        editMessageCommandHandler.handle(
+                new EditMessageCommand(
+                        request.tenantId(),
+                        request.chatRoomId(),
+                        request.messageId(),
+                        extractUserId(principal),
+                        request.newContent()
+                )
+        );
+    }
+
+    @MessageMapping("/chat.message.delete")
+    public void deleteMessage(@Valid DeleteMessageWsRequest request, Principal principal) {
+        validateTenant(request.tenantId(), principal);
+
+        deleteMessageCommandHandler.handle(
+                new DeleteMessageCommand(
+                        request.tenantId(),
+                        request.chatRoomId(),
+                        request.messageId(),
+                        extractUserId(principal)
+                )
+        );
+    }
 
     @MessageMapping("/chat.typing.start")
     public void typingStart(@Valid TypingRequest request, Principal principal) {

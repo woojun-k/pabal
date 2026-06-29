@@ -1,7 +1,7 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity;
 
-import com.polarishb.pabal.common.persistence.entity.base.UpdatableEntity;
-import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
+import com.polarishb.pabal.persistence.entity.base.UpdatableEntity;
+import com.polarishb.pabal.persistence.jpa.UuidV7Generated;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingState;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

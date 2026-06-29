@@ -47,16 +47,21 @@ class ChatRoomMemberTest {
 
         UUID newerMessageId = UUID.randomUUID();
         Instant newerReadAt = joinedAt.plusSeconds(10);
-        assertThat(member.updateLastRead(newerMessageId, 10L, newerReadAt)).isTrue();
+        ChatRoomMember updated = member.updateLastRead(newerMessageId, 10L, newerReadAt);
+        assertThat(updated).isNotSameAs(member);
 
         UUID olderMessageId = UUID.randomUUID();
         Instant olderReadAt = joinedAt.plusSeconds(20);
-        assertThat(member.updateLastRead(olderMessageId, 9L, olderReadAt)).isFalse();
+        assertThat(updated.updateLastRead(olderMessageId, 9L, olderReadAt)).isSameAs(updated);
 
-        assertThat(member.getLastReadMessageId()).isEqualTo(newerMessageId);
-        assertThat(member.getLastReadSequence()).isEqualTo(10L);
-        assertThat(member.getLastReadAt()).isEqualTo(newerReadAt);
-        assertThat(member.getUpdatedAt()).isEqualTo(newerReadAt);
+        assertThat(member.getLastReadMessageId()).isNull();
+        assertThat(member.getLastReadSequence()).isEqualTo(0L);
+        assertThat(member.getLastReadAt()).isNull();
+        assertThat(member.getUpdatedAt()).isEqualTo(joinedAt);
+        assertThat(updated.getLastReadMessageId()).isEqualTo(newerMessageId);
+        assertThat(updated.getLastReadSequence()).isEqualTo(10L);
+        assertThat(updated.getLastReadAt()).isEqualTo(newerReadAt);
+        assertThat(updated.getUpdatedAt()).isEqualTo(newerReadAt);
     }
 
     @Test
@@ -84,12 +89,15 @@ class ChatRoomMemberTest {
                 0L
         );
 
-        member.leave(leftAt);
+        ChatRoomMember leftMember = member.leave(leftAt);
 
-        assertThat(member.isActive()).isFalse();
-        assertThat(member.getLeftAt()).isEqualTo(leftAt);
-        assertThat(member.getUpdatedAt()).isEqualTo(leftAt);
-        assertThatThrownBy(() -> member.leave(leftAt.plusSeconds(60)))
+        assertThat(leftMember).isNotSameAs(member);
+        assertThat(member.isActive()).isTrue();
+        assertThat(member.getLeftAt()).isNull();
+        assertThat(leftMember.isActive()).isFalse();
+        assertThat(leftMember.getLeftAt()).isEqualTo(leftAt);
+        assertThat(leftMember.getUpdatedAt()).isEqualTo(leftAt);
+        assertThatThrownBy(() -> leftMember.leave(leftAt.plusSeconds(60)))
                 .isInstanceOf(MemberNotActiveException.class);
     }
 
@@ -109,16 +117,18 @@ class ChatRoomMemberTest {
         assertThatThrownBy(() -> member.rejoin(rejoinedAt, 10L))
                 .isInstanceOf(MemberAlreadyActiveException.class);
 
-        member.updateLastRead(UUID.randomUUID(), 9L, joinedAt.plusSeconds(30));
-        member.leave(leftAt);
-        member.rejoin(rejoinedAt, 10L);
+        ChatRoomMember readMember = member.updateLastRead(UUID.randomUUID(), 9L, joinedAt.plusSeconds(30));
+        ChatRoomMember leftMember = readMember.leave(leftAt);
+        ChatRoomMember rejoinedMember = leftMember.rejoin(rejoinedAt, 10L);
 
-        assertThat(member.isActive()).isTrue();
-        assertThat(member.getLeftAt()).isNull();
-        assertThat(member.getJoinedAt()).isEqualTo(rejoinedAt);
-        assertThat(member.getLastReadMessageId()).isNull();
-        assertThat(member.getLastReadSequence()).isEqualTo(10L);
-        assertThat(member.getLastReadAt()).isNull();
-        assertThat(member.getUpdatedAt()).isEqualTo(rejoinedAt);
+        assertThat(rejoinedMember).isNotSameAs(leftMember);
+        assertThat(leftMember.isActive()).isFalse();
+        assertThat(rejoinedMember.isActive()).isTrue();
+        assertThat(rejoinedMember.getLeftAt()).isNull();
+        assertThat(rejoinedMember.getJoinedAt()).isEqualTo(rejoinedAt);
+        assertThat(rejoinedMember.getLastReadMessageId()).isNull();
+        assertThat(rejoinedMember.getLastReadSequence()).isEqualTo(10L);
+        assertThat(rejoinedMember.getLastReadAt()).isNull();
+        assertThat(rejoinedMember.getUpdatedAt()).isEqualTo(rejoinedAt);
     }
 }

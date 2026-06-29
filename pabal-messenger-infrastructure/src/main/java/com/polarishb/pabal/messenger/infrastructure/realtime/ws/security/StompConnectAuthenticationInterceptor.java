@@ -42,7 +42,7 @@ public class StompConnectAuthenticationInterceptor implements ChannelInterceptor
             throw new BadCredentialsException("Invalid STOMP access token");
         }
 
-        accessor.setUser(authentication);
+        accessor.setUser(new StompAuthenticationToken(authentication));
         return message;
     }
 

@@ -33,9 +33,16 @@ public class DirectRoomCreationService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final ClockPort clockPort;
+    private final RoomParticipantPolicy participantPolicy;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID create(GetOrCreateDirectRoomCommand command) {
+        UUID participantId = participantPolicy.validateDirectParticipant(
+                command.tenantId(),
+                command.requesterId(),
+                command.participantId()
+        );
+
         Instant now = clockPort.now();
 
         ChatRoom chatRoom = ChatRoom.createDirect(
@@ -61,7 +68,7 @@ public class DirectRoomCreationService {
         ChatRoomMember member2 = ChatRoomMember.join(
                 command.tenantId(),
                 chatRoomId,
-                command.participantId(),
+                participantId,
                 now,
                 initialLastReadSequence
         );
@@ -73,7 +80,7 @@ public class DirectRoomCreationService {
                 command.tenantId(),
                 chatRoomId,
                 command.requesterId(),
-                command.participantId(),
+                participantId,
                 now
         );
 

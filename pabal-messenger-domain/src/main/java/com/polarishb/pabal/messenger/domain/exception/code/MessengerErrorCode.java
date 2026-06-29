@@ -31,6 +31,8 @@ public enum MessengerErrorCode implements ErrorCode {
     ROOM_OPERATION_NOT_ALLOWED("MSG403006", "현재 채팅방 상태에서는 이 작업을 수행할 수 없습니다", 403),
     ROOM_JOIN_FORBIDDEN("MSG403007", "이 채팅방은 직접 참여할 수 없습니다", 403),
     CHANNEL_PERMISSION_DENIED("MSG403008", "채널 권한이 없습니다", 403),
+    ROOM_INVITE_PERMISSION_DENIED("MSG403009", "방 초대 권한이 없습니다", 403),
+    ROOM_PARTICIPANT_NOT_INVITABLE("MSG403010", "초대할 수 없는 사용자입니다", 403),
 
     // 409 Conflict
     DUPLICATE_MESSAGE("MSG409001", "이미 전송된 메시지입니다", 409),

@@ -100,12 +100,15 @@ Layer: Domain
 
 - null/blank를 허용하지 않는다.
 - 최대 5000자를 허용한다.
+- 메시지 삭제 시 원문은 tombstone 값 `[deleted]`로 대체한다.
 - 현재 Flyway schema는 `message.content TEXT`와 `chk_message_content_length`로 1~5000자 정책을 함께 검증한다. 상세 내용은 [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)에서 관리한다.
 
 ### ChannelSettings
 
 - `workspaceId`, `isPrivate`, `description`을 가진다.
 - `withPrivacy`, `withDescription`으로 immutable style 변경을 제공한다.
+- Messenger domain은 `workspaceId`를 identity 값으로 보관하지만 workspace membership을 직접 조회하지 않는다.
+- channel participant 검증은 application `RoomParticipantPolicy`와 infrastructure `ContractRoomParticipantDirectoryAdapter`가 `WorkspaceContract`를 통해 수행한다.
 
 ## Enum과 상태 모델
 
@@ -131,8 +134,8 @@ Layer: Domain
 Layer: Domain
 
 - group room 이름이 주어지지 않으면 requester/participant UUID 기반 이름을 생성한다.
-- 사용자 profile 조회 없이 deterministic fallback name을 만든다.
-- 향후 사용자 display name 연동이 들어오면 domain policy 또는 application service 경계를 다시 검토한다.
+- Messenger domain은 사용자 profile/name을 직접 조회하지 않고 deterministic fallback name을 만든다.
+- display name 연동이 필요하면 user module repository 직접 의존이 아니라 application service 또는 `UserContract` 기반 경계를 통해 처리한다.
 
 ## 도메인 이벤트
 

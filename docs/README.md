@@ -14,7 +14,10 @@
 
 - 현재 상태: 단일 배포 멀티모듈 모놀리스
 - 실행 모듈: `pabal-app`
-- 공통 모듈: `pabal-common`, `pabal-security`
+- 공통/지원 모듈: `pabal-common`, `pabal-web`, `pabal-security`, `pabal-authorization`, `pabal-infra-redis`, `pabal-persistence-support`
+- Tenant 모듈: `pabal-tenant-domain`, `pabal-tenant-application`, `pabal-tenant-contract`, `pabal-tenant-api`, `pabal-tenant-infrastructure`
+- Workspace 모듈: `pabal-workspace-domain`, `pabal-workspace-application`, `pabal-workspace-contract`, `pabal-workspace-api`, `pabal-workspace-infrastructure`
+- User 모듈: `pabal-user-domain`, `pabal-user-application`, `pabal-user-contract`, `pabal-user-api`, `pabal-user-infrastructure`
 - Messenger 모듈: `pabal-messenger-domain`, `pabal-messenger-application`, `pabal-messenger-contract`, `pabal-messenger-api`, `pabal-messenger-infrastructure`
 - 주요 구조: DDD + Hexagonal Architecture + CQRS + Realtime(STOMP)
 - 장기 방향: 멀티모듈 모놀리스 안정화 이후 MSA 분리 가능성 검토
@@ -32,9 +35,10 @@
 9. [Pabal 데이터베이스 스키마와 제약](architecture/database-schema-and-constraints.md)
 10. [Pabal 이벤트 발행과 트랜잭션 경계](architecture/event-and-transaction-boundary.md)
 11. [Pabal 보안과 JWT Claim 설계](security/jwt-claim-design.md)
-12. [Pabal Realtime 이벤트 스키마](realtime/event-schema.md)
-13. [Pabal 테스트 전략](testing/testing-strategy.md)
-14. [ADR 목록](adr/README.md)
+12. [Pabal Authorization Governance와 RBAC Permission 모델](security/authorization-governance.md)
+13. [Pabal Realtime 이벤트 스키마](realtime/event-schema.md)
+14. [Pabal 테스트 전략](testing/testing-strategy.md)
+15. [ADR 목록](adr/README.md)
 
 ## 목차
 
@@ -68,6 +72,7 @@
 - [STOMP 연동 가이드](realtime/stomp-guide.md)
 - [WebSocket 설정](realtime/websocket-configuration.md)
 - [보안과 JWT Claim 설계](security/jwt-claim-design.md)
+- [Authorization Governance와 RBAC Permission 모델](security/authorization-governance.md)
 - [인가 경계와 멀티테넌시 체크포인트](security/authorization-and-multitenancy.md)
 - [테스트 전략](testing/testing-strategy.md)
 - [테스트 케이스 카탈로그](testing/test-case-catalog.md)

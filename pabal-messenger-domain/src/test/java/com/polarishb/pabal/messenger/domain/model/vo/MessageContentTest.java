@@ -23,6 +23,13 @@ class MessageContentTest {
     }
 
     @Test
+    void deletedTombstone_returns_non_blank_tombstone_content() {
+        MessageContent content = MessageContent.deletedTombstone();
+
+        assertThat(content.value()).isEqualTo(MessageContent.DELETED_TOMBSTONE_VALUE);
+    }
+
+    @Test
     void constructor_rejects_null_blank_and_too_long_content() {
         assertThatThrownBy(() -> new MessageContent(null))
                 .isInstanceOf(InvalidInputException.class);

@@ -12,7 +12,7 @@ tags:
 
 ## 한 문장 요약
 
-Pabal Messenger는 `messenger` 도메인을 중심으로 **DDD + Hexagonal + CQRS + Realtime(STOMP)**를 결합한 Java 25 / Spring Boot 4.0.2 기반 멀티모듈 모놀리스다.
+Pabal은 `tenant`, `workspace`, `user`, `messenger` bounded context를 모듈로 분리하고, Messenger는 **DDD + Hexagonal + CQRS + Realtime(STOMP)**를 결합한 Java 25 / Spring Boot 4.0.2 기반 멀티모듈 모놀리스다.
 
 ## 현재 상태
 
@@ -25,11 +25,11 @@ Pabal Messenger는 `messenger` 도메인을 중심으로 **DDD + Hexagonal + CQR
 ## 아키텍처에서 먼저 잡아야 할 핵심
 
 1. Layer: Domain
-   - 핵심 비즈니스 규칙은 `pabal-messenger-domain`에 둔다.
+   - 핵심 비즈니스 규칙은 각 bounded context의 domain 모듈에 둔다.
    - domain은 HTTP, STOMP, JPA, `State`, `Persisted*`를 모른다.
 2. Layer: Application
    - command/query handler가 유스케이스를 조립한다.
-   - repository/realtime/time outbound port는 `pabal-messenger-application`에 있다.
+   - repository/realtime/time/identity outbound port는 각 application 모듈에 있다.
 3. Layer: Contract
    - persistence `State`, `Persisted*`, `PersistenceMapper`와 realtime payload/envelope을 둔다.
 4. Layer: Infrastructure
@@ -58,6 +58,31 @@ flowchart LR
         commandHandler --> support["Application Support"]
         queryHandler --> readSupport["Read Access Support"]
         commandHandler --> ports["Outbound Ports"]
+        support --> userContract["UserContract"]
+        support --> workspaceContract["WorkspaceContract"]
+    end
+
+    subgraph TENANT["pabal-tenant-*"]
+        tenantApi["TenantRegistrationController"] --> tenantApp["RequestRegistration / VerifyDomain"]
+        tenantDevApi["DevTenantController"] --> tenantDevApp["CreateTenant / GetTenant"]
+        tenantApp --> tenantTable["pabal_tenant"]
+        tenantDevApp --> tenantTable
+        tenantApp --> tenantContract["TenantContract"]
+    end
+
+    subgraph WORKSPACE["pabal-workspace-*"]
+        workspaceApi["WorkspaceCommandController / WorkspaceQueryController"] --> workspaceApp["CreateWorkspace / GetWorkspace"]
+        workspaceApp --> workspaceTables["workspace / workspace_member"]
+        workspaceApp --> workspaceContract
+        workspaceApp --> tenantContract
+        workspaceApp --> userContract
+    end
+
+    subgraph USER["pabal-user-*"]
+        userApi["UserCommandController / UserQueryController"] --> userApp["CreateUser / GetUser"]
+        userApp --> tenantUser["tenant_user"]
+        userApp --> userContract
+        userApp --> tenantContract
     end
 
     subgraph DOMAIN["pabal-messenger-domain"]
@@ -82,8 +107,26 @@ flowchart LR
 
 ## 패키지 수준에서 본 책임 분리
 
-- `pabal-common`: 공통 에러 응답, 예외, CQRS marker, event publisher, base persistence, UUID v7
-- `pabal-security`: JWT decoder/converter, `PabalPrincipal`, HTTP security, local token
+- `pabal-common`: 공통 예외, CQRS marker, event publisher, context contract, UUID v7 utility
+- `pabal-security`: JWT decoder/converter, `PabalPrincipal`, access/refresh token lifecycle, HTTP security, local token
+- `pabal-authorization`: authority normalization/matching, RBAC permission lookup/cache
+- `pabal-infra-redis`: Redis dependency boundary for authorization cache and future module cache layers
+- `pabal-persistence-support`: JPA entity base field와 UUID v7 Hibernate generator
+- `pabal-tenant-api`: tenant HTTP 진입점과 request/response 매핑
+- `pabal-tenant-application`: tenant command/query, repository port, `TenantContract` 구현
+- `pabal-tenant-domain`: tenant aggregate, name/status invariant, tenant exception
+- `pabal-tenant-contract`: tenant persistence 경계 모델
+- `pabal-tenant-infrastructure`: `pabal_tenant` JPA adapter와 clock adapter
+- `pabal-workspace-api`: workspace HTTP 진입점과 principal 기반 매핑
+- `pabal-workspace-application`: workspace command/query, workspace member repository port, `WorkspaceContract` 구현
+- `pabal-workspace-domain`: workspace와 workspace member aggregate, role/status invariant
+- `pabal-workspace-contract`: workspace persistence 경계 모델
+- `pabal-workspace-infrastructure`: `workspace`, `workspace_member` JPA adapter와 clock adapter
+- `pabal-user-api`: user HTTP 진입점과 principal 기반 매핑
+- `pabal-user-application`: user command/query, repository port, `UserContract` 구현
+- `pabal-user-domain`: user aggregate, name/status invariant, user exception
+- `pabal-user-contract`: user persistence 경계 모델
+- `pabal-user-infrastructure`: `tenant_user` JPA adapter와 clock adapter
 - `pabal-messenger-api`: HTTP/WS 진입점과 프로토콜 매핑
 - `pabal-messenger-application`: 유스케이스 orchestration, application service/support, outbound port, event listener
 - `pabal-messenger-domain`: 순수 도메인 모델, VO, 정책, 예외, 도메인 이벤트
@@ -96,6 +139,9 @@ flowchart LR
 현재 Pabal은 MSA가 아니다. 다만 다음 이유로 장기 분리 여지를 남긴다.
 
 - messenger API/application/domain/contract/infrastructure가 모듈로 분리되어 있다.
+- tenant/workspace/user도 API/application/domain/contract/infrastructure로 분리되어 있다.
+- user API/application/domain/contract/infrastructure가 별도 bounded context로 분리되어 있다.
+- context 간 조회는 `TenantContract`, `WorkspaceContract`, `UserContract` 같은 공통 contract 경계로 제한된다.
 - 외부로 노출될 수 있는 HTTP/STOMP 계약이 `api`와 `contract.realtime`에 모여 있다.
 - persistence 경계가 `State`/`Persisted*`/JPA Entity로 나뉘어 있다.
 - JWT claim과 tenant/user context가 명시적으로 command/query에 전파된다.

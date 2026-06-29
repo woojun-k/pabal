@@ -9,36 +9,50 @@ tags:
 # Pabal 공통 모듈 설계
 
 > 상위 문서: [Pabal Wiki Home](../README.md)
-> 관련 문서: [Pabal 패키지 구조와 레이어](package-structure-and-layers.md), [Pabal 크로스커팅 관심사](cross-cutting-concerns.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md), [Pabal Observability와 운영 설정](observability-and-operations.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md)
+> 관련 문서: [Pabal 패키지 구조와 레이어](package-structure-and-layers.md), [Pabal 크로스커팅 관심사](cross-cutting-concerns.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md), [Pabal Observability와 운영 설정](observability-and-operations.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [ADR-0012](../adr/0012-split-jpa-persistence-support-from-common.md)
 
 ## 개요
 
 Layer: Common
 Status: Implemented
 
-`pabal-common`은 여러 모듈이 공유하는 기술적/계약적 primitive를 둔다. Messenger 비즈니스 규칙, HTTP endpoint 정책, JPA adapter 구현, JWT 인증 정책은 소유하지 않는다.
+`pabal-common`은 여러 모듈이 공유하는 기술적/계약적 primitive를 둔다. Messenger 비즈니스 규칙, HTTP endpoint 정책, Spring MVC 구현, JPA adapter 구현, JPA/Hibernate support, JWT 인증 정책은 소유하지 않는다.
 
 공통 모듈의 기준은 다음이다.
 
 ```text
 공통으로 재사용되는 최소 primitive만 둔다.
 도메인별 의미가 있으면 해당 도메인 모듈에 둔다.
-기술 구현 세부가 크면 infrastructure 또는 security로 분리한다.
+기술 구현 세부가 크면 web, infrastructure 또는 security로 분리한다.
 ```
 
 ## 패키지 지도
 
 | Package | Layer | 주요 타입 | 책임 |
 | --- | --- | --- | --- |
-| `common.api` | Common / API Support | `ApiError`, `ApiErrorDetail`, `GlobalExceptionHandler` | 공통 오류 응답 shape와 exception mapping |
 | `common.exception` | Common | `GlobalException`, `InvalidInputException` | 공통 예외 base |
 | `common.exception.code` | Common | `ErrorCode`, `CommonErrorCode` | public error code/message/status 계약 |
 | `common.cqrs` | Common | `Command`, `Query`, `CommandHandler`, `QueryHandler` | command/query marker와 handler contract |
-| `common.event` | Common | `DomainEvent`, `DomainEventPublisher`, `SpringDomainEventPublisher` | in-process domain event 발행 abstraction |
-| `common.persistence.entity.base` | Common / Infrastructure Support | `BaseEntity`, `UpdatableEntity`, `DeletableEntity` | JPA entity 공통 timestamp/delete field |
-| `common.persistence.jpa` | Common / Infrastructure Support | `UuidV7Generated`, `UuidV7IdGenerator` | UUID v7 Hibernate generator |
+| `common.authorization` | Common / Application Support | `FineGrainedPermission`, `AuthorizationScope` | bounded context별 permission enum과 resource scope를 표현하는 최소 abstraction |
+| `common.event` | Common | `DomainEvent`, `DomainEventPublisher` | in-process domain event 발행 abstraction |
 | `common.util` | Common | `UuidV7` | UUID v7 생성/검증 utility |
-| `common.contract` | Common / Contract | `UserContract`, `UserInfo` | 사용자 정보 조회를 위한 공통 contract 후보 |
+| `common.contract` | Common / Contract | `TenantContract`, `WorkspaceContract`, `UserContract`, `UserInfo`, `WorkspaceMemberRole` | bounded context 간 tenant/user/workspace 조회 contract와 최소 role DTO |
+| `web.api` | Web / API Support | `ApiError`, `ApiErrorDetail`, `GlobalExceptionHandler` | 공통 오류 응답 shape와 Spring MVC exception mapping |
+| `web.event` | Web / Spring Support | `SpringDomainEventPublisher` | `DomainEventPublisher`의 Spring application event 구현 |
+
+## Persistence support 분리
+
+Layer: Shared Infrastructure Support
+Status: Implemented
+
+JPA/Hibernate 보조 타입은 `pabal-common`이 아니라 `pabal-persistence-support`가 소유한다.
+
+| Module | Package | 주요 타입 | 책임 |
+| --- | --- | --- | --- |
+| `pabal-persistence-support` | `persistence.entity.base` | `BaseEntity`, `UpdatableEntity`, `DeletableEntity` | JPA entity 공통 timestamp/delete field |
+| `pabal-persistence-support` | `persistence.jpa` | `UuidV7Generated`, `UuidV7IdGenerator` | UUID v7 Hibernate generator |
+
+`pabal-persistence-support`는 infrastructure module만 의존한다. Domain/application/API/contract 모듈은 이 모듈에 의존하지 않는다. 결정 배경은 [ADR-0012](../adr/0012-split-jpa-persistence-support-from-common.md)를 기준으로 본다.
 
 ## 의존 방향
 
@@ -48,25 +62,63 @@ Layer: Common
 
 ```text
 pabal-messenger-* → pabal-common
+pabal-tenant-* → pabal-common
+pabal-workspace-* → pabal-common
+pabal-user-* → pabal-common
 pabal-security → pabal-common
+pabal-web → pabal-common
 pabal-app → pabal-common
+pabal-app → pabal-web
+pabal-*-infrastructure → pabal-persistence-support
+pabal-persistence-support → pabal-common
 ```
 
 피해야 하는 방향:
 
 ```text
 pabal-common → pabal-messenger-*
+pabal-common → pabal-tenant-*
+pabal-common → pabal-workspace-*
+pabal-common → pabal-user-*
 pabal-common → pabal-security
+pabal-common → pabal-web
 pabal-common → pabal-app
 ```
 
-공통 모듈은 Spring Framework, validation, webmvc, security core, OpenTelemetry API 같은 범용 dependency를 사용할 수 있지만, 프로젝트 내부의 특정 도메인 모듈에는 의존하지 않아야 한다.
+공통 모듈은 Spring Framework, validation, webmvc, security core, OpenTelemetry API, JPA/Hibernate 같은 구현 dependency를 직접 갖지 않는다. JPA/Hibernate 보조 타입은 `pabal-persistence-support`로 분리한다.
+
+## bounded context 간 contract
+
+Layer: Common / Contract
+
+`TenantContract`, `WorkspaceContract`, `UserContract`는 bounded context가 다른 context의 내부 repository나 JPA entity에 직접 의존하지 않고 필요한 최소 조회를 수행하기 위한 공통 contract다.
+
+현재 구현:
+
+- interface: `pabal-common`의 `TenantContract`, `WorkspaceContract`, `UserContract`
+- provider: `pabal-tenant-application`의 `TenantContractService`, `pabal-workspace-application`의 `WorkspaceContractService`, `pabal-user-application`의 `UserContractService`
+- consumer: user/workspace application handler, messenger infrastructure의 `ContractRoomParticipantDirectoryAdapter`
+
+이 contract는 identity primitive인 `tenantId`, `workspaceId`, `userId`, `UserInfo`, cross-context authorization에 필요한 `WorkspaceMemberRole`만 노출한다. tenant/workspace/user domain model, persistence `State`, JPA entity는 common으로 올리지 않는다.
+
+## authorization primitive
+
+Layer: Common / Application Support
+
+`FineGrainedPermission`은 각 bounded context application module이 자기 permission enum을 만들 때 구현하는 최소 interface다. `AuthorizationScope`는 permission authority matching에 사용할 resource scope를 `type`, `id` pair로 표현한다.
+
+```text
+MessengerPermission implements FineGrainedPermission
+PermissionCheck.authorizationScopes() -> List<AuthorizationScope>
+```
+
+common은 permission value를 담는 interface만 제공한다. permission catalog, role-permission matrix, IAM claim 발급 정책, authorization adapter 구현은 common에 두지 않는다. 상세 규칙은 [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md)을 기준으로 본다.
 
 ## API 오류 모델
 
-Layer: Common / API Support
+Layer: Web / API Support
 
-`ApiError`는 public 오류 응답의 표준 shape다.
+`pabal-web`의 `ApiError`는 public 오류 응답의 표준 shape다.
 
 ```text
 timestamp
@@ -78,7 +130,7 @@ traceId
 details
 ```
 
-`GlobalExceptionHandler`는 다음을 정규화한다.
+`pabal-web`의 `GlobalExceptionHandler`는 다음을 정규화한다.
 
 - `GlobalException` → 각 `ErrorCode` 기준 응답
 - validation 예외 → `CommonErrorCode.INVALID_INPUT`
@@ -106,18 +158,18 @@ marker는 구조를 설명하는 역할이므로 비즈니스 규칙을 담지 �
 
 ## Event publisher
 
-Layer: Common / Application Support
+Layer: Common / Web Support / Application Support
 
-`DomainEventPublisher`는 두 발행 방식을 제공한다.
+`pabal-common`의 `DomainEventPublisher`는 두 발행 방식을 제공한다.
 
 - `publishNow(DomainEvent event)`
 - `publishAfterCommit(DomainEvent event)`
 
-`SpringDomainEventPublisher.publishAfterCommit`은 실제 transaction이 없으면 `IllegalStateException`을 던진다. 이벤트 발행 상세는 [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md)를 기준으로 본다.
+`pabal-web`의 `SpringDomainEventPublisher.publishAfterCommit`은 실제 transaction이 없으면 `IllegalStateException`을 던진다. 이벤트 발행 상세는 [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md)를 기준으로 본다.
 
 ## UUID v7
 
-Layer: Common / Infrastructure Support
+Layer: Common / Shared Infrastructure Support
 
 - `UuidV7.random()`
 - `UuidV7.monotonic()`
@@ -125,15 +177,15 @@ Layer: Common / Infrastructure Support
 - `UuidV7.timestampInstant(UUID)`
 - `UuidV7.isV7(UUID)`
 
-JPA Entity는 `@UuidV7Generated(mode = UuidV7Generated.Mode.MONOTONIC)`을 통해 UUID v7 ID를 생성한다. 현재 generator는 assigned identifier를 허용하므로 테스트나 reconstitution 경로에서 ID를 명시할 수 있다.
+순수 UUID v7 생성/검증 utility는 `pabal-common`에 둔다. JPA Entity는 `pabal-persistence-support`의 `@UuidV7Generated(mode = UuidV7Generated.Mode.MONOTONIC)`을 통해 UUID v7 ID를 생성한다. 현재 generator는 assigned identifier를 허용하므로 테스트나 reconstitution 경로에서 ID를 명시할 수 있다.
 
 DB fallback인 `uuidv7()` 함수는 [Pabal 데이터베이스 스키마와 제약](database-schema-and-constraints.md)에서 다룬다.
 
 ## common에 추가해도 되는 것
 
-- 여러 bounded context가 공유하는 오류 response shape
+- 여러 bounded context가 공유하는 오류 code/exception base
 - 특정 도메인 의미가 없는 command/query/event marker
-- 공통 ID/time/persistence support primitive
+- 공통 ID/time utility
 - 여러 adapter에서 반복되는 낮은 수준의 기술 helper
 
 ## common에 넣으면 안 되는 것
@@ -141,7 +193,11 @@ DB fallback인 `uuidv7()` 함수는 [Pabal 데이터베이스 스키마와 제�
 - Messenger 전용 domain invariant
 - room/message/channel 정책
 - 특정 API endpoint의 request/response DTO
+- Spring MVC `@ControllerAdvice` 같은 web adapter 구현
 - JWT issuer/audience 정책
+- role-permission matrix
+- 특정 bounded context의 permission catalog
+- JPA `@MappedSuperclass`, Hibernate generator 같은 persistence support
 - JPA repository adapter 구현
 - 외부 broker, DB, WebSocket 세부 연결 정책
 

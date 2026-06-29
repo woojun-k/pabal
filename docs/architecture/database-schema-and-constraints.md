@@ -17,12 +17,19 @@ tags:
 Layer: App / Infrastructure / Contract
 Status: Implemented
 
-Pabal Messenger의 DB schema source of truth는 Flyway migration이다. Hibernate는 schema 생성이 아니라 `ddl-auto: validate`로 정합성 검증만 담당한다.
+Pabal DB schema source of truth는 Flyway migration이다. Hibernate는 schema 생성이 아니라 `ddl-auto: validate`로 정합성 검증만 담당한다.
 
 현재 migration 파일은 `pabal-app/src/main/resources/db/migration`에 있다.
 
 - `V1__postgres_extensions_and_uuidv7.sql`
 - `V2__messenger_tables.sql`
+- `V3__tombstone_deleted_message_content.sql`
+- `V4__tenant_user_tables.sql`
+- `V5__tenant_tables.sql`
+- `V6__workspace_tables.sql`
+- `V7__tenant_registration_tables.sql`
+- `V8__authorization_rbac_tables.sql`
+- `V9__security_refresh_tokens.sql`
 
 ## Schema 관리 원칙
 
@@ -38,24 +45,157 @@ Layer: App / Infrastructure
 
 ```mermaid
 flowchart LR
+    tenant["pabal_tenant"]
+    workspace["workspace"] --> workspace_member["workspace_member"]
+    user["tenant_user"]
     room["chat_room"] --> member["chat_room_member"]
     room --> mapping["direct_chat_mapping"]
     room --> message["message"]
     message --> reply["message.reply_to_message_id"]
     message --> last["chat_room.last_message_id"]
     message --> read["chat_room_member.last_read_message_id"]
+    tenant -. "application contract" .-> user
+    tenant -. "application contract" .-> workspace
+    workspace -. "logical workspaceId" .-> room
+    workspace_member -. "WorkspaceContract" .-> room
+    user -. "logical userId" .-> member
+    user -. "logical senderId" .-> message
+    user -. "logical direct participant" .-> mapping
+    role["rbac_role"] --> user_role["rbac_user_role"]
+    role --> role_permission["rbac_role_permission"]
+    permission["rbac_permission"] --> role_permission
+    user -. "logical userId" .-> user_role
+    tenant -. "logical tenantId" .-> role
+    refresh["security_refresh_token"]
+    user -. "logical userId" .-> refresh
+    tenant -. "logical tenantId" .-> refresh
 ```
 
 ## 테이블별 책임
 
 | Table | 대상 Entity | 주요 책임 |
 | --- | --- | --- |
+| `pabal_tenant` | `TenantEntity` | tenant 존재/상태/name 저장, tenant module source of truth |
+| `workspace` | `WorkspaceEntity` | tenant 안의 workspace 존재/상태/name/creator 저장 |
+| `workspace_member` | `WorkspaceMemberEntity` | workspace membership, role, active/left 상태 저장 |
+| `tenant_user` | `TenantUserEntity` | tenant 안의 사용자 존재/상태/name 저장, user module source of truth |
+| `rbac_permission` | n/a | cross-cutting fine-grained permission catalog |
+| `rbac_role` | n/a | tenant-scoped RBAC role bundle |
+| `rbac_role_permission` | n/a | role과 permission catalog row 연결 |
+| `rbac_user_role` | n/a | tenant user와 RBAC role assignment 연결 |
+| `security_refresh_token` | n/a | opaque refresh token hash, rotation, revocation 저장 |
 | `chat_room` | `ChatRoomEntity` | DIRECT/GROUP/CHANNEL 공통 메타데이터, room 상태, last message snapshot |
 | `chat_room_member` | `ChatRoomMemberEntity` | room membership, active/left 상태, read cursor |
 | `direct_chat_mapping` | `DirectChatMappingEntity` | direct participant pair와 room 매핑 |
 | `message` | `MessageEntity` | room-local sequence 기반 메시지 저장, reply, idempotency |
 
 ## 핵심 제약
+
+### pabal_tenant
+
+Layer: Infrastructure / Domain
+
+- `chk_pabal_tenant_status`: `ACTIVE`, `SUSPENDED`, `DELETED`
+- `chk_pabal_tenant_name_not_blank`: 공백 name 방지
+- `idx_pabal_tenant_status`: active tenant 존재 확인 조회
+
+`tenant_user.tenant_id`, `workspace.tenant_id`, messenger table의 `tenant_id`는 같은 tenant identity 값을 사용한다. User/Workspace/Messenger bounded context가 `pabal_tenant`를 직접 DB FK로 묶지는 않고, application contract인 `TenantContract`에서 active tenant 여부를 검증한다.
+
+### workspace
+
+Layer: Infrastructure / Domain
+
+- `uq_workspace_tenant_id_id`: tenant 포함 workspace 식별 FK target
+- `chk_workspace_status`: `ACTIVE`, `ARCHIVED`
+- `chk_workspace_name_not_blank`: 공백 name 방지
+- `idx_workspace_tenant_status`: tenant별 active workspace 조회
+
+`chat_room.workspace_id`는 workspace identity 값을 사용하지만 messenger table에서 `workspace`로 직접 FK를 두지 않는다. Messenger는 workspace membership 검증이 필요한 channel participant validation에서 `WorkspaceContract`를 사용한다.
+
+### workspace_member
+
+Layer: Infrastructure / Domain
+
+- `uq_workspace_member_tenant_workspace_user`: tenant + workspace + user 중복 membership 방지
+- `fk_workspace_member_workspace`: tenant + workspace FK
+- `chk_workspace_member_role`: `OWNER`, `ADMIN`, `MEMBER`
+- `chk_workspace_member_status`: `ACTIVE`, `LEFT`
+- `chk_workspace_member_left_at`: `ACTIVE`/`LEFT`와 `left_at` 정합성
+- `idx_workspace_member_active_lookup`: tenant/workspace/user/status 기반 membership 조회
+
+`workspace_member.user_id`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Workspace 생성과 membership 검증은 `UserContract`와 `WorkspaceContract`로 active tenant user 여부를 확인한다.
+
+### tenant_user
+
+Layer: Infrastructure / Domain
+
+- `uq_tenant_user_tenant_id_id`: tenant 포함 user 식별 target
+- `chk_tenant_user_status`: `ACTIVE`, `DISABLED`
+- `chk_tenant_user_name_not_blank`: 공백 name 방지
+- `idx_tenant_user_tenant_status`: tenant별 active user 조회
+
+`chat_room_member.user_id`, `message.sender_id`, `direct_chat_mapping.user_id_min/user_id_max`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Messenger와 User bounded context의 결합은 DB FK가 아니라 application contract인 `UserContract`와 `RoomParticipantPolicy`에서 검증한다. User 생성은 `TenantContract`로 active tenant 여부를 먼저 검증한다.
+
+### rbac_permission
+
+Layer: Security / App
+
+- `uq_rbac_permission_resource_action_scope`: resource/action/scope 중복 방지
+- `uq_rbac_permission_value`: `{context}:{resource}:{action}` permission value 중복 방지
+- `chk_rbac_permission_*_not_blank`: resource/action/scope/value 공백 방지
+
+`rbac_permission`은 각 bounded context application module의 `FineGrainedPermission` enum과 맞춰 관리한다. 현재 seed catalog는 `TenantPermission`, `UserPermission`, `WorkspacePermission`, `MessengerPermission` 값을 포함한다.
+
+### rbac_role
+
+Layer: Security / App
+
+- `uq_rbac_role_tenant_name`: tenant 안의 role name 중복 방지
+- `uq_rbac_role_tenant_id_id`: tenant 포함 role FK target
+- `chk_rbac_role_status`: `ACTIVE`, `DISABLED`
+- `chk_rbac_role_name_not_blank`: 공백 role name 방지
+- `idx_rbac_role_tenant_status`: tenant별 active role 조회
+
+`rbac_role.tenant_id`는 tenant identity 값을 사용하지만 `pabal_tenant`로 직접 FK를 두지 않는다. Tenant 존재/상태 검증은 tenant module contract 또는 bootstrap/admin use case에서 수행한다.
+
+### rbac_role_permission
+
+Layer: Security / App
+
+- `pk_rbac_role_permission`: tenant + role + permission 중복 연결 방지
+- `fk_rbac_role_permission_role`: tenant 포함 role FK
+- `fk_rbac_role_permission_permission`: permission catalog FK
+- `idx_rbac_role_permission_role`: role permission 조회
+
+Wildcard role은 DB에 저장하지 않는다. role template 문서에서 `workspace:*`처럼 표현하더라도 DB에는 concrete `rbac_permission.value` row를 연결한다.
+
+### rbac_user_role
+
+Layer: Security / App
+
+- `pk_rbac_user_role`: tenant + user + role 중복 assignment 방지
+- `fk_rbac_user_role_role`: tenant 포함 role FK
+- `chk_rbac_user_role_revoked_after_assigned`: revoke 시각 정합성
+- `idx_rbac_user_role_lookup`: active assignment 조회
+
+`rbac_user_role.user_id`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. User 존재/상태 검증은 user module contract 또는 admin use case에서 수행한다.
+
+### security_refresh_token
+
+Layer: Security / App
+
+- `uq_security_refresh_token_hash`: refresh token hash 중복 방지
+- `fk_security_refresh_token_replacement`: refresh token rotation chain
+- `chk_security_refresh_token_hash_not_blank`: token hash 공백 방지
+- `chk_security_refresh_token_subject_not_blank`: subject 공백 방지
+- `chk_security_refresh_token_authority_claims_not_blank`: authority snapshot 공백 방지
+- `chk_security_refresh_token_expires_after_issued`: 만료 시각 정합성
+- `chk_security_refresh_token_used_after_issued`: refresh 사용 시각 정합성
+- `chk_security_refresh_token_revoked_after_issued`: revoke 시각 정합성
+- `idx_security_refresh_token_active_hash`: refresh token 검증 조회
+- `idx_security_refresh_token_user_active`: user 전체 token revoke 조회
+
+DB에는 refresh token 원문을 저장하지 않고 SHA-256 hash만 저장한다. refresh 성공 시 새 row를 만들고 기존 row의 `used_at`, `revoked_at`, `replaced_by_token_id`를 채워 rotate한다. `used_at`은 3초 grace period 안의 중복 refresh 요청을 UX 관점에서 replay할 수 있는 시간 기준이고, 실제 token pair 재반환 값은 30초 TTL의 Redis replay cache가 보관한다.
 
 ### chat_room
 
@@ -105,6 +245,7 @@ Layer: Infrastructure / Domain
 - `chk_message_content_length`: `char_length(content) BETWEEN 1 AND 5000`
 - `chk_message_sequence_positive`: sequence는 1 이상
 - `chk_message_deleted_consistency`: `DELETED`와 `deleted_at` 정합성
+- `V3__tombstone_deleted_message_content`: 기존 `DELETED` message content를 `[deleted]`로 보정
 
 ## 메시지 길이 정책
 

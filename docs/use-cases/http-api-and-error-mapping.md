@@ -16,9 +16,57 @@ Layer: API
 
 - Base path: `/api/v1`
 - 인증: Bearer JWT
+- 예외: `/api/v1/tenant-registrations/**`는 tenant가 아직 없을 수 있는 onboarding 경로이므로 public이다. `/api/v1/auth/tokens/refresh`, `/api/v1/auth/tokens/revoke`는 refresh token 자체가 credential이므로 public이다.
 - principal source: `PabalPrincipal(userId, tenantId, subject)`
 - HTTP request body의 tenant/user 값은 신뢰하지 않는다. API mapper가 authentication에서 tenant/user를 추출해 command/query에 넣는다.
 - 외부 HTTP 경로에는 내부 CQRS 구조인 `command`, `query`를 노출하지 않는다.
+
+## Auth token endpoints
+
+### RefreshToken
+
+`POST /api/v1/auth/tokens/refresh`
+
+Request:
+
+```json
+{
+  "refreshToken": "opaque-refresh-token"
+}
+```
+
+Response:
+
+```json
+{
+  "tokenType": "Bearer",
+  "accessToken": "jwt-access-token",
+  "accessTokenExpiresAt": "2026-04-29T00:15:00Z",
+  "refreshToken": "new-opaque-refresh-token",
+  "refreshTokenExpiresAt": "2026-05-06T00:00:00Z"
+}
+```
+
+정책:
+
+- refresh token 원문은 DB에 저장하지 않고 `security_refresh_token.token_hash`로만 저장한다.
+- refresh 성공 시 기존 refresh token은 revoke되고 새 refresh token으로 rotate된다.
+- revoke되었거나 만료된 refresh token은 `401 Unauthorized`로 응답한다.
+- access token TTL은 발급 시 60~90분 사이에서 무작위로 할당하고, refresh token 기본 TTL은 7일이다.
+
+### RevokeRefreshToken
+
+`POST /api/v1/auth/tokens/revoke`
+
+Request:
+
+```json
+{
+  "refreshToken": "opaque-refresh-token"
+}
+```
+
+Response: `204 No Content`
 
 ## 공통 에러 포맷
 
@@ -35,6 +83,256 @@ Layer: API
   ]
 }
 ```
+
+## Tenant endpoints
+
+### RequestTenantRegistration
+
+`POST /api/v1/tenant-registrations`
+
+Request:
+
+```json
+{
+  "tenantName": "Acme",
+  "domainName": "example.com"
+}
+```
+
+Response:
+
+```json
+{
+  "registrationId": "018f0000-0000-7000-8000-000000000201",
+  "tenantName": "Acme",
+  "domainName": "example.com",
+  "status": "PENDING_VERIFICATION",
+  "verificationDnsName": "_pabal-verification.example.com",
+  "verificationTxtValue": "pabal-verification=...",
+  "expiresAt": "2026-05-06T00:00:00Z",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- domain은 canonical lower-case form으로 정규화한다.
+- 같은 domain에 대해 `PENDING_VERIFICATION`, `VERIFIED`, `ACTIVATED` registration이 있으면 새 요청을 거부한다.
+- client는 `verificationDnsName`에 `verificationTxtValue`를 TXT record로 등록해야 한다.
+- verification token은 registration마다 발급되며 현재 TTL은 7일이다.
+- 만료된 pending registration은 scheduled expiration sweep과 새 요청 진입 시점의 expiration sweep에서 `EXPIRED`로 닫힌다.
+- DNS TXT 검증은 pending registration을 queue item처럼 사용해 기본 600초 간격으로 자동 polling한다.
+- 즉시 recheck endpoint는 운영 public API로 공개하지 않고 local/test dev endpoint로만 유지한다.
+- token 소실/회전이 필요하면 `RenewTenantRegistrationToken` endpoint로 token과 만료 시각을 갱신한다.
+
+주요 오류:
+
+- `TNT409001 TENANT_DOMAIN_ALREADY_REGISTERED`
+- `CMN002 INVALID_INPUT`
+
+### RenewTenantRegistrationToken
+
+`POST /api/v1/tenant-registrations/{registrationId}/verification-token`
+
+정책:
+
+- `PENDING_VERIFICATION` 상태에서만 허용한다.
+- 새 verification token을 발급하고 `expiresAt`을 현재 시각 기준 7일 뒤로 연장한다.
+- 기존 DNS TXT 값을 새 값으로 교체해야 한다.
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND`
+- `TNT409003 TENANT_REGISTRATION_NOT_PENDING`
+
+### GetTenantRegistration
+
+`GET /api/v1/tenant-registrations/{registrationId}` → `TenantRegistrationDetailResponse`
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND`
+
+### DevVerifyTenantDomain
+
+`POST /dev/tenant-registrations/{registrationId}/domain-verification`
+
+정책:
+
+- 운영 public API로는 직접 verification 요청을 노출하지 않는다. 운영 기본 흐름은 registration 생성 후 scheduler polling이다.
+- 이 endpoint는 local/test profile에서 즉시 검증 테스트와 seed/debug 목적으로만 사용한다.
+- 서버가 `_pabal-verification.{domain}` TXT record를 조회한다.
+- expected TXT value와 일치하면 tenant를 `ACTIVE`로 생성하고 registration을 `ACTIVATED`로 전환한다.
+- verification은 registration 만료 전에만 가능하다.
+- 자동 polling도 같은 handler를 사용하며, 불일치는 정상적인 pending 상태로 보고 다음 600초 polling까지 대기한다.
+- DNS TXT lookup timeout/retry는 현재 JNDI DNS provider 기본 동작을 따른다. 운영 DNS resolver timeout 정책은 별도 adapter 설정으로 분리할 수 있다.
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND`
+- `TNT409002 TENANT_DOMAIN_VERIFICATION_FAILED`
+- `TNT409003 TENANT_REGISTRATION_NOT_PENDING`
+- `TNT410001 TENANT_REGISTRATION_EXPIRED`
+
+## Tenant dev endpoints
+
+이 endpoint들은 local/test profile의 개발 지원용이다. 운영 onboarding은 `tenant-registrations`를 사용한다.
+
+### DevCreateTenant
+
+`POST /dev/tenants`
+
+Request:
+
+```json
+{
+  "name": "Acme"
+}
+```
+
+Response:
+
+```json
+{
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Acme",
+  "status": "ACTIVE",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- 생성된 tenant는 `ACTIVE` 상태로 시작한다.
+- tenant id는 infrastructure JPA UUID v7 generator가 생성한다.
+
+주요 오류:
+
+- `CMN002 INVALID_INPUT`
+
+### DevGetTenant
+
+`GET /dev/tenants/{tenantId}` → `TenantDevResponse`
+
+주요 오류:
+
+- `TNT404001 TENANT_NOT_FOUND`
+
+## User endpoints
+
+### CreateMe
+
+`POST /api/v1/users/me`
+
+Request:
+
+```json
+{
+  "name": "Alice"
+}
+```
+
+Response:
+
+```json
+{
+  "userId": "018f0000-0000-7000-8000-000000000001",
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Alice",
+  "status": "ACTIVE",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- userId와 tenantId는 `PabalPrincipal`에서 가져온다.
+- request body에는 name만 받는다.
+- `CreateUserCommandHandler`는 `TenantContract.existsActiveTenant`로 active tenant를 확인한다.
+- 이미 같은 tenant/user가 존재하면 중복 user로 거부한다.
+
+주요 오류:
+
+- `USR409001 DUPLICATE_USER`
+- `CMN002 INVALID_INPUT`
+
+### GetMe / GetUser
+
+- `GET /api/v1/users/me` → `UserResponse`
+- `GET /api/v1/users/{userId}` → `UserResponse`
+
+Response:
+
+```json
+{
+  "userId": "018f0000-0000-7000-8000-000000000001",
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Alice",
+  "status": "ACTIVE",
+  "createdAt": "2026-04-29T00:00:00Z",
+  "updatedAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- `/users/me`는 principal의 userId를 조회한다.
+- `/users/{userId}`는 principal tenant 범위에서 path userId를 조회한다.
+
+주요 오류:
+
+- `USR404001 USER_NOT_FOUND`
+
+## Workspace endpoints
+
+### CreateWorkspace
+
+`POST /api/v1/workspaces`
+
+Request:
+
+```json
+{
+  "name": "Engineering"
+}
+```
+
+Response:
+
+```json
+{
+  "workspaceId": "018f0000-0000-7000-8000-000000000401",
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "name": "Engineering",
+  "status": "ACTIVE",
+  "ownerId": "018f0000-0000-7000-8000-000000000001",
+  "createdAt": "2026-04-29T00:00:00Z"
+}
+```
+
+정책:
+
+- tenantId와 ownerId는 `PabalPrincipal`에서 가져온다.
+- request body에는 name만 받는다.
+- active tenant가 아니면 생성하지 않는다.
+- owner는 같은 tenant의 active user여야 한다.
+- 생성 직후 owner는 `workspace_member`에 `OWNER`, `ACTIVE`로 저장된다.
+
+주요 오류:
+
+- `CMN002 INVALID_INPUT`
+
+### GetWorkspace
+
+`GET /api/v1/workspaces/{workspaceId}` → `WorkspaceResponse`
+
+정책:
+
+- principal tenant 범위에서 workspace를 조회한다.
+
+주요 오류:
+
+- `WSP404001 WORKSPACE_NOT_FOUND`
 
 ## Message endpoints
 
@@ -144,7 +442,11 @@ Response:
 }
 ```
 
-정책은 `EditMessage`와 동일하게 sender, active membership, room status를 재검증한다.
+정책:
+
+- `EditMessage`와 동일하게 sender, active membership, room status를 재검증한다.
+- 삭제 시 원문 `content`는 tombstone 값 `[deleted]`로 대체한다.
+- 조회 응답도 `DELETED` 메시지의 content를 `[deleted]`로 마스킹한다.
 
 주요 오류:
 
@@ -212,6 +514,17 @@ Response:
 }
 ```
 
+정책:
+
+- `participantIds`는 requester와 함께 tenant membership을 batch 검증한다.
+- 초대 대상이 있으면 `messenger:room:invite` fine-grained permission이 필요하다.
+
+주요 오류:
+
+- `MSG403009 ROOM_INVITE_PERMISSION_DENIED`
+- `MSG403010 ROOM_PARTICIPANT_NOT_INVITABLE`
+- `CMN002 INVALID_INPUT`
+
 ### CreateChannelRoom
 
 `POST /api/v1/chat-rooms/channels`
@@ -231,11 +544,14 @@ Request:
 정책:
 
 - `messenger:channel:create` fine-grained permission이 필요하다.
-- `ROLE_TENANT_ADMIN`, `ROLE_PABAL_ADMIN`, `ROLE_WORKSPACE_ADMIN`은 RBAC adapter에서 이 permission으로 매핑된다.
+- `participantIds`는 requester와 함께 workspace membership을 batch 검증한다.
+- 초대 대상이 있으면 `messenger:channel:invite` fine-grained permission도 필요하다.
+- `ROLE_TENANT_OWNER`, `ROLE_TENANT_ADMIN`, `ROLE_PABAL_ADMIN`, `ROLE_WORKSPACE_OWNER`, `ROLE_WORKSPACE_ADMIN`과 active `workspace_member.role` `OWNER`/`ADMIN`은 RBAC adapter에서 channel create/invite permission으로 매핑된다.
 
 주요 오류:
 
 - `MSG403008 CHANNEL_PERMISSION_DENIED`
+- `MSG403010 ROOM_PARTICIPANT_NOT_INVITABLE`
 - `MSG409003 DUPLICATE_CHANNEL_NAME`
 - `CMN002 INVALID_INPUT`
 
@@ -260,9 +576,15 @@ Response:
 }
 ```
 
+정책:
+
+- requester와 participant가 서로 다른 사용자여야 한다.
+- requester와 participant가 같은 tenant membership에 있는지 batch 검증한다.
+
 주요 오류:
 
 - `MSG400006 INVALID_DIRECT_CHAT_PARTICIPANTS`
+- `MSG403010 ROOM_PARTICIPANT_NOT_INVITABLE`
 
 ## Channel deletion endpoints
 
@@ -275,6 +597,7 @@ Response:
 - 삭제 예약 any scope: `messenger:channel:delete:schedule:any`
 - 즉시 삭제 owner scope: `messenger:channel:delete:execute:own`
 - 즉시 삭제 any scope: `messenger:channel:delete:execute:any`
+- persisted RBAC permission 또는 tenant owner/admin/pabal admin은 모든 channel 삭제 permission을 가진다. workspace owner/admin은 해당 workspace channel의 any 삭제 permission을 가진다.
 
 주요 오류:
 
@@ -321,18 +644,23 @@ Response:
       "senderId": "018f0000-0000-7000-8000-000000000001",
       "clientMessageId": "018f0000-0000-7000-8000-000000000001",
       "sequence": 42,
-      "content": "hello",
-      "status": "ACTIVE",
+      "content": "[deleted]",
+      "status": "DELETED",
       "replyToMessageId": null,
       "createdAt": "2026-04-29T00:00:00Z",
-      "updatedAt": "2026-04-29T00:00:00Z",
-      "deletedAt": null
+      "updatedAt": "2026-04-29T00:02:00Z",
+      "deletedAt": "2026-04-29T00:02:00Z"
     }
   ],
   "nextCursor": 42,
   "hasNext": true
 }
 ```
+
+정책:
+
+- 삭제된 메시지도 pagination sequence 보존을 위해 목록에 포함될 수 있다.
+- `status = DELETED`인 메시지의 content는 항상 `[deleted]`로 반환한다.
 
 ### ReadMessage / GetUnreadCount
 

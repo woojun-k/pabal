@@ -50,11 +50,11 @@ class ChatRoomWriteRepositoryImplTest extends AbstractPostgresDataJpaTest {
                 "team room",
                 createdAt
         );
-        room.scheduleForDeletion(scheduledAt);
+        ChatRoom pending = room.scheduleForDeletion(scheduledAt);
 
-        PersistedChatRoom saved = repository.append(draft(room));
-        saved.chatRoom().deleteImmediately(deletedAt);
-        PersistedChatRoom deleted = repository.update(saved);
+        PersistedChatRoom saved = repository.append(draft(pending));
+        ChatRoom deletedRoom = saved.chatRoom().deleteImmediately(deletedAt);
+        PersistedChatRoom deleted = repository.update(saved.withChatRoom(deletedRoom));
         jpaRepository.flush();
 
         assertThat(deleted.state().status()).isEqualTo(RoomStatus.DELETED);

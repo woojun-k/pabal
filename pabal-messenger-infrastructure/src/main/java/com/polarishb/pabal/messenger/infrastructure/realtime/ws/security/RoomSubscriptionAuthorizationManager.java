@@ -60,8 +60,11 @@ public class RoomSubscriptionAuthorizationManager implements AuthorizationManage
             return new AuthorizationDecision(false);
         }
 
-        UUID tenantId = UUID.fromString(matcher.group(1));
-        UUID chatRoomId = UUID.fromString(matcher.group(2));
+        UUID tenantId = parseUuid(matcher.group(1));
+        UUID chatRoomId = parseUuid(matcher.group(2));
+        if (tenantId == null || chatRoomId == null) {
+            return new AuthorizationDecision(false);
+        }
         UUID userId = pabalPrincipal.userId();
 
         if (!tenantId.equals(pabalPrincipal.tenantId())) {
@@ -82,5 +85,13 @@ public class RoomSubscriptionAuthorizationManager implements AuthorizationManage
                 .orElse(false);
 
         return new AuthorizationDecision(granted);
+    }
+
+    private UUID parseUuid(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

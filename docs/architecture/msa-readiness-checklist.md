@@ -52,6 +52,13 @@ Pabal은 현재 MSA가 아니다. 이 문서는 멀티모듈 모놀리스가 안
 
 현재 데이터는 `pabal-app` Flyway migration의 단일 schema에 있다.
 
+분리 시 tenant/workspace/user service가 소유해야 할 테이블 후보:
+
+- `pabal_tenant`
+- `workspace`
+- `workspace_member`
+- `tenant_user`
+
 분리 시 messenger service가 소유해야 할 테이블 후보:
 
 - `chat_room`
@@ -61,14 +68,15 @@ Pabal은 현재 MSA가 아니다. 이 문서는 멀티모듈 모놀리스가 안
 
 분리 전 확인:
 
-- tenant/user/workspace 소유권이 외부 서비스와 어떻게 연결되는가?
+- tenant/user/workspace 소유권은 현재 별도 bounded context와 `TenantContract`, `UserContract`, `WorkspaceContract`로 분리되어 있다. MSA 전환 시 이 contract를 동기 API, replicated read model, event 기반 projection 중 무엇으로 바꿀지 결정해야 한다.
 - user profile 조회가 필요한 경우 sync API, event replication, cache 중 무엇을 쓸 것인가?
+- workspace membership 조회가 필요한 경우 sync API, event replication, cache 중 무엇을 쓸 것인가?
 - unread count와 last message snapshot을 같은 transaction 안에서 유지할 것인가?
 
 ## 외부 계약 후보
 
 - HTTP: `/api/v1/chat-rooms/**`
-- STOMP inbound: `/app/chat.typing.start`, `/app/chat.typing.stop`
+- STOMP inbound: `/app/chat.message.send`, `/app/chat.message.edit`, `/app/chat.message.delete`, `/app/chat.typing.start`, `/app/chat.typing.stop`
 - STOMP outbound: `/topic/tenants/{tenantId}/chat-rooms/{chatRoomId}/events`
 - STOMP typing: `/topic/tenants/{tenantId}/chat-rooms/{chatRoomId}/typing`
 - User control: `/user/queue/chat.control`

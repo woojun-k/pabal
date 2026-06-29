@@ -5,6 +5,7 @@ import com.polarishb.pabal.messenger.application.command.input.CreateGroupRoomCo
 import com.polarishb.pabal.messenger.application.command.output.CreateRoomResult;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomCreationSupport;
+import com.polarishb.pabal.messenger.application.service.RoomParticipantPolicy;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.policy.RoomNameFormatter;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -20,16 +23,23 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
 
     private final ChatRoomCreationSupport creationSupport;
     private final ClockPort clockPort;
+    private final RoomParticipantPolicy participantPolicy;
 
     @Override
     @Transactional
     public CreateRoomResult handle(CreateGroupRoomCommand command) {
+        List<UUID> participantIds = participantPolicy.validateGroupParticipants(
+                command.tenantId(),
+                command.requesterId(),
+                command.participantIds()
+        );
+
         Instant now = clockPort.now();
 
         // 방 이름 결정
         String roomName = (command.roomName() != null)
                 ? command.roomName()
-                : RoomNameFormatter.formatGroupRoomName(command.requesterId(), command.participantIds());
+                : RoomNameFormatter.formatGroupRoomName(command.requesterId(), participantIds);
 
         // ChatRoom 생성
         ChatRoom chatRoom = ChatRoom.createGroup(
@@ -46,7 +56,7 @@ public class CreateGroupRoomCommandHandler implements CommandHandler<CreateGroup
                 command.tenantId(),
                 saved.state().id(),
                 command.requesterId(),
-                command.participantIds(),
+                participantIds,
                 now,
                 saved.state().lastMessageSequence() != null ? saved.state().lastMessageSequence() : 0L
         );

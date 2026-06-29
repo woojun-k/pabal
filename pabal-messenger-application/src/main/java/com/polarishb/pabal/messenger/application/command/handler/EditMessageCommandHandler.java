@@ -50,11 +50,11 @@ public class EditMessageCommandHandler implements CommandHandler<EditMessageComm
                 command.requesterId()
         );
 
-        // 메시지 수정
-        message.edit(command.newContent(), clockPort.now());
+        // 메시지 수정 (불변 전이: 새 인스턴스를 state 기준점에 다시 묶는다)
+        Message edited = message.edit(command.newContent(), clockPort.now());
 
         // 저장
-        PersistedMessage updated = messageRepository.update(persisted);
+        PersistedMessage updated = messageRepository.update(persisted.withMessage(edited));
 
         message = updated.message();
 

@@ -19,20 +19,20 @@ import java.util.UUID;
 public class ChatRoomMember {
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private UUID tenantId;
-    private UUID chatRoomId;
-    private UUID userId;
+    private final UUID id;
+    private final UUID tenantId;
+    private final UUID chatRoomId;
+    private final UUID userId;
 
-    private UUID lastReadMessageId;
-    private Long lastReadSequence;
-    private Instant lastReadAt;
+    private final UUID lastReadMessageId;
+    private final Long lastReadSequence;
+    private final Instant lastReadAt;
 
-    private Instant joinedAt;
-    private Instant leftAt;
+    private final Instant joinedAt;
+    private final Instant leftAt;
 
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
     public static ChatRoomMember create(
         UUID tenantId,
@@ -127,16 +127,24 @@ public class ChatRoomMember {
         return create(tenantId, chatRoomId, userId, joinedAt, initialLastReadSequence);
     }
 
-    public boolean updateLastRead(UUID messageId, long sequence, Instant readAt) {
+    public ChatRoomMember updateLastRead(UUID messageId, long sequence, Instant readAt) {
         if (isStaleLastReadSequence(sequence)) {
-            return false;
+            return this;
         }
 
-        this.lastReadMessageId = messageId;
-        this.lastReadSequence = sequence;
-        this.lastReadAt = readAt;
-        this.updatedAt = readAt;
-        return true;
+        return new ChatRoomMember(
+                id,
+                tenantId,
+                chatRoomId,
+                userId,
+                messageId,
+                sequence,
+                readAt,
+                joinedAt,
+                leftAt,
+                createdAt,
+                readAt
+        );
     }
 
     public boolean wouldAdvanceLastReadCursorTo(long sequence) {
@@ -147,24 +155,42 @@ public class ChatRoomMember {
         return this.lastReadSequence != null && sequence < this.lastReadSequence;
     }
 
-    public void leave(Instant leftAt) {
+    public ChatRoomMember leave(Instant leftAt) {
         if (!isActive()) {
             throw new MemberNotActiveException(this.userId);
         }
-        this.leftAt = leftAt;
-        this.updatedAt = leftAt;
+        return new ChatRoomMember(
+                id,
+                tenantId,
+                chatRoomId,
+                userId,
+                lastReadMessageId,
+                lastReadSequence,
+                lastReadAt,
+                joinedAt,
+                leftAt,
+                createdAt,
+                leftAt
+        );
     }
 
-    public void rejoin(Instant joinedAt, long baselineSequence) {
+    public ChatRoomMember rejoin(Instant joinedAt, long baselineSequence) {
         if (isActive()) {
             throw new MemberAlreadyActiveException(this.userId);
         }
-        this.leftAt = null;
-        this.joinedAt = joinedAt;
-        this.lastReadMessageId = null;
-        this.lastReadSequence = baselineSequence;
-        this.lastReadAt = null;
-        this.updatedAt = joinedAt;
+        return new ChatRoomMember(
+                id,
+                tenantId,
+                chatRoomId,
+                userId,
+                null,
+                baselineSequence,
+                null,
+                joinedAt,
+                null,
+                createdAt,
+                joinedAt
+        );
     }
 
     public void validateActive() {

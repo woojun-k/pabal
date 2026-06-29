@@ -34,13 +34,13 @@ public class ChatRoomDeletionSupport {
     public void scheduleForDeletion(PersistedChatRoom persistedRoom) {
         ChatRoom room = persistedRoom.chatRoom();
         // TODO: 추후 default 혹은 현재 설정 값으로 불러와야함
-        room.scheduleForDeletion(clockPort.now());
-        chatRoomRepository.update(persistedRoom);
+        ChatRoom scheduled = room.scheduleForDeletion(clockPort.now());
+        chatRoomRepository.update(persistedRoom.withChatRoom(scheduled));
     }
 
     public void deleteImmediately(PersistedChatRoom persistedRoom) {
         ChatRoom room = persistedRoom.chatRoom();
-        room.deleteImmediately(clockPort.now());
-        chatRoomRepository.update(persistedRoom);
+        ChatRoom deleted = room.deleteImmediately(clockPort.now());
+        chatRoomRepository.update(persistedRoom.withChatRoom(deleted));
     }
 }

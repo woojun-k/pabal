@@ -66,9 +66,9 @@ public class MessageSendSupportAdapter implements MessageSendSupport {
                 persistedChatRoom.state().tenantId(),
                 persistedChatRoom.state().id()
         );
-        message.assignSequence(sequence);
+        Message sequenced = message.assignSequence(sequence);
 
-        PersistedMessage saved = messageRepository.append(draft(message));
+        PersistedMessage saved = messageRepository.append(draft(sequenced));
 
         chatRoomSequenceRepository.updateLastMessageSnapshot(
                 saved.state().tenantId(),

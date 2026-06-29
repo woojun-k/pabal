@@ -9,7 +9,7 @@ tags:
 # Pabal 기술 부채와 보강 목록
 
 > 상위 문서: [Pabal 상세 설계 허브](../design/design-hub.md)
-> 관련 문서: [Pabal 아키텍처 개요](overview.md), [Pabal 멀티모듈 전환 전략](multi-module-transition.md), [Pabal MSA 전환 준비 체크리스트](msa-readiness-checklist.md), [Pabal 테스트 전략](../testing/testing-strategy.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 데이터베이스 스키마와 제약](database-schema-and-constraints.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md)
+> 관련 문서: [Pabal 아키텍처 개요](overview.md), [Pabal 멀티모듈 전환 전략](multi-module-transition.md), [Pabal MSA 전환 준비 체크리스트](msa-readiness-checklist.md), [Pabal 테스트 전략](../testing/testing-strategy.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md), [Pabal 데이터베이스 스키마와 제약](database-schema-and-constraints.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md)
 
 ## 목적
 
@@ -33,7 +33,7 @@ Status: Implemented
 | --- | --- | --- | --- |
 | P1 | WebSocket 보안 테스트 보강 | Proposed | [Pabal STOMP 연동 가이드](../realtime/stomp-guide.md), [Pabal 테스트 전략](../testing/testing-strategy.md) |
 | P1 | module boundary 자동 검증 | Planned | [Pabal 멀티모듈 전환 전략](multi-module-transition.md), [Pabal 패키지 구조와 레이어](package-structure-and-layers.md) |
-| P1 | workspace/channel 권한 source 정합화 | Planned | [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md) |
+| P1 | authorization governance 후속 정책 | Proposed | [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md) |
 | P2 | TypingStatus enum과 STOMP typing 구현 정렬 | Proposed | [Pabal Realtime 이벤트 스키마](../realtime/event-schema.md) |
 | P2 | unused realtime security 타입 정리 | Proposed | [Websocket 설정](../realtime/websocket-configuration.md), [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md) |
 | P2 | Persistence 테스트 확장 | Proposed | [Pabal 테스트 케이스 카탈로그](../testing/test-case-catalog.md), [Pabal 데이터베이스 스키마와 제약](database-schema-and-constraints.md) |
@@ -70,17 +70,17 @@ Layer: Infrastructure / Security
 현재 확인된 상태:
 
 - `RealtimeAccessTokenAuthenticator`는 참조되지 않는다.
-- `RealtimePrincipal`은 참조되지 않는다.
-- 현재 STOMP 인증은 `StompConnectAuthenticationInterceptor` + `WebSocketAuthenticationManagerConfig` + `PabalJwtAuthenticationConverter` 흐름이다.
+- `RealtimePrincipal`은 user destination name 생성에 사용된다.
+- 현재 STOMP 인증은 `StompConnectAuthenticationInterceptor` + `WebSocketAuthenticationManagerConfig` + `PabalJwtAuthenticationConverter` + `StompAuthenticationToken` 흐름이다.
 
 선택지:
 
-- 사용하지 않는 타입이면 삭제한다.
+- `RealtimeAccessTokenAuthenticator`가 사용되지 않는 타입이면 삭제한다.
 - Realtime Gateway 분리 준비 타입이면 `Status: Planned`로 문서화하고 실제 사용 계획을 남긴다.
 
 검증 방법:
 
-- `rg "RealtimeAccessTokenAuthenticator|RealtimePrincipal"`로 참조 여부 확인.
+- `rg "RealtimeAccessTokenAuthenticator"`로 참조 여부 확인.
 - 삭제 시 WebSocket 인증 테스트가 현재 흐름을 보호해야 한다.
 
 ## 3. module boundary 자동 검증
@@ -133,21 +133,34 @@ Layer: Security / Infrastructure / Testing
 - `/app/**`는 authenticated only
 - unknown MESSAGE/SUBSCRIBE deny
 
-## 5. workspace/channel 권한 source 정합화
+## 5. authorization governance 후속 정책
 
-Status: Partially Implemented
+Status: Proposed
 Layer: Application / Security / Infrastructure
 
 현재 확인된 상태:
 
+- workspace와 workspace membership의 source of truth는 `workspace`, `workspace_member`와 `WorkspaceContract`로 구현되어 있다.
+- `RoomParticipantPolicy`는 channel participant validation 시 `WorkspaceContract`로 active workspace member를 batch 조회한다.
 - `ChatRoomAuthorizationService`는 channel create와 channel deletion을 fine-grained `MessengerPermission`으로 판정한다.
-- `PermissionPort`는 application boundary에 있고, `RbacPermissionAdapter`가 JWT authority를 permission으로 변환한다.
-- tenant admin/pabal admin은 모든 Messenger permission, workspace admin은 channel create와 any deletion, channel owner는 own deletion을 가진다.
+- `PermissionPort`는 application boundary에 있고, `RbacPermissionAdapter`가 JWT authority, DB RBAC permission, workspace-owned role을 permission으로 변환한다.
+- `pabal-authorization`의 `RbacPermissionStore`/`JdbcRbacPermissionStore`가 `rbac_*` 테이블 기반 tenant/user별 persisted permission 조회와 optional Redis read-through cache를 제공한다.
+- `security_refresh_token`과 `RefreshTokenService`가 짧은 access token + opaque refresh token rotation을 제공한다. `JdbcRefreshTokenStore`의 JDBC 의존은 refresh token 보안 인프라이므로 `pabal-security`에 남긴다.
+- `pabal-infra-redis`가 Redis dependency boundary를 제공해 authorization cache와 향후 module별 cache layer가 Redis starter를 직접 중복 선언하지 않게 한다.
+- `TenantPermission`, `UserPermission`, `WorkspacePermission`, `MessengerPermission` catalog가 `rbac_permission` seed와 연결되어 있다.
+- tenant owner/admin/pabal admin은 모든 Messenger permission, workspace owner/admin은 channel create/invite와 any deletion, channel owner는 own deletion을 가진다.
+- workspace owner/admin은 `workspace_member.role` 조회와 JWT role authority 양쪽에서 판정한다.
+- 세부 설계와 module별 role/permission ownership은 [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md)에 정리되어 있다.
 
 결정해야 할 정책:
 
-- workspace admin/channel owner role의 source of truth를 JWT claim으로 유지할 것인가, workspace membership 조회 port로 옮길 것인가?
 - room-scoped permission과 workspace-scoped permission을 운영 IAM에서 어떤 claim 형태로 발급할 것인가?
+- tenant owner/admin bootstrap과 role administration API를 어떻게 제공할 것인가?
+- workspace/user management permission enforcement를 어떤 use case부터 연결할 것인가?
+- role/assignment 관리 API에서 RBAC permission cache evict와 refresh token revoke를 어떻게 호출할 것인가?
+- authorization 관리 API가 커질 때 `pabal-authorization` 내부의 API/application/infrastructure 세분화를 언제 적용할 것인가?
+- authorization decision audit log를 어떤 shape로 남길 것인가?
+- `/api/v1/auth/tokens/refresh`, `/api/v1/auth/tokens/revoke`에 운영 rate limiting을 어떤 filter/gateway 계층에서 적용할 것인가?
 - private channel invite/admin approval 정책을 join flow에 어떻게 연결할 것인가?
 - PostgreSQL RLS를 적용한다면 request tenant context를 DB session에 어떻게 주입할 것인가?
 
@@ -250,4 +263,4 @@ Layer: Onboarding / Testing / Documentation
 - [ ] `MessengerErrorCode`와 예외 매핑이 필요한가?
 - [ ] tenant/user authorization checkpoint가 있는가?
 - [ ] domain/application/api/infrastructure 테스트를 어디에 둘지 결정했는가?
-- [ ] 관련 Obsidian 문서를 갱신했는가?
+- [ ] 관련 `docs/` 문서를 갱신했는가?

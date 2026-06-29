@@ -54,4 +54,9 @@ class SecurityContextCurrentAuthenticationProviderTest {
 
         assertThat(provider.currentAuthentication()).isEmpty();
     }
+
+    @Test
+    void currentAuthentication_returns_empty_when_security_context_is_empty() {
+        assertThat(provider.currentAuthentication()).isEmpty();
+    }
 }

@@ -225,7 +225,7 @@ docs/adr/
 새 ADR은 순번을 증가시켜 작성한다.
 
 ```text
-docs/adr/0009-adopt-postgresql-rls-for-tenant-isolation.md
+docs/adr/NNNN-short-decision-title.md
 ```
 
 기존 결정을 바꾸는 경우 기존 ADR을 조용히 덮어쓰지 않는다.

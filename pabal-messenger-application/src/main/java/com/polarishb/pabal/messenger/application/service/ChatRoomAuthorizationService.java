@@ -4,6 +4,7 @@ import com.polarishb.pabal.messenger.application.authorization.MessengerPermissi
 import com.polarishb.pabal.messenger.application.authorization.PermissionCheck;
 import com.polarishb.pabal.messenger.application.port.out.authorization.PermissionPort;
 import com.polarishb.pabal.messenger.domain.exception.ChannelPermissionDeniedException;
+import com.polarishb.pabal.messenger.domain.exception.RoomInvitePermissionDeniedException;
 import com.polarishb.pabal.messenger.domain.exception.UnauthorizedRoomDeletionException;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.vo.ChannelSettings;
@@ -32,6 +33,39 @@ public class ChatRoomAuthorizationService {
                     workspaceId,
                     null,
                     MessengerPermission.CHANNEL_CREATE.value()
+            );
+        }
+    }
+
+    public void requireChannelInvite(UUID tenantId, UUID requesterId, UUID workspaceId) {
+        PermissionCheck check = PermissionCheck.workspace(
+                tenantId,
+                requesterId,
+                workspaceId,
+                MessengerPermission.CHANNEL_INVITE
+        );
+
+        if (!permissionPort.hasPermission(check)) {
+            throw new ChannelPermissionDeniedException(
+                    requesterId,
+                    workspaceId,
+                    null,
+                    MessengerPermission.CHANNEL_INVITE.value()
+            );
+        }
+    }
+
+    public void requireRoomInvite(UUID tenantId, UUID requesterId) {
+        PermissionCheck check = PermissionCheck.tenant(
+                tenantId,
+                requesterId,
+                MessengerPermission.ROOM_INVITE
+        );
+
+        if (!permissionPort.hasPermission(check)) {
+            throw new RoomInvitePermissionDeniedException(
+                    requesterId,
+                    MessengerPermission.ROOM_INVITE.value()
             );
         }
     }
