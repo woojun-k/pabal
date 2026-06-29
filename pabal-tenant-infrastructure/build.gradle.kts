@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":pabal-common"))
+    implementation(project(":pabal-persistence-support"))
     implementation(project(":pabal-tenant-application"))
     implementation(project(":pabal-tenant-domain"))
     implementation(project(":pabal-tenant-contract"))

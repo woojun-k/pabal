@@ -74,12 +74,16 @@ class TenantRegistrationTest {
                 now.plusSeconds(60)
         );
 
-        registration.markVerified(now.plusSeconds(1));
-        registration.activate(tenantId, now.plusSeconds(1));
+        TenantRegistration verified = registration.markVerified(now.plusSeconds(1));
+        TenantRegistration activated = verified.activate(tenantId, now.plusSeconds(1));
 
-        assertThat(registration.getStatus()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
-        assertThat(registration.getTenantId()).isEqualTo(tenantId);
-        assertThat(registration.getActivatedAt()).isEqualTo(now.plusSeconds(1));
+        assertThat(verified).isNotSameAs(registration);
+        assertThat(activated).isNotSameAs(verified);
+        assertThat(registration.getStatus()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
+        assertThat(verified.getStatus()).isEqualTo(TenantRegistrationStatus.VERIFIED);
+        assertThat(activated.getStatus()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
+        assertThat(activated.getTenantId()).isEqualTo(tenantId);
+        assertThat(activated.getActivatedAt()).isEqualTo(now.plusSeconds(1));
     }
 
     @Test
@@ -94,10 +98,17 @@ class TenantRegistrationTest {
                 now.plusSeconds(60)
         );
 
-        registration.renewVerificationToken(renewedToken, now.plusSeconds(10), now.plusSeconds(600));
+        TenantRegistration renewed = registration.renewVerificationToken(
+                renewedToken,
+                now.plusSeconds(10),
+                now.plusSeconds(600)
+        );
 
-        assertThat(registration.verificationTxtValue()).isEqualTo("pabal-verification=" + renewedToken);
-        assertThat(registration.getExpiresAt()).isEqualTo(now.plusSeconds(600));
-        assertThat(registration.getUpdatedAt()).isEqualTo(now.plusSeconds(10));
+        assertThat(renewed).isNotSameAs(registration);
+        assertThat(registration.verificationTxtValue()).isEqualTo("pabal-verification=" + TOKEN);
+        assertThat(registration.getExpiresAt()).isEqualTo(now.plusSeconds(60));
+        assertThat(renewed.verificationTxtValue()).isEqualTo("pabal-verification=" + renewedToken);
+        assertThat(renewed.getExpiresAt()).isEqualTo(now.plusSeconds(600));
+        assertThat(renewed.getUpdatedAt()).isEqualTo(now.plusSeconds(10));
     }
 }

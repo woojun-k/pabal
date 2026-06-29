@@ -53,6 +53,7 @@ tags:
 - infrastructure는 application port를 구현하고 JPA/STOMP/WebSocket security 세부사항을 가진다.
 - contract는 persistence/realtime 경계 shape를 안정화하되 비즈니스 규칙을 소유하지 않는다.
 - `pabal-common`에는 여러 모듈이 공유하는 최소 primitive만 둔다.
+- JPA/Hibernate support는 `pabal-persistence-support`에 두고 infrastructure module에서만 의존한다.
 - bounded context 간 조회는 `TenantContract`, `WorkspaceContract`, `UserContract` 같은 common contract로 제한하고 repository/JPA Entity를 직접 공유하지 않는다.
 - runtime resource와 Flyway migration은 `pabal-app`이 소유한다.
 

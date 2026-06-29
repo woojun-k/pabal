@@ -16,6 +16,7 @@ import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.domain.model.type.MessageType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -25,6 +26,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
@@ -62,14 +64,26 @@ class EditMessageCommandHandlerTest {
         when(messageRepository.findByTenantIdAndChatRoomIdAndId(tenantId, roomId, messageId))
                 .thenReturn(Optional.of(message));
         when(clockPort.now()).thenReturn(Instant.parse("2026-04-02T12:05:00Z"));
-        when(messageRepository.update(any(PersistedMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepository.update(any(PersistedMessage.class))).thenAnswer(invocation -> {
+            PersistedMessage candidate = invocation.getArgument(0);
+            return new PersistedMessage(
+                    candidate.message(),
+                    MessagePersistenceMapper.toState(candidate.message(), 1L)
+            );
+        });
 
         handler.handle(command);
 
+        ArgumentCaptor<PersistedMessage> messageCaptor = ArgumentCaptor.forClass(PersistedMessage.class);
         InOrder inOrder = inOrder(messageRepository, chatRoomAccessSupport);
         inOrder.verify(messageRepository).findByTenantIdAndChatRoomIdAndId(tenantId, roomId, messageId);
         inOrder.verify(chatRoomAccessSupport).loadSendableActiveMember(tenantId, roomId, requesterId);
-        inOrder.verify(messageRepository).update(message);
+        inOrder.verify(messageRepository).update(messageCaptor.capture());
+        assertThat(messageCaptor.getValue()).isNotSameAs(message);
+        assertThat(messageCaptor.getValue().state()).isSameAs(message.state());
+        assertThat(messageCaptor.getValue().message()).isNotSameAs(message.message());
+        assertThat(messageCaptor.getValue().message().getContent().value()).isEqualTo("updated");
+        assertThat(message.message().getContent().value()).isEqualTo("original");
     }
 
     @Test

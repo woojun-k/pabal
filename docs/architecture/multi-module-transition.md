@@ -24,6 +24,7 @@ pabal-web
 pabal-security
 pabal-authorization
 pabal-infra-redis
+pabal-persistence-support
 pabal-tenant-domain
 pabal-tenant-application
 pabal-tenant-contract
@@ -56,6 +57,8 @@ pabal-messenger-infrastructure
 {bounded-context}-application → {bounded-context}-contract
 {bounded-context}-contract → {bounded-context}-domain
 {bounded-context}-infrastructure → {bounded-context}-application/{bounded-context}-domain/{bounded-context}-contract
+{bounded-context}-infrastructure → pabal-persistence-support
+pabal-persistence-support → pabal-common
 security → authorization/common
 authorization → infra-redis/common
 web → common
@@ -73,6 +76,7 @@ app → *-api/*-application/*-infrastructure/security/authorization/infra-redis/
 {bounded-context}-application → {bounded-context}-infrastructure
 {bounded-context}-api → {bounded-context}-infrastructure
 {bounded-context}-contract → {bounded-context}-infrastructure
+{bounded-context}-domain/application/api/contract → pabal-persistence-support
 security → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 authorization → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 web → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
@@ -95,6 +99,7 @@ Layer: Common
 
 - CQRS marker, event publisher abstraction, context contract, UUID v7를 제공한다.
 - 도메인 전용 개념을 넣지 않는다.
+- JPA/Hibernate persistence support를 넣지 않는다. 해당 책임은 `pabal-persistence-support`가 가진다.
 
 ### pabal-web
 
@@ -128,6 +133,15 @@ Layer: Shared Infrastructure
 - Redis starter dependency boundary를 제공한다.
 - authorization cache와 향후 bounded context별 cache/pub-sub adapter가 Redis dependency를 중복 선언하지 않게 한다.
 - business cache key 정책이나 authorization rule을 소유하지 않는다.
+
+### pabal-persistence-support
+
+Layer: Shared Infrastructure Support
+
+- JPA `@MappedSuperclass` base entity와 Hibernate UUID v7 generator를 제공한다.
+- `pabal-common`의 순수 `UuidV7` utility를 재사용할 수 있다.
+- JPA Entity가 있는 infrastructure module만 의존한다.
+- domain/application/API/contract 모듈의 의존 대상이 아니다.
 
 ### pabal-tenant-domain
 
@@ -308,6 +322,7 @@ Status: Partial
 - [x] workspace/channel role permission을 workspace membership role과 정합화
 - [x] authorization/RBAC 조회를 `pabal-authorization`으로 분리
 - [x] Redis dependency boundary를 `pabal-infra-redis`로 분리
+- [x] JPA/Hibernate persistence support를 `pabal-common`에서 `pabal-persistence-support`로 분리
 - [ ] unused realtime security 타입 정리 여부 결정
 - [ ] WebSocket 보안 테스트 보강
 - [ ] realtime contract versioning 도입 여부 결정

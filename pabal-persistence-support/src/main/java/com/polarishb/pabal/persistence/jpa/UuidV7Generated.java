@@ -1,4 +1,4 @@
-package com.polarishb.pabal.common.persistence.jpa;
+package com.polarishb.pabal.persistence.jpa;
 
 import org.hibernate.annotations.IdGeneratorType;
 

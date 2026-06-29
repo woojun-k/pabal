@@ -1,4 +1,4 @@
-package com.polarishb.pabal.common.persistence.entity.base;
+package com.polarishb.pabal.persistence.entity.base;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;

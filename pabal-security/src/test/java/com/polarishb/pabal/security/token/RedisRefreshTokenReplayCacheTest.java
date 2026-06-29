@@ -1,10 +1,10 @@
 package com.polarishb.pabal.security.token;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 class RedisRefreshTokenReplayCacheTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final JsonMapper jsonMapper = new JsonMapper();
 
     @Test
     void findByUsedToken_returnsStoredTokenPair() throws Exception {
@@ -30,7 +30,7 @@ class RedisRefreshTokenReplayCacheTest {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         ValueOperations<String, String> valueOperations = valueOperations(redisTemplate);
         when(valueOperations.get("security:refresh:used:" + tokenId))
-                .thenReturn(objectMapper.writeValueAsString(tokenPair));
+                .thenReturn(jsonMapper.writeValueAsString(tokenPair));
         RedisRefreshTokenReplayCache cache = cache(redisTemplate);
 
         Optional<IssuedTokenPair> replay = cache.findByUsedToken(tokenId);
@@ -66,7 +66,7 @@ class RedisRefreshTokenReplayCacheTest {
     private RedisRefreshTokenReplayCache cache(StringRedisTemplate redisTemplate) {
         ObjectProvider<StringRedisTemplate> provider = mock();
         when(provider.getIfAvailable()).thenReturn(redisTemplate);
-        return new RedisRefreshTokenReplayCache(provider, objectMapper);
+        return new RedisRefreshTokenReplayCache(provider, jsonMapper);
     }
 
     @SuppressWarnings("unchecked")

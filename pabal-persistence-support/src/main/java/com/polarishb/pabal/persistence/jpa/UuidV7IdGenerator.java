@@ -1,4 +1,4 @@
-package com.polarishb.pabal.common.persistence.jpa;
+package com.polarishb.pabal.persistence.jpa;
 
 import com.polarishb.pabal.common.util.UuidV7;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;

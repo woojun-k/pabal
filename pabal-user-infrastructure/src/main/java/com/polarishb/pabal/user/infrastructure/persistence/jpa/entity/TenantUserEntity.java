@@ -1,6 +1,6 @@
 package com.polarishb.pabal.user.infrastructure.persistence.jpa.entity;
 
-import com.polarishb.pabal.common.persistence.entity.base.UpdatableEntity;
+import com.polarishb.pabal.persistence.entity.base.UpdatableEntity;
 import com.polarishb.pabal.user.contract.persistence.UserState;
 import com.polarishb.pabal.user.domain.model.type.UserStatus;
 import jakarta.persistence.*;

@@ -22,19 +22,19 @@ public class Message {
     public static final UUID SYSTEM_SENDER_ID = new UUID(0L, 0L);
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private UUID tenantId;
-    private UUID chatRoomId;
-    private UUID senderId;
-    private UUID clientMessageId;
-    private Long sequence;
-    private MessageType type;
-    private MessageContent content;
-    private MessageStatus status;
-    private UUID replyToMessageId;
-    private Instant createdAt;
-    private Instant updatedAt;
-    private Instant deletedAt;
+    private final UUID id;
+    private final UUID tenantId;
+    private final UUID chatRoomId;
+    private final UUID senderId;
+    private final UUID clientMessageId;
+    private final Long sequence;
+    private final MessageType type;
+    private final MessageContent content;
+    private final MessageStatus status;
+    private final UUID replyToMessageId;
+    private final Instant createdAt;
+    private final Instant updatedAt;
+    private final Instant deletedAt;
 
     public static Message create(
             UUID tenantId,
@@ -124,28 +124,66 @@ public class Message {
         );
     }
 
-    public void assignSequence(long sequence) {
-        if (this.sequence == null || this.sequence < sequence) {
-            this.sequence = sequence;
+    public Message assignSequence(long sequence) {
+        if (this.sequence != null && this.sequence >= sequence) {
+            return this;
         }
+        return new Message(
+                id,
+                tenantId,
+                chatRoomId,
+                senderId,
+                clientMessageId,
+                sequence,
+                type,
+                content,
+                status,
+                replyToMessageId,
+                createdAt,
+                updatedAt,
+                deletedAt
+        );
     }
 
-    public void delete(Instant deletedAt) {
+    public Message delete(Instant deletedAt) {
         if (this.status == MessageStatus.DELETED) {
             throw new MessageAlreadyDeletedException();
         }
-        this.content = MessageContent.deletedTombstone();
-        this.status = MessageStatus.DELETED;
-        this.updatedAt = deletedAt;
-        this.deletedAt = deletedAt;
+        return new Message(
+                id,
+                tenantId,
+                chatRoomId,
+                senderId,
+                clientMessageId,
+                sequence,
+                type,
+                MessageContent.deletedTombstone(),
+                MessageStatus.DELETED,
+                replyToMessageId,
+                createdAt,
+                deletedAt,
+                deletedAt
+        );
     }
 
-    public void edit(String newContent, Instant updatedAt) {
+    public Message edit(String newContent, Instant updatedAt) {
         if (this.status == MessageStatus.DELETED) {
             throw new MessageAlreadyDeletedException();
         }
-        this.content = new MessageContent(newContent);
-        this.status = MessageStatus.EDITED;
-        this.updatedAt = updatedAt;
+        return new Message(
+                id,
+                tenantId,
+                chatRoomId,
+                senderId,
+                clientMessageId,
+                sequence,
+                type,
+                new MessageContent(newContent),
+                MessageStatus.EDITED,
+                replyToMessageId,
+                createdAt,
+                updatedAt,
+                deletedAt
+        );
     }
 }

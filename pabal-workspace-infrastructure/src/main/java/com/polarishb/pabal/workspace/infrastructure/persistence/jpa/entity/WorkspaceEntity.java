@@ -1,7 +1,7 @@
 package com.polarishb.pabal.workspace.infrastructure.persistence.jpa.entity;
 
-import com.polarishb.pabal.common.persistence.entity.base.UpdatableEntity;
-import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
+import com.polarishb.pabal.persistence.entity.base.UpdatableEntity;
+import com.polarishb.pabal.persistence.jpa.UuidV7Generated;
 import com.polarishb.pabal.workspace.contract.persistence.WorkspaceState;
 import com.polarishb.pabal.workspace.domain.model.type.WorkspaceStatus;
 import jakarta.persistence.*;

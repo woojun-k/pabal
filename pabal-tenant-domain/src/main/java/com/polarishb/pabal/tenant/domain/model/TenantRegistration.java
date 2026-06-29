@@ -25,17 +25,17 @@ public class TenantRegistration {
     private static final String VERIFICATION_TXT_PREFIX = "pabal-verification=";
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private TenantName tenantName;
-    private TenantDomainName domainName;
-    private TenantVerificationToken verificationToken;
-    private TenantRegistrationStatus status;
-    private Instant expiresAt;
-    private Instant verifiedAt;
-    private Instant activatedAt;
-    private UUID tenantId;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final UUID id;
+    private final TenantName tenantName;
+    private final TenantDomainName domainName;
+    private final TenantVerificationToken verificationToken;
+    private final TenantRegistrationStatus status;
+    private final Instant expiresAt;
+    private final Instant verifiedAt;
+    private final Instant activatedAt;
+    private final UUID tenantId;
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
     public static TenantRegistration request(
             String tenantName,
@@ -114,7 +114,7 @@ public class TenantRegistration {
         ensurePending(now);
     }
 
-    public void renewVerificationToken(String verificationToken, Instant renewedAt, Instant expiresAt) {
+    public TenantRegistration renewVerificationToken(String verificationToken, Instant renewedAt, Instant expiresAt) {
         Objects.requireNonNull(renewedAt, "renewedAt must not be null");
         Objects.requireNonNull(expiresAt, "expiresAt must not be null");
         ensurePending(renewedAt);
@@ -122,35 +122,78 @@ public class TenantRegistration {
             throw new IllegalArgumentException("expiresAt must be after renewedAt");
         }
 
-        this.verificationToken = new TenantVerificationToken(verificationToken);
-        this.expiresAt = expiresAt;
-        this.updatedAt = renewedAt;
+        return new TenantRegistration(
+                id,
+                tenantName,
+                domainName,
+                new TenantVerificationToken(verificationToken),
+                status,
+                expiresAt,
+                verifiedAt,
+                activatedAt,
+                tenantId,
+                createdAt,
+                renewedAt
+        );
     }
 
-    public void markVerified(Instant verifiedAt) {
+    public TenantRegistration markVerified(Instant verifiedAt) {
         ensurePending(verifiedAt);
-        this.status = TenantRegistrationStatus.VERIFIED;
-        this.verifiedAt = Objects.requireNonNull(verifiedAt, "verifiedAt must not be null");
-        this.updatedAt = verifiedAt;
+        Instant transitionAt = Objects.requireNonNull(verifiedAt, "verifiedAt must not be null");
+        return new TenantRegistration(
+                id,
+                tenantName,
+                domainName,
+                verificationToken,
+                TenantRegistrationStatus.VERIFIED,
+                expiresAt,
+                transitionAt,
+                activatedAt,
+                tenantId,
+                createdAt,
+                transitionAt
+        );
     }
 
-    public void activate(UUID tenantId, Instant activatedAt) {
+    public TenantRegistration activate(UUID tenantId, Instant activatedAt) {
         if (status != TenantRegistrationStatus.VERIFIED) {
             throw new TenantRegistrationNotPendingException(id, status);
         }
-        this.status = TenantRegistrationStatus.ACTIVATED;
-        this.tenantId = Objects.requireNonNull(tenantId, "tenantId must not be null");
-        this.activatedAt = Objects.requireNonNull(activatedAt, "activatedAt must not be null");
-        this.updatedAt = activatedAt;
+        UUID activatedTenantId = Objects.requireNonNull(tenantId, "tenantId must not be null");
+        Instant transitionAt = Objects.requireNonNull(activatedAt, "activatedAt must not be null");
+        return new TenantRegistration(
+                id,
+                tenantName,
+                domainName,
+                verificationToken,
+                TenantRegistrationStatus.ACTIVATED,
+                expiresAt,
+                verifiedAt,
+                transitionAt,
+                activatedTenantId,
+                createdAt,
+                transitionAt
+        );
     }
 
-    public void expire(Instant expiredAt) {
+    public TenantRegistration expire(Instant expiredAt) {
         Objects.requireNonNull(expiredAt, "expiredAt must not be null");
         if (status != TenantRegistrationStatus.PENDING_VERIFICATION) {
             throw new TenantRegistrationNotPendingException(id, status);
         }
-        this.status = TenantRegistrationStatus.EXPIRED;
-        this.updatedAt = expiredAt;
+        return new TenantRegistration(
+                id,
+                tenantName,
+                domainName,
+                verificationToken,
+                TenantRegistrationStatus.EXPIRED,
+                expiresAt,
+                verifiedAt,
+                activatedAt,
+                tenantId,
+                createdAt,
+                expiredAt
+        );
     }
 
     public boolean isOpen() {

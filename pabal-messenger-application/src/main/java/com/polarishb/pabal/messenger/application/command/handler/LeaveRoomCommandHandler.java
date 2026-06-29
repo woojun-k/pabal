@@ -35,9 +35,11 @@ public class LeaveRoomCommandHandler implements CommandHandler<LeaveRoomCommand,
         PersistedChatRoomMember persistedMember = access.member();
         ChatRoomMember member = persistedMember.member();
 
-        member.leave(clockPort.now());
+        ChatRoomMember leftMember = member.leave(clockPort.now());
 
-        PersistedChatRoomMember updatedMember = chatRoomMemberRepository.update(persistedMember);
+        PersistedChatRoomMember updatedMember = chatRoomMemberRepository.update(
+                persistedMember.withMember(leftMember)
+        );
         long sequence = access.room().state().lastMessageSequence() != null
                 ? access.room().state().lastMessageSequence()
                 : 0L;

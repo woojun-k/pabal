@@ -13,11 +13,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.transaction.TestTransaction;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MessageWriteRepositoryImplTest extends AbstractPostgresDataJpaTest {
@@ -27,6 +39,9 @@ class MessageWriteRepositoryImplTest extends AbstractPostgresDataJpaTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     private UUID tenantId;
     private UUID chatRoomId;
@@ -49,6 +64,71 @@ class MessageWriteRepositoryImplTest extends AbstractPostgresDataJpaTest {
         assertThatThrownBy(() -> repository.append(draftMessage(2L)))
                 .isInstanceOf(DuplicateMessageException.class)
                 .hasCauseInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void concurrent_append_with_same_client_message_id_translates_database_unique_race_to_duplicate_message()
+            throws Exception {
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+
+        CyclicBarrier startBarrier = new CyclicBarrier(2);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Throwable> first = executor.submit(() -> appendInTransactionAfterBarrier(startBarrier, 1L));
+            Future<Throwable> second = executor.submit(() -> appendInTransactionAfterBarrier(startBarrier, 2L));
+
+            List<Throwable> results = new ArrayList<>();
+            results.add(first.get(10, TimeUnit.SECONDS));
+            results.add(second.get(10, TimeUnit.SECONDS));
+            List<Throwable> failures = results.stream()
+                    .filter(Throwable.class::isInstance)
+                    .toList();
+
+            assertThat(failures).hasSize(1);
+            assertThat(failures.getFirst())
+                    .isInstanceOf(DuplicateMessageException.class)
+                    .hasCauseInstanceOf(DataIntegrityViolationException.class);
+            assertThat(countMessages()).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    private Throwable appendInTransactionAfterBarrier(CyclicBarrier startBarrier, long sequence) {
+        try {
+            startBarrier.await(5, TimeUnit.SECONDS);
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> repository.append(draftMessage(sequence)));
+            return null;
+        } catch (Throwable throwable) {
+            return unwrapExecutionException(throwable);
+        }
+    }
+
+    private Throwable unwrapExecutionException(Throwable throwable) {
+        if (throwable instanceof ExecutionException executionException && executionException.getCause() != null) {
+            return executionException.getCause();
+        }
+        return throwable;
+    }
+
+    private long countMessages() {
+        Long count = jdbcTemplate.queryForObject("""
+                        SELECT count(*)
+                        FROM message
+                        WHERE tenant_id = ?
+                          AND chat_room_id = ?
+                          AND sender_id = ?
+                          AND client_message_id = ?
+                        """,
+                Long.class,
+                tenantId,
+                chatRoomId,
+                senderId,
+                clientMessageId
+        );
+        return count != null ? count : 0L;
     }
 
     private void insertChatRoom() {

@@ -31,24 +31,24 @@ public class ChatRoom {
     private static final int DEFAULT_RETENTION_DAYS = 30;
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private RoomType type;
-    private RoomName name;
-    private UUID createdBy;
-    private UUID tenantId;
+    private final UUID id;
+    private final RoomType type;
+    private final RoomName name;
+    private final UUID createdBy;
+    private final UUID tenantId;
 
-    private ChannelSettings channelSettings;
+    private final ChannelSettings channelSettings;
 
-    private RoomStatus status;
-    private Instant scheduledDeletionAt;
+    private final RoomStatus status;
+    private final Instant scheduledDeletionAt;
 
-    private UUID lastMessageId;
-    private Long lastMessageSequence;
-    private Instant lastMessageAt;
-    
-    private Instant createdAt;
-    private Instant updatedAt;
-    private Instant deletedAt;
+    private final UUID lastMessageId;
+    private final Long lastMessageSequence;
+    private final Instant lastMessageAt;
+
+    private final Instant createdAt;
+    private final Instant updatedAt;
+    private final Instant deletedAt;
 
     public static ChatRoom create(
         RoomType type,
@@ -182,16 +182,28 @@ public class ChatRoom {
         );
     }
 
-    public void updateLastMessage(UUID messageId, long messageSequence, Instant messageAt) {
+    public ChatRoom updateLastMessage(UUID messageId, long messageSequence, Instant messageAt) {
 
         if (this.lastMessageSequence != null && this.lastMessageSequence > messageSequence) {
-            return;
+            return this;
         }
 
-        this.lastMessageId = messageId;
-        this.lastMessageSequence = messageSequence;
-        this.lastMessageAt = messageAt;
-        this.updatedAt = messageAt;
+        return new ChatRoom(
+                id,
+                type,
+                name,
+                createdBy,
+                tenantId,
+                channelSettings,
+                status,
+                scheduledDeletionAt,
+                messageId,
+                messageSequence,
+                messageAt,
+                createdAt,
+                messageAt,
+                deletedAt
+        );
     }
 
     public static ChatRoom createDirect(String nameOrNull, UUID createdBy, UUID tenantId, Instant createdAt) {
@@ -271,11 +283,11 @@ public class ChatRoom {
         }
     }
 
-    public void scheduleForDeletion(Instant now) {
-        scheduleForDeletion(now, DEFAULT_RETENTION_DAYS);
+    public ChatRoom scheduleForDeletion(Instant now) {
+        return scheduleForDeletion(now, DEFAULT_RETENTION_DAYS);
     }
 
-    public void scheduleForDeletion(Instant now, int retentionDays) {
+    public ChatRoom scheduleForDeletion(Instant now, int retentionDays) {
         if (this.type != RoomType.CHANNEL) {
             throw new RoomCannotBeDeletedException(this.type);
         }
@@ -287,12 +299,25 @@ public class ChatRoom {
             );
         }
 
-        this.status = RoomStatus.PENDING_DELETION;
-        this.scheduledDeletionAt = now.plus(retentionDays, ChronoUnit.DAYS);
-        this.updatedAt = now;
+        return new ChatRoom(
+                id,
+                type,
+                name,
+                createdBy,
+                tenantId,
+                channelSettings,
+                RoomStatus.PENDING_DELETION,
+                now.plus(retentionDays, ChronoUnit.DAYS),
+                lastMessageId,
+                lastMessageSequence,
+                lastMessageAt,
+                createdAt,
+                now,
+                deletedAt
+        );
     }
 
-    public void deleteImmediately(Instant deletedAt) {
+    public ChatRoom deleteImmediately(Instant deletedAt) {
         if (this.type != RoomType.CHANNEL) {
             throw new RoomCannotBeDeletedException(this.type);
         }
@@ -301,9 +326,21 @@ public class ChatRoom {
         }
 
         Instant transitionAt = Objects.requireNonNull(deletedAt);
-        this.status = RoomStatus.DELETED;
-        this.scheduledDeletionAt = null;
-        this.updatedAt = transitionAt;
-        this.deletedAt = transitionAt;
+        return new ChatRoom(
+                id,
+                type,
+                name,
+                createdBy,
+                tenantId,
+                channelSettings,
+                RoomStatus.DELETED,
+                null,
+                lastMessageId,
+                lastMessageSequence,
+                lastMessageAt,
+                createdAt,
+                transitionAt,
+                transitionAt
+        );
     }
 }

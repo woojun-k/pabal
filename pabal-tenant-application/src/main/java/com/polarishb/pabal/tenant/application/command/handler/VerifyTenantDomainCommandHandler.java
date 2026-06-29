@@ -10,7 +10,6 @@ import com.polarishb.pabal.tenant.application.port.out.time.ClockPort;
 import com.polarishb.pabal.tenant.contract.persistence.PersistedTenant;
 import com.polarishb.pabal.tenant.contract.persistence.PersistedTenantRegistration;
 import com.polarishb.pabal.tenant.contract.persistence.TenantPersistenceMapper;
-import com.polarishb.pabal.tenant.contract.persistence.TenantRegistrationPersistenceMapper;
 import com.polarishb.pabal.tenant.domain.exception.TenantDomainVerificationFailedException;
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationNotFoundException;
 import com.polarishb.pabal.tenant.domain.model.Tenant;
@@ -49,19 +48,16 @@ public class VerifyTenantDomainCommandHandler implements CommandHandler<VerifyTe
             );
         }
 
-        registration.markVerified(now);
+        TenantRegistration verifiedRegistration = registration.markVerified(now);
 
-        Tenant tenant = Tenant.create(registration.getTenantName().value(), now);
+        Tenant tenant = Tenant.create(verifiedRegistration.getTenantName().value(), now);
         PersistedTenant savedTenant = tenantRepository.append(
                 new PersistedTenant(tenant, TenantPersistenceMapper.toState(tenant, null))
         );
 
-        registration.activate(savedTenant.state().id(), now);
+        TenantRegistration activatedRegistration = verifiedRegistration.activate(savedTenant.state().id(), now);
         TenantRegistration savedRegistration = tenantRegistrationRepository.update(
-                new PersistedTenantRegistration(
-                        registration,
-                        TenantRegistrationPersistenceMapper.toState(registration, persistedRegistration.state().version())
-                )
+                persistedRegistration.withRegistration(activatedRegistration)
         ).registration();
 
         return new VerifyTenantDomainResult(

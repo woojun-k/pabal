@@ -21,6 +21,7 @@ pabal
 ├─ pabal-security
 ├─ pabal-authorization
 ├─ pabal-infra-redis
+├─ pabal-persistence-support
 ├─ pabal-tenant-domain
 ├─ pabal-tenant-contract
 ├─ pabal-tenant-application
@@ -57,6 +58,7 @@ pabal
 | `pabal-security` | Security | `PabalJwtAuthenticationConverter`, `PabalPrincipal`, `CurrentAuthenticationProvider`, `RefreshTokenService`, `JdbcRefreshTokenStore`, `SecurityConfig`, `LocalJwtConfig` | JWT 인증, principal/context mapping, access/refresh token lifecycle, HTTP security |
 | `pabal-authorization` | Authorization | `AuthorityNormalizer`, `PermissionAuthorityMatcher`, `RbacPermissionStore`, `JdbcRbacPermissionStore` | authority normalization/matching, RBAC permission 조회/cache, persisted authorization policy access |
 | `pabal-infra-redis` | Shared Infrastructure | Spring Data Redis starter dependencies | Redis 기반 cache/pub-sub adapter가 공통으로 사용할 Redis infrastructure dependency 집약 |
+| `pabal-persistence-support` | Shared Infrastructure Support | `BaseEntity`, `UpdatableEntity`, `DeletableEntity`, `UuidV7Generated`, `UuidV7IdGenerator` | JPA entity base field와 UUID v7 Hibernate generator |
 | `pabal-tenant-domain` | Domain | `Tenant`, `TenantName`, `TenantStatus` | tenant 상태, 이름 invariant, tenant domain exception |
 | `pabal-tenant-contract` | Contract | `TenantState`, `PersistedTenant`, `TenantPersistenceMapper` | tenant persistence 경계 shape와 mapper |
 | `pabal-tenant-application` | Application | `RequestTenantRegistrationCommandHandler`, `VerifyTenantDomainCommandHandler`, `CreateTenantCommandHandler`, `TenantContractService` | tenant registration orchestration, dev seed command/query, repository port, 공통 `TenantContract` 구현 |
@@ -103,6 +105,7 @@ flowchart LR
     security --> authorization
     authorization --> common
     authorization --> redis
+    persistence_support["pabal-persistence-support"] --> common
     tenant_domain["pabal-tenant-domain"] --> common
     tenant_contract["pabal-tenant-contract"] --> tenant_domain
     tenant_contract --> common
@@ -114,6 +117,7 @@ flowchart LR
     tenant_infrastructure --> tenant_application
     tenant_infrastructure --> tenant_domain
     tenant_infrastructure --> tenant_contract
+    tenant_infrastructure --> persistence_support
     tenant_infrastructure --> common
 
     workspace_domain["pabal-workspace-domain"] --> common
@@ -128,6 +132,7 @@ flowchart LR
     workspace_infrastructure --> workspace_application
     workspace_infrastructure --> workspace_domain
     workspace_infrastructure --> workspace_contract
+    workspace_infrastructure --> persistence_support
     workspace_infrastructure --> common
 
     user_domain["pabal-user-domain"] --> common
@@ -142,6 +147,7 @@ flowchart LR
     user_infrastructure --> user_application
     user_infrastructure --> user_domain
     user_infrastructure --> user_contract
+    user_infrastructure --> persistence_support
     user_infrastructure --> common
 
     messenger_domain["pabal-messenger-domain"] --> common
@@ -159,6 +165,7 @@ flowchart LR
     messenger_infrastructure --> security
     messenger_infrastructure --> authorization
     messenger_infrastructure --> redis
+    messenger_infrastructure --> persistence_support
     messenger_infrastructure --> common
 ```
 
@@ -171,6 +178,8 @@ flowchart LR
 - `{bounded-context}-application → common`
 - `{bounded-context}-contract → {bounded-context}-domain/common`
 - `{bounded-context}-infrastructure → {bounded-context}-application/domain/contract/common`
+- `{bounded-context}-infrastructure → pabal-persistence-support`
+- `pabal-persistence-support → common`
 - `messenger-infrastructure → security/authorization/infra-redis/common`
 - `user-api → security/common`
 - `security → authorization/common`
@@ -186,6 +195,7 @@ flowchart LR
 - `{bounded-context}-application → {bounded-context}-infrastructure`
 - `{bounded-context}-api → {bounded-context}-infrastructure`
 - `{bounded-context}-contract → {bounded-context}-infrastructure`
+- `{bounded-context}-domain/application/api/contract → pabal-persistence-support`
 - `common → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
 - `security → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
 - `authorization → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
@@ -203,6 +213,7 @@ flowchart LR
 | Security | JWT 인증과 principal 정규화 | messenger room/member 정책, STOMP 전용 user-name provider |
 | Authorization | authority normalization과 RBAC permission lookup | bounded context repository/JPA 직접 접근 |
 | Common | 전역 공통 규약 제공 | 특정 bounded context 의존 |
+| Persistence Support | JPA entity base와 Hibernate generator 제공 | domain/application/API/contract 의존 대상 |
 
 ## 코드 탐색 기준
 

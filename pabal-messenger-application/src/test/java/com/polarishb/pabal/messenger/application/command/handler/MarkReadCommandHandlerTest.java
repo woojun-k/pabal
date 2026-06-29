@@ -88,14 +88,25 @@ class MarkReadCommandHandlerTest {
         when(messageRepository.findByTenantIdAndChatRoomIdAndId(tenantId, chatRoomId, lastReadMessageId))
                 .thenReturn(Optional.of(lastReadMessage));
         when(clockPort.now()).thenReturn(readAt);
-        when(chatRoomMemberRepository.update(member)).thenAnswer(invocation -> new PersistedChatRoomMember(
-                member.member(),
-                new ChatRoomMemberState(member.member().snapshot(), 1L)
-        ));
+        when(chatRoomMemberRepository.update(any(PersistedChatRoomMember.class))).thenAnswer(invocation -> {
+            PersistedChatRoomMember candidate = invocation.getArgument(0);
+            return new PersistedChatRoomMember(
+                    candidate.member(),
+                    new ChatRoomMemberState(candidate.member().snapshot(), 1L)
+            );
+        });
 
         handler.handle(command);
 
-        verify(chatRoomMemberRepository).update(member);
+        ArgumentCaptor<PersistedChatRoomMember> memberCaptor =
+                ArgumentCaptor.forClass(PersistedChatRoomMember.class);
+        verify(chatRoomMemberRepository).update(memberCaptor.capture());
+        assertThat(memberCaptor.getValue()).isNotSameAs(member);
+        assertThat(memberCaptor.getValue().state()).isSameAs(member.state());
+        assertThat(memberCaptor.getValue().member()).isNotSameAs(member.member());
+        assertThat(memberCaptor.getValue().member().getLastReadMessageId()).isEqualTo(lastReadMessageId);
+        assertThat(memberCaptor.getValue().member().getLastReadSequence()).isEqualTo(9L);
+        assertThat(memberCaptor.getValue().member().getLastReadAt()).isEqualTo(readAt);
 
         ArgumentCaptor<MessageReadEvent> eventCaptor = ArgumentCaptor.forClass(MessageReadEvent.class);
         verify(eventPublisher).publishAfterCommit(eventCaptor.capture());
@@ -103,9 +114,9 @@ class MarkReadCommandHandlerTest {
         assertThat(eventCaptor.getValue()).isEqualTo(
                 new MessageReadEvent(tenantId, chatRoomId, userId, lastReadMessageId, 9L, readAt, 1L)
         );
-        assertThat(member.member().getLastReadMessageId()).isEqualTo(lastReadMessageId);
-        assertThat(member.member().getLastReadSequence()).isEqualTo(9L);
-        assertThat(member.member().getLastReadAt()).isEqualTo(readAt);
+        assertThat(member.member().getLastReadMessageId()).isEqualTo(currentMessageId);
+        assertThat(member.member().getLastReadSequence()).isEqualTo(8L);
+        assertThat(member.member().getLastReadAt()).isEqualTo(createdAt.plusSeconds(10));
     }
 
     @Test

@@ -1,10 +1,9 @@
 package com.polarishb.pabal.security.token;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -22,17 +21,17 @@ public class RedisRefreshTokenReplayCache implements RefreshTokenReplayCache {
     private static final String USED_TOKEN_KEY_PREFIX = "security:refresh:used:";
 
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     public RedisRefreshTokenReplayCache(
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
-            ObjectMapper objectMapper
+            JsonMapper jsonMapper
     ) {
         this.redisTemplateProvider = Objects.requireNonNull(
                 redisTemplateProvider,
                 "redisTemplateProvider must not be null"
         );
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper must not be null");
     }
 
     @Override
@@ -66,8 +65,8 @@ public class RedisRefreshTokenReplayCache implements RefreshTokenReplayCache {
             if (value == null) {
                 return Optional.empty();
             }
-            return Optional.of(objectMapper.readValue(value, IssuedTokenPair.class));
-        } catch (JsonProcessingException | RuntimeException ex) {
+            return Optional.of(jsonMapper.readValue(value, IssuedTokenPair.class));
+        } catch (RuntimeException ex) {
             return Optional.empty();
         }
     }
@@ -79,8 +78,8 @@ public class RedisRefreshTokenReplayCache implements RefreshTokenReplayCache {
         }
 
         try {
-            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(tokenPair), ttl);
-        } catch (JsonProcessingException | RuntimeException ignored) {
+            redisTemplate.opsForValue().set(key, jsonMapper.writeValueAsString(tokenPair), ttl);
+        } catch (RuntimeException ignored) {
             // Replay cache failures must not change refresh token truth; DB state remains authoritative.
         }
     }

@@ -23,6 +23,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -138,6 +146,46 @@ class RefreshTokenServiceTest {
         assertThat(replayed).isEqualTo(second);
         assertThat(encoder.issuedClaims).hasSize(2);
         assertThat(store.revokeTokenFamilyCalls).isZero();
+    }
+
+    @Test
+    void concurrent_refresh_of_same_token_returns_single_rotation_and_grace_replay_without_family_revocation()
+            throws Exception {
+        InMemoryRefreshTokenStore store = new InMemoryRefreshTokenStore();
+        InMemoryRefreshTokenReplayCache replayCache = new InMemoryRefreshTokenReplayCache();
+        CountDownLatch usedTokenReplaySaved = new CountDownLatch(1);
+        store.synchronizeNextFindByTokenHash(2);
+        store.waitForReplayBeforeFailedMark(usedTokenReplaySaved);
+        replayCache.signalUsedTokenReplaySave(usedTokenReplaySaved);
+
+        FakeJwtEncoder encoder = new FakeJwtEncoder();
+        RefreshTokenService service = service(encoder, store, replayCache);
+        IssuedTokenPair first = service.issueTokenPair(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "subject",
+                JwtAuthorityClaims.empty()
+        );
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<IssuedTokenPair> firstAttempt = executor.submit(() -> service.refresh(first.refreshToken()));
+            Future<IssuedTokenPair> secondAttempt = executor.submit(() -> service.refresh(first.refreshToken()));
+
+            IssuedTokenPair firstResult = await(firstAttempt);
+            IssuedTokenPair secondResult = await(secondAttempt);
+
+            assertThat(firstResult).isEqualTo(secondResult);
+            assertThat(firstResult.refreshToken()).isNotEqualTo(first.refreshToken());
+            assertThat(encoder.issuedClaims).hasSize(2);
+            assertThat(store.markUsedAndRevokeCalls).isEqualTo(2);
+            assertThat(store.revokeCalls).isEqualTo(1);
+            assertThat(store.revokeTokenFamilyCalls).isZero();
+            assertThat(store.activeRefreshTokenCount()).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+        }
     }
 
     @Test
@@ -363,6 +411,15 @@ class RefreshTokenServiceTest {
         );
     }
 
+    private static IssuedTokenPair await(Future<IssuedTokenPair> future)
+            throws InterruptedException, ExecutionException {
+        try {
+            return future.get(5, TimeUnit.SECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            throw new AssertionError("Timed out waiting for concurrent refresh", e);
+        }
+    }
+
     private RefreshTokenService service(FakeJwtEncoder encoder, InMemoryRefreshTokenStore store) {
         return service(encoder, store, new InMemoryRefreshTokenReplayCache());
     }
@@ -474,9 +531,12 @@ class RefreshTokenServiceTest {
         private int revokeTokenFamilyCalls;
         private boolean returnFalseOnNextRevoke;
         private boolean throwOnNextRevokeAfterConflict;
+        private CyclicBarrier nextFindByTokenHashBarrier;
+        private int nextFindByTokenHashBarrierRemaining;
+        private CountDownLatch failedMarkCanReturn;
 
         @Override
-        public void save(RefreshTokenRecord token) {
+        public synchronized void save(RefreshTokenRecord token) {
             records.put(token.tokenHash(), token);
         }
 
@@ -488,46 +548,87 @@ class RefreshTokenServiceTest {
             return Optional.ofNullable(records.get(hash(rawToken)));
         }
 
-        private void replace(RefreshTokenRecord token) {
+        private synchronized void replace(RefreshTokenRecord token) {
             records.put(token.tokenHash(), token);
+        }
+
+        private synchronized int activeRefreshTokenCount() {
+            return (int) records.values().stream()
+                    .filter(record -> record.revokedAt() == null)
+                    .filter(record -> record.usedAt() == null)
+                    .count();
+        }
+
+        private synchronized void synchronizeNextFindByTokenHash(int parties) {
+            nextFindByTokenHashBarrier = new CyclicBarrier(parties);
+            nextFindByTokenHashBarrierRemaining = parties;
+        }
+
+        private synchronized void waitForReplayBeforeFailedMark(CountDownLatch latch) {
+            failedMarkCanReturn = latch;
         }
 
         @Override
         public Optional<RefreshTokenRecord> findByTokenHash(String tokenHash) {
-            findByTokenHashCalls++;
-            return Optional.ofNullable(records.get(tokenHash));
+            CyclicBarrier barrier;
+            Optional<RefreshTokenRecord> result;
+            synchronized (this) {
+                findByTokenHashCalls++;
+                result = Optional.ofNullable(records.get(tokenHash));
+                barrier = nextFindByTokenHashBarrier;
+                if (barrier != null && --nextFindByTokenHashBarrierRemaining == 0) {
+                    nextFindByTokenHashBarrier = null;
+                }
+            }
+            if (barrier != null) {
+                awaitBarrier(barrier);
+            }
+            return result;
         }
 
         @Override
         public boolean markUsedAndRevoke(UUID tokenId, UUID replacedByTokenId, Instant usedAt) {
-            markUsedAndRevokeCalls++;
-            if (returnFalseOnNextRevoke) {
-                returnFalseOnNextRevoke = false;
-                return false;
+            CountDownLatch latch = null;
+            synchronized (this) {
+                markUsedAndRevokeCalls++;
+                if (returnFalseOnNextRevoke) {
+                    returnFalseOnNextRevoke = false;
+                    return false;
+                }
+                Optional<RefreshTokenRecord> current = records.values().stream()
+                        .filter(record -> record.id().equals(tokenId))
+                        .filter(record -> record.usedAt() == null)
+                        .filter(record -> record.revokedAt() == null)
+                        .findFirst();
+                current.ifPresent(record -> records.put(
+                        record.tokenHash(),
+                        new RefreshTokenRecord(
+                                record.id(),
+                                record.tokenHash(),
+                                record.tenantId(),
+                                record.userId(),
+                                record.subject(),
+                                record.authorityClaims(),
+                                record.issuedAt(),
+                                usedAt,
+                                record.expiresAt(),
+                                usedAt,
+                                replacedByTokenId
+                        )
+                ));
+                if (current.isPresent()) {
+                    return true;
+                }
+                latch = failedMarkCanReturn;
             }
-            Optional<RefreshTokenRecord> current = records.values().stream()
-                    .filter(record -> record.id().equals(tokenId))
-                    .filter(record -> record.usedAt() == null)
-                    .filter(record -> record.revokedAt() == null)
-                    .findFirst();
-            current.ifPresent(record -> replace(new RefreshTokenRecord(
-                    record.id(),
-                    record.tokenHash(),
-                    record.tenantId(),
-                    record.userId(),
-                    record.subject(),
-                    record.authorityClaims(),
-                    record.issuedAt(),
-                    usedAt,
-                    record.expiresAt(),
-                    usedAt,
-                    replacedByTokenId
-            )));
-            return current.isPresent();
+            if (latch != null) {
+                awaitLatch(latch);
+            }
+            return false;
         }
 
         @Override
-        public boolean revoke(UUID tokenId, UUID replacedByTokenId, Instant revokedAt) {
+        public synchronized boolean revoke(UUID tokenId, UUID replacedByTokenId, Instant revokedAt) {
             revokeCalls++;
             if (throwOnNextRevokeAfterConflict) {
                 throwOnNextRevokeAfterConflict = false;
@@ -557,7 +658,7 @@ class RefreshTokenServiceTest {
         }
 
         @Override
-        public void revokeTokenFamily(UUID rootTokenId, Instant revokedAt) {
+        public synchronized void revokeTokenFamily(UUID rootTokenId, Instant revokedAt) {
             revokeTokenFamilyCalls++;
             Set<UUID> visited = new HashSet<>();
             UUID currentId = rootTokenId;
@@ -587,7 +688,7 @@ class RefreshTokenServiceTest {
         }
 
         @Override
-        public void revokeUserTokens(UUID tenantId, UUID userId, Instant revokedAt) {
+        public synchronized void revokeUserTokens(UUID tenantId, UUID userId, Instant revokedAt) {
             List<RefreshTokenRecord> userTokens = records.values().stream()
                     .filter(record -> record.tenantId().equals(tenantId))
                     .filter(record -> record.userId().equals(userId))
@@ -600,11 +701,38 @@ class RefreshTokenServiceTest {
                     .filter(record -> record.id().equals(tokenId))
                     .findFirst();
         }
+
+        private void awaitBarrier(CyclicBarrier barrier) {
+            try {
+                barrier.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("Interrupted while waiting for refresh race barrier", e);
+            } catch (BrokenBarrierException | java.util.concurrent.TimeoutException e) {
+                throw new AssertionError("Timed out waiting for refresh race barrier", e);
+            }
+        }
+
+        private void awaitLatch(CountDownLatch latch) {
+            try {
+                if (!latch.await(5, TimeUnit.SECONDS)) {
+                    throw new AssertionError("Timed out waiting for refresh replay cache save");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("Interrupted while waiting for refresh replay cache save", e);
+            }
+        }
     }
 
     private static final class InMemoryRefreshTokenReplayCache implements RefreshTokenReplayCache {
         private final Map<String, IssuedTokenPair> requestCache = new HashMap<>();
         private final Map<UUID, IssuedTokenPair> usedTokenCache = new HashMap<>();
+        private CountDownLatch usedTokenReplaySaveSignal;
+
+        private void signalUsedTokenReplaySave(CountDownLatch latch) {
+            usedTokenReplaySaveSignal = latch;
+        }
 
         @Override
         public Optional<IssuedTokenPair> findByRequest(String refreshTokenHash, String requestId) {
@@ -627,6 +755,9 @@ class RefreshTokenServiceTest {
         public void saveByUsedToken(UUID tokenId, IssuedTokenPair tokenPair, Duration ttl) {
             if (!ttl.isZero() && !ttl.isNegative()) {
                 usedTokenCache.put(tokenId, tokenPair);
+            }
+            if (usedTokenReplaySaveSignal != null) {
+                usedTokenReplaySaveSignal.countDown();
             }
         }
 

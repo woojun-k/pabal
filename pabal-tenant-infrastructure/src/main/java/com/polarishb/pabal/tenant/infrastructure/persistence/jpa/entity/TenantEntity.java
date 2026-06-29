@@ -1,7 +1,7 @@
 package com.polarishb.pabal.tenant.infrastructure.persistence.jpa.entity;
 
-import com.polarishb.pabal.common.persistence.entity.base.UpdatableEntity;
-import com.polarishb.pabal.common.persistence.jpa.UuidV7Generated;
+import com.polarishb.pabal.persistence.entity.base.UpdatableEntity;
+import com.polarishb.pabal.persistence.jpa.UuidV7Generated;
 import com.polarishb.pabal.tenant.contract.persistence.TenantState;
 import com.polarishb.pabal.tenant.domain.model.type.TenantStatus;
 import jakarta.persistence.*;

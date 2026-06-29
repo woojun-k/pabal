@@ -7,7 +7,6 @@ import com.polarishb.pabal.tenant.application.port.out.persistence.TenantRegistr
 import com.polarishb.pabal.tenant.application.port.out.time.ClockPort;
 import com.polarishb.pabal.tenant.application.port.out.token.TenantVerificationTokenGeneratorPort;
 import com.polarishb.pabal.tenant.contract.persistence.PersistedTenantRegistration;
-import com.polarishb.pabal.tenant.contract.persistence.TenantRegistrationPersistenceMapper;
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationExpiredException;
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationNotFoundException;
 import com.polarishb.pabal.tenant.domain.model.TenantRegistration;
@@ -38,27 +37,21 @@ public class RenewTenantRegistrationTokenCommandHandler implements CommandHandle
         TenantRegistration registration = persistedRegistration.registration();
         if (!now.isBefore(registration.getExpiresAt())) {
             Instant expiredAt = registration.getExpiresAt();
-            registration.expire(now);
+            TenantRegistration expiredRegistration = registration.expire(now);
             tenantRegistrationRepository.update(
-                    new PersistedTenantRegistration(
-                            registration,
-                            TenantRegistrationPersistenceMapper.toState(registration, persistedRegistration.state().version())
-                    )
+                    persistedRegistration.withRegistration(expiredRegistration)
             );
             throw new TenantRegistrationExpiredException(command.registrationId(), expiredAt);
         }
 
-        registration.renewVerificationToken(
+        TenantRegistration renewedRegistration = registration.renewVerificationToken(
                 tokenGeneratorPort.generate(),
                 now,
                 now.plus(VERIFICATION_TTL)
         );
 
         TenantRegistration saved = tenantRegistrationRepository.update(
-                new PersistedTenantRegistration(
-                        registration,
-                        TenantRegistrationPersistenceMapper.toState(registration, persistedRegistration.state().version())
-                )
+                persistedRegistration.withRegistration(renewedRegistration)
         ).registration();
 
         return new TenantRegistrationResult(

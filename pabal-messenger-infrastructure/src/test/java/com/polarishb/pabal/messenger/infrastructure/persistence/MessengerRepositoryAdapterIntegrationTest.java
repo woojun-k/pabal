@@ -162,9 +162,9 @@ class MessengerRepositoryAdapterIntegrationTest extends AbstractPostgresDataJpaT
 
         saveMessage(Message.create(tenantId, firstRoomId, otherSenderId, UUID.randomUUID(), "unread 1", now), 1L);
         saveMessage(Message.create(tenantId, firstRoomId, readerId, UUID.randomUUID(), "own", now), 2L);
-        Message deleted = Message.create(tenantId, firstRoomId, otherSenderId, UUID.randomUUID(), "deleted", now);
-        deleted.assignSequence(3L);
-        deleted.delete(now.plusSeconds(1));
+        Message deleted = Message.create(tenantId, firstRoomId, otherSenderId, UUID.randomUUID(), "deleted", now)
+                .assignSequence(3L)
+                .delete(now.plusSeconds(1));
         messageRepository.append(new PersistedMessage(deleted, MessagePersistenceMapper.toState(deleted, null)));
         saveMessage(Message.create(tenantId, firstRoomId, otherSenderId, UUID.randomUUID(), "unread 2", now), 4L);
         saveMessage(Message.create(tenantId, secondRoomId, otherSenderId, UUID.randomUUID(), "room 2", now), 6L);
@@ -223,9 +223,9 @@ class MessengerRepositoryAdapterIntegrationTest extends AbstractPostgresDataJpaT
     }
 
     private PersistedMessage saveMessage(Message message, long sequence) {
-        message.assignSequence(sequence);
+        Message sequenced = message.assignSequence(sequence);
         return messageRepository.append(
-                new PersistedMessage(message, MessagePersistenceMapper.toState(message, null))
+                new PersistedMessage(sequenced, MessagePersistenceMapper.toState(sequenced, null))
         );
     }
 

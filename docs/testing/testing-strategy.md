@@ -12,7 +12,7 @@ tags:
 
 ## 개요
 
-현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-web`, `pabal-security`, `pabal-authorization`, `pabal-infra-redis`, `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
+현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-web`, `pabal-security`, `pabal-authorization`, `pabal-infra-redis`, `pabal-persistence-support`, `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
 
 ## 실행 환경
 

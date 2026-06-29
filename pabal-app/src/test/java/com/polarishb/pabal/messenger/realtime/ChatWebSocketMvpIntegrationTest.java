@@ -324,6 +324,129 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
         }
     }
 
+    @Test
+    void cross_tenant_rest_and_stomp_access_to_foreign_room_is_blocked() throws Exception {
+        UUID tenantAId = UUID.randomUUID();
+        UUID tenantBId = UUID.randomUUID();
+        UUID tenantAUserId = UUID.randomUUID();
+        UUID tenantBUserId = UUID.randomUUID();
+        UUID tenantBOtherMemberId = UUID.randomUUID();
+        UUID tenantBRoomId = UUID.randomUUID();
+        insertActiveTenantWithUser(tenantAId, tenantAUserId, "Tenant A User");
+        insertActiveRoomWithMembers(tenantBId, tenantBRoomId, tenantBUserId, tenantBOtherMemberId);
+
+        String tenantAAccessToken = tokenFor(tenantAUserId, tenantAId);
+        HttpResponse<String> listMessagesResponse = authenticatedGet(
+                "/api/v1/chat-rooms/" + tenantBRoomId + "/messages",
+                tenantAAccessToken
+        );
+        assertThat(listMessagesResponse.statusCode()).isEqualTo(404);
+
+        UUID clientMessageId = UUID.randomUUID();
+        HttpResponse<String> sendMessageResponse = authenticatedPost(
+                "/api/v1/chat-rooms/" + tenantBRoomId + "/messages",
+                """
+                {
+                  "clientMessageId": "%s",
+                  "content": "cross tenant rest attempt"
+                }
+                """.formatted(clientMessageId),
+                tenantAAccessToken
+        );
+        assertThat(sendMessageResponse.statusCode()).isEqualTo(404);
+        assertThat(countMessages(tenantBId, tenantBRoomId)).isZero();
+
+        StompTestClient tenantBClient = stompClient();
+        StompTestClient tenantASubscribeClient = stompClient();
+        StompTestClient tenantASendClient = stompClient();
+        StompSession tenantBSession = null;
+        StompSession tenantASubscribeSession = null;
+        StompSession tenantASendSession = null;
+
+        try {
+            tenantBSession = connect(tenantBClient.client(), tokenFor(tenantBUserId, tenantBId));
+            tenantASubscribeSession = connect(tenantASubscribeClient.client(), tenantAAccessToken);
+            tenantASendSession = connect(tenantASendClient.client(), tenantAAccessToken);
+
+            BlockingQueue<Map<String, Object>> tenantBEvents = new LinkedBlockingQueue<>();
+            String tenantBRoomEventsTopic = roomEventsTopic(tenantBId, tenantBRoomId);
+            tenantBSession.subscribe(tenantBRoomEventsTopic, mapFrameHandler(tenantBEvents));
+            awaitSubscriptionCount(tenantBRoomEventsTopic, 1);
+
+            tenantASubscribeSession.subscribe(tenantBRoomEventsTopic, mapFrameHandler(new LinkedBlockingQueue<>()));
+            assertSubscriptionCountRemains(tenantBRoomEventsTopic, 1);
+
+            sendMessage(
+                    tenantASendSession,
+                    tenantBId,
+                    tenantBRoomId,
+                    UUID.randomUUID(),
+                    "cross tenant stomp attempt"
+            );
+
+            assertNoRoomEvent(tenantBEvents);
+            assertThat(countMessages(tenantBId, tenantBRoomId)).isZero();
+        } finally {
+            disconnect(tenantASendSession);
+            disconnect(tenantASubscribeSession);
+            disconnect(tenantBSession);
+            tenantASendClient.close();
+            tenantASubscribeClient.close();
+            tenantBClient.close();
+        }
+    }
+
+    @Test
+    void stomp_non_member_subscribe_is_rejected() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID memberAId = UUID.randomUUID();
+        UUID memberBId = UUID.randomUUID();
+        UUID nonMemberId = UUID.randomUUID();
+        insertActiveRoomWithMembers(tenantId, chatRoomId, memberAId, memberBId);
+        insertActiveTenantUser(tenantId, nonMemberId, "Non Member");
+
+        StompTestClient nonMemberClient = stompClient();
+        StompSession nonMemberSession = null;
+
+        try {
+            nonMemberSession = connect(nonMemberClient.client(), tokenFor(nonMemberId, tenantId));
+            String roomEventsTopic = roomEventsTopic(tenantId, chatRoomId);
+
+            nonMemberSession.subscribe(roomEventsTopic, mapFrameHandler(new LinkedBlockingQueue<>()));
+
+            assertSubscriptionCountRemains(roomEventsTopic, 0);
+        } finally {
+            disconnect(nonMemberSession);
+            nonMemberClient.close();
+        }
+    }
+
+    @Test
+    void stomp_member_subscribe_is_rejected_when_room_cannot_subscribe() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID memberAId = UUID.randomUUID();
+        UUID memberBId = UUID.randomUUID();
+        insertActiveRoomWithMembers(tenantId, chatRoomId, memberAId, memberBId);
+        updateRoomStatus(tenantId, chatRoomId, "PENDING_DELETION");
+
+        StompTestClient memberClient = stompClient();
+        StompSession memberSession = null;
+
+        try {
+            memberSession = connect(memberClient.client(), tokenFor(memberAId, tenantId));
+            String roomEventsTopic = roomEventsTopic(tenantId, chatRoomId);
+
+            memberSession.subscribe(roomEventsTopic, mapFrameHandler(new LinkedBlockingQueue<>()));
+
+            assertSubscriptionCountRemains(roomEventsTopic, 0);
+        } finally {
+            disconnect(memberSession);
+            memberClient.close();
+        }
+    }
+
     private void awaitSubscriptionCount(String destination, int expectedCount) {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (System.nanoTime() < deadline) {
@@ -341,6 +464,20 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
     private long subscriptionCount(String destination) {
         return simpUserRegistry.findSubscriptions(subscription -> destination.equals(subscription.getDestination()))
                 .size();
+    }
+
+    private void assertSubscriptionCountRemains(String destination, int expectedCount) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (System.nanoTime() < deadline) {
+            assertThat(subscriptionCount(destination))
+                    .as("STOMP subscription count for %s", destination)
+                    .isLessThanOrEqualTo(expectedCount);
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(25));
+        }
+
+        assertThat(subscriptionCount(destination))
+                .as("STOMP subscription count for %s", destination)
+                .isEqualTo(expectedCount);
     }
 
     private StompTestClient stompClient() {
@@ -498,6 +635,39 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
         return matcher.group(1);
     }
 
+    private HttpResponse<String> authenticatedGet(String path, String accessToken) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .GET()
+                .build();
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> authenticatedPost(String path, String body, String accessToken) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private void insertActiveTenantWithUser(UUID tenantId, UUID userId, String name) throws Exception {
+        OffsetDateTime now = OffsetDateTime.parse("2026-04-08T00:00:00Z");
+
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                insertActiveTenant(connection, tenantId, now);
+                insertActiveUser(connection, tenantId, userId, name, now);
+                connection.commit();
+            } catch (Exception e) {
+                connection.rollback();
+                throw e;
+            }
+        }
+    }
+
     private void insertActiveTenantUser(UUID tenantId, UUID userId, String name) throws Exception {
         OffsetDateTime now = OffsetDateTime.parse("2026-04-08T00:00:00Z");
 
@@ -636,6 +806,32 @@ class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
             statement.setObject(6, joinedAt);
             statement.setObject(7, joinedAt);
             statement.executeUpdate();
+        }
+    }
+
+    private void updateRoomStatus(UUID tenantId, UUID chatRoomId, String status) throws Exception {
+        OffsetDateTime now = OffsetDateTime.parse("2026-04-08T00:05:00Z");
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     UPDATE chat_room
+                     SET status = ?,
+                         scheduled_deletion_at = CASE
+                             WHEN ? = 'PENDING_DELETION' THEN ?
+                             ELSE scheduled_deletion_at
+                         END,
+                         updated_at = ?
+                     WHERE tenant_id = ?
+                       AND id = ?
+                     """)) {
+            statement.setString(1, status);
+            statement.setString(2, status);
+            statement.setObject(3, now.plusDays(30));
+            statement.setObject(4, now);
+            statement.setObject(5, tenantId);
+            statement.setObject(6, chatRoomId);
+
+            assertThat(statement.executeUpdate()).isEqualTo(1);
         }
     }
 

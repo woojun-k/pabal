@@ -51,6 +51,7 @@ Pabal Messenger는 `pabal-app`이 모든 모듈을 조립해 단일 애플리케
 | `pabal-security` | Security | `security.authentication`, `security.context`, `security.token`, `security.config` | JWT decoder/converter, `PabalPrincipal`, refresh token lifecycle, HTTP security |
 | `pabal-authorization` | Authorization | `authorization` | authority normalization/matching, RBAC permission lookup/cache |
 | `pabal-infra-redis` | Shared Infrastructure | Gradle dependency boundary | Redis starter dependency for authorization cache and future module cache layers |
+| `pabal-persistence-support` | Shared Infrastructure Support | `persistence.entity.base`, `persistence.jpa` | JPA entity base와 UUID v7 Hibernate generator |
 | `pabal-tenant-domain` | Domain | `domain.model`, `domain.exception` | tenant aggregate, name/status invariant |
 | `pabal-tenant-contract` | Contract | `contract.persistence` | tenant persistence 경계 shape |
 | `pabal-tenant-application` | Application | `command.handler`, `query.handler`, `service` | tenant 유스케이스, `TenantContract` 구현 |

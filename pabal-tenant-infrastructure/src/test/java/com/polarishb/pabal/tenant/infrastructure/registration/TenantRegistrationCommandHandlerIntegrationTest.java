@@ -42,6 +42,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         VerifyTenantDomainCommandHandler.class,
         ExpireTenantRegistrationsCommandHandler.class,
         PollTenantDomainVerificationsCommandHandler.class,
+        TenantDomainVerificationPollScheduler.class,
+        TenantRegistrationExpirationScheduler.class,
         TenantRegistrationCommandHandlerIntegrationTest.TestPorts.class
 })
 class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPostgresDataJpaTest {
@@ -67,6 +69,12 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
 
     @Autowired
     private PollTenantDomainVerificationsCommandHandler pollHandler;
+
+    @Autowired
+    private TenantDomainVerificationPollScheduler verificationPollScheduler;
+
+    @Autowired
+    private TenantRegistrationExpirationScheduler expirationScheduler;
 
     @Autowired
     private TenantRegistrationRepository tenantRegistrationRepository;
@@ -353,6 +361,56 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         assertThat(expiredCount).isEqualTo(1);
         assertThat(expired.state().status()).isEqualTo(TenantRegistrationStatus.EXPIRED);
         assertThat(open.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
+    }
+
+    @Test
+    void schedulers_drive_registration_domain_verification_and_pending_expiration_lifecycle() {
+        Instant requestedAt = Instant.parse("2026-06-19T00:00:00Z");
+        clockPort.setNow(requestedAt);
+        tokenGeneratorPort.enqueue(TOKEN_ONE);
+        TenantRegistrationResult requested = requestHandler.handle(
+                new RequestTenantRegistrationCommand("Acme", "scheduler-verify.example.com")
+        );
+        flushAndClear();
+
+        dnsTxtLookupPort.setRecords(
+                requested.verificationDnsName(),
+                Set.of(requested.verificationTxtValue())
+        );
+        clockPort.setNow(requestedAt.plus(Duration.ofMinutes(1)));
+
+        verificationPollScheduler.pollPendingVerifications();
+
+        flushAndClear();
+        PersistedTenantRegistration activated = tenantRegistrationRepository.findById(
+                requested.registrationId()
+        ).orElseThrow();
+        assertThat(activated.state().status()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
+        assertThat(activated.state().tenantId()).isNotNull();
+        assertThat(tenantRepository.existsActiveById(activated.state().tenantId())).isTrue();
+
+        Instant sweepAt = requestedAt.plus(Duration.ofDays(10));
+        PersistedTenantRegistration expiredCandidate = savePendingRegistration(
+                "Expired",
+                "scheduler-expired.example.com",
+                TOKEN_TWO,
+                requestedAt,
+                requestedAt.plus(VERIFICATION_TTL)
+        );
+        flushAndClear();
+        clockPort.setNow(sweepAt);
+
+        expirationScheduler.expirePendingRegistrations();
+
+        flushAndClear();
+        PersistedTenantRegistration expired = tenantRegistrationRepository.findById(
+                expiredCandidate.state().id()
+        ).orElseThrow();
+        PersistedTenantRegistration stillActivated = tenantRegistrationRepository.findById(
+                requested.registrationId()
+        ).orElseThrow();
+        assertThat(expired.state().status()).isEqualTo(TenantRegistrationStatus.EXPIRED);
+        assertThat(stillActivated.state().status()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
     }
 
     private PersistedTenantRegistration savePendingRegistration(

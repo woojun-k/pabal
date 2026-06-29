@@ -1,9 +1,9 @@
 package com.polarishb.pabal.security.token;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import javax.sql.DataSource;
 import java.sql.Timestamp;
@@ -105,11 +105,11 @@ public class JdbcRefreshTokenStore implements RefreshTokenStore {
               AND token.revoked_at IS NULL
             """;
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final JdbcClient jdbcClient;
 
-    public JdbcRefreshTokenStore(DataSource dataSource, ObjectMapper objectMapper) {
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+    public JdbcRefreshTokenStore(DataSource dataSource, JsonMapper jsonMapper) {
+        this.jsonMapper = Objects.requireNonNull(jsonMapper, "jsonMapper must not be null");
         this.jdbcClient = JdbcClient.create(dataSource);
     }
 
@@ -189,16 +189,16 @@ public class JdbcRefreshTokenStore implements RefreshTokenStore {
 
     private String writeClaims(JwtAuthorityClaims claims) {
         try {
-            return objectMapper.writeValueAsString(claims);
-        } catch (JsonProcessingException ex) {
+            return jsonMapper.writeValueAsString(claims);
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Failed to serialize refresh token authority claims", ex);
         }
     }
 
     private JwtAuthorityClaims readClaims(String value) {
         try {
-            return objectMapper.readValue(value, JwtAuthorityClaims.class);
-        } catch (JsonProcessingException ex) {
+            return jsonMapper.readValue(value, JwtAuthorityClaims.class);
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Failed to deserialize refresh token authority claims", ex);
         }
     }

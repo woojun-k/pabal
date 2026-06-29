@@ -50,9 +50,11 @@ public class JoinRoomCommandHandler implements CommandHandler<JoinRoomCommand, V
             } else {
                 ChatRoomMember member =  existMember.get().member();
 
-                member.rejoin(now, baselineSequence);
+                ChatRoomMember rejoinedMember = member.rejoin(now, baselineSequence);
 
-                persistedMember = chatRoomMemberRepository.update(existMember.get());
+                persistedMember = chatRoomMemberRepository.update(
+                        existMember.get().withMember(rejoinedMember)
+                );
             }
         } else {
             ChatRoomMember member = ChatRoomMember.create(

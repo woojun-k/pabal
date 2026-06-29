@@ -46,17 +46,19 @@ public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, V
         boolean readCursorAdvanced = chatRoomMember.wouldAdvanceLastReadCursorTo(lastReadSequence);
 
         Instant readAt = clockPort.now();
-        boolean lastReadUpdated = chatRoomMember.updateLastRead(
+        ChatRoomMember updatedChatRoomMember = chatRoomMember.updateLastRead(
                 command.lastReadMessageId(),
                 lastReadSequence,
                 readAt
         );
 
-        if (!lastReadUpdated) {
+        if (updatedChatRoomMember == chatRoomMember) {
             return null;
         }
 
-        PersistedChatRoomMember updatedMember = chatRoomMemberRepository.update(member);
+        PersistedChatRoomMember updatedMember = chatRoomMemberRepository.update(
+                member.withMember(updatedChatRoomMember)
+        );
 
         if (!readCursorAdvanced) {
             return null;
