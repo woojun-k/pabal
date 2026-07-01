@@ -7,7 +7,7 @@ import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
 import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.Message;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class SendMessageCommandHandler implements CommandHandler<SendMessageComm
         );
 
         // 중복 확인
-        Optional<PersistedMessage> duplicate = messageSendSupport.findDuplicate(command);
+        Optional<MessageState> duplicate = messageSendSupport.findDuplicate(command);
         if (duplicate.isPresent()) {
             return messageSendSupport.toDuplicateResult(duplicate.get());
         }
@@ -51,7 +51,7 @@ public class SendMessageCommandHandler implements CommandHandler<SendMessageComm
         );
 
         try {
-            PersistedMessage saved = messageSendSupport.send(access.room(), message);
+            MessageState saved = messageSendSupport.send(access.room(), message);
             return messageSendSupport.toSentResult(saved);
         } catch (DuplicateMessageException e) {
             return messageSendSupport.toDuplicateResult(messageSendSupport.loadDuplicate(command));

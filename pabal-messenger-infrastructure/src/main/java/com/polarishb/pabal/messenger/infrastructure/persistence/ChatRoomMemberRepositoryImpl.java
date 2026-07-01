@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence;
 
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberRepository;
@@ -35,6 +36,7 @@ public class ChatRoomMemberRepositoryImpl implements ChatRoomMemberRepository {
 
     @Override
     public Optional<PersistedChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
-        return readRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId);
+        return readRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId)
+                .map(ChatRoomMemberPersistenceMapper::toPersisted);
     }
 }

@@ -3,6 +3,7 @@ package com.polarishb.pabal.workspace.infrastructure.persistence;
 import com.polarishb.pabal.workspace.application.port.out.persistence.WorkspaceRepository;
 import com.polarishb.pabal.workspace.contract.persistence.PersistedWorkspace;
 import com.polarishb.pabal.workspace.contract.persistence.WorkspacePersistenceMapper;
+import com.polarishb.pabal.workspace.contract.persistence.WorkspaceState;
 import com.polarishb.pabal.workspace.domain.model.type.WorkspaceStatus;
 import com.polarishb.pabal.workspace.infrastructure.persistence.jpa.WorkspaceJpaRepository;
 import com.polarishb.pabal.workspace.infrastructure.persistence.jpa.entity.WorkspaceEntity;
@@ -29,6 +30,12 @@ public class WorkspaceRepositoryImpl implements WorkspaceRepository {
         return jpaRepository.findByTenantIdAndId(tenantId, workspaceId)
                 .map(WorkspaceEntity::toState)
                 .map(WorkspacePersistenceMapper::toPersisted);
+    }
+
+    @Override
+    public Optional<WorkspaceState> findStateByTenantIdAndId(UUID tenantId, UUID workspaceId) {
+        return jpaRepository.findByTenantIdAndId(tenantId, workspaceId)
+                .map(WorkspaceEntity::toState);
     }
 
     @Override

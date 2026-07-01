@@ -1,7 +1,6 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.read;
 
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberPersistenceMapper;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.ChatRoomMemberEntity;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.read.ChatRoomMemberReadJpaRepository;
@@ -19,17 +18,15 @@ public class ChatRoomMemberReadRepositoryImpl implements ChatRoomMemberReadRepos
     private final ChatRoomMemberReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<PersistedChatRoomMember> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
+    public Optional<ChatRoomMemberState> findByTenantIdAndChatRoomIdAndUserId(UUID tenantId, UUID chatRoomId, UUID userId) {
         return jpaRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId)
-                .map(ChatRoomMemberEntity::toState)
-                .map(ChatRoomMemberPersistenceMapper::toPersisted);
+                .map(ChatRoomMemberEntity::toState);
     }
 
     @Override
-    public List<PersistedChatRoomMember> findAllActiveByTenantIdAndUserId(UUID tenantId, UUID userId) {
+    public List<ChatRoomMemberState> findAllActiveByTenantIdAndUserId(UUID tenantId, UUID userId) {
         return jpaRepository.findAllByTenantIdAndUserIdAndLeftAtIsNull(tenantId, userId).stream()
                 .map(ChatRoomMemberEntity::toState)
-                .map(ChatRoomMemberPersistenceMapper::toPersisted)
                 .toList();
     }
 }

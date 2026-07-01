@@ -44,6 +44,12 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<UserState> findStateByTenantIdAndId(UUID tenantId, UUID id) {
+        return jpaRepository.findByTenantIdAndId(tenantId, id)
+                .map(TenantUserEntity::toState);
+    }
+
+    @Override
     public boolean existsActiveByTenantIdAndId(UUID tenantId, UUID id) {
         return jpaRepository.existsByTenantIdAndIdAndStatus(tenantId, id, UserStatus.ACTIVE);
     }

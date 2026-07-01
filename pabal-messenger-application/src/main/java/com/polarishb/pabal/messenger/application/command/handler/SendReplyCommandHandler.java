@@ -7,7 +7,7 @@ import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
 import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.Message;
 import lombok.RequiredArgsConstructor;
@@ -35,19 +35,19 @@ public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand,
         );
 
         // 답글 로드
-        PersistedMessage replyTarget = messageSendSupport.loadReplyTarget(
+        MessageState replyTarget = messageSendSupport.loadReplyTarget(
                 command.tenantId(),
                 command.replyToMessageId()
         );
 
         // 답글 검증
         messageSendSupport.validateReplyTarget(
-                replyTarget.message(),
+                replyTarget,
                 command.chatRoomId()
         );
 
         // 중복 검증
-        Optional<PersistedMessage> duplicate = messageSendSupport.findDuplicate(command);
+        Optional<MessageState> duplicate = messageSendSupport.findDuplicate(command);
         if (duplicate.isPresent()) {
             return messageSendSupport.toDuplicateResult(duplicate.get());
         }
@@ -64,7 +64,7 @@ public class SendReplyCommandHandler implements CommandHandler<SendReplyCommand,
         );
 
         try {
-            PersistedMessage saved = messageSendSupport.send(access.room(), message);
+            MessageState saved = messageSendSupport.send(access.room(), message);
             return messageSendSupport.toSentResult(saved);
         } catch (DuplicateMessageException e) {
             return messageSendSupport.toDuplicateResult(messageSendSupport.loadDuplicate(command));

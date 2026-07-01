@@ -23,6 +23,13 @@ class MessageContentTest {
     }
 
     @Test
+    void constructor_counts_surrounding_whitespace_toward_maximum_length() {
+        assertThatCode(() -> new MessageContent(" " + "a".repeat(4999))).doesNotThrowAnyException();
+        assertThatThrownBy(() -> new MessageContent(" " + "a".repeat(5000)))
+                .isInstanceOf(InvalidInputException.class);
+    }
+
+    @Test
     void deletedTombstone_returns_non_blank_tombstone_content() {
         MessageContent content = MessageContent.deletedTombstone();
 

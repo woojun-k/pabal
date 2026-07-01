@@ -9,10 +9,7 @@ import com.polarishb.pabal.messenger.application.query.input.ListMessagesQuery;
 import com.polarishb.pabal.messenger.application.query.input.ReadMessageQuery;
 import com.polarishb.pabal.messenger.application.query.output.MessageDto;
 import com.polarishb.pabal.messenger.application.query.output.MessagePageDto;
-import com.polarishb.pabal.messenger.domain.model.snapshot.MessageSnapshot;
 import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
-import com.polarishb.pabal.messenger.domain.model.type.MessageType;
-import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -150,21 +147,19 @@ class ChatQueryControllerTest {
             long sequence,
             Instant createdAt
     ) {
-        return new MessageDto(new MessageSnapshot(
+        return new MessageDto(
                 messageId,
-                tenantId,
                 chatRoomId,
                 senderId,
                 clientMessageId,
                 sequence,
-                MessageType.USER,
-                new MessageContent("hello"),
-                MessageStatus.ACTIVE,
+                "hello",
+                MessageStatus.ACTIVE.name(),
                 null,
                 createdAt,
                 createdAt,
                 null
-        ));
+        );
     }
 
     private Authentication authentication(UUID tenantId, UUID userId) {

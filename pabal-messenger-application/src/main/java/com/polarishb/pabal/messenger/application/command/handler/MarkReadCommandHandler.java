@@ -7,12 +7,12 @@ import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
 import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.domain.event.MessageReadEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageNotFoundException;
 import com.polarishb.pabal.messenger.domain.model.ChatRoomMember;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberRepository;
-import com.polarishb.pabal.messenger.application.port.out.persistence.MessageRepository;
+import com.polarishb.pabal.messenger.application.port.out.persistence.MessageReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +24,7 @@ import java.time.Instant;
 public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, Void> {
 
     private final ChatRoomMemberRepository chatRoomMemberRepository;
-    private final MessageRepository messageRepository;
+    private final MessageReadRepository messageReadRepository;
     private final ChatRoomAccessSupport chatRoomAccessSupport;
     private final DomainEventPublisher eventPublisher;
     private final ClockPort clockPort;
@@ -39,10 +39,10 @@ public class MarkReadCommandHandler implements CommandHandler<MarkReadCommand, V
         PersistedChatRoomMember member = access.member();
         ChatRoomMember chatRoomMember = member.member();
 
-        PersistedMessage lastReadMessage = messageRepository.findByTenantIdAndChatRoomIdAndId(command.tenantId(), command.chatRoomId(), command.lastReadMessageId())
+        MessageState lastReadMessage = messageReadRepository.findByTenantIdAndChatRoomIdAndId(command.tenantId(), command.chatRoomId(), command.lastReadMessageId())
                 .orElseThrow(() -> new MessageNotFoundException(command.lastReadMessageId()));
 
-        long lastReadSequence = lastReadMessage.state().sequence();
+        long lastReadSequence = lastReadMessage.sequence();
         boolean readCursorAdvanced = chatRoomMember.wouldAdvanceLastReadCursorTo(lastReadSequence);
 
         Instant readAt = clockPort.now();

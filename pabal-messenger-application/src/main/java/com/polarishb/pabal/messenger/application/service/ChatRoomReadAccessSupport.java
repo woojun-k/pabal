@@ -1,10 +1,14 @@
 package com.polarishb.pabal.messenger.application.service;
 
 import com.polarishb.pabal.messenger.application.service.context.ChatRoomReadAccess;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
+import com.polarishb.pabal.messenger.domain.exception.MemberNotActiveException;
 import com.polarishb.pabal.messenger.domain.exception.MemberNotInRoomException;
+import com.polarishb.pabal.messenger.domain.exception.RoomOperationNotAllowedException;
+import com.polarishb.pabal.messenger.domain.model.type.RoomAccessOperation;
+import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomReadRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,18 +30,22 @@ public class ChatRoomReadAccessSupport {
             UUID chatRoomId,
             UUID userId
     ) {
-        PersistedChatRoom room = chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId)
+        ChatRoomState room = chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId)
                 .orElseThrow(() -> new ChatRoomNotFoundException(chatRoomId));
 
-        room.chatRoom().validateCanRead();
+        if (room.status() != RoomStatus.ACTIVE) {
+            throw new RoomOperationNotAllowedException(room.id(), room.status(), RoomAccessOperation.READ);
+        }
 
-        PersistedChatRoomMember member = chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(
+        ChatRoomMemberState member = chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(
                 tenantId,
                 chatRoomId,
                 userId
         ).orElseThrow(() -> new MemberNotInRoomException(userId));
 
-        member.member().validateActive();
+        if (member.leftAt() != null) {
+            throw new MemberNotActiveException(userId);
+        }
 
         return new ChatRoomReadAccess(room, member);
     }

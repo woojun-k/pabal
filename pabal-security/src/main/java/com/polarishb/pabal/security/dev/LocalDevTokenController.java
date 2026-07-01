@@ -1,6 +1,7 @@
 package com.polarishb.pabal.security.dev;
 
 import com.polarishb.pabal.security.config.JwtSecurityProperties;
+import com.polarishb.pabal.security.time.ClockPort;
 import com.polarishb.pabal.security.token.JwtAuthorityClaims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class LocalDevTokenController {
     private final JwtSecurityProperties jwtProperties;
     private final JwtEncoder jwtEncoder;
+    private final ClockPort clockPort;
 
     @GetMapping("/dev/token")
     public Map<String, String> token(
@@ -34,7 +36,7 @@ public class LocalDevTokenController {
             @RequestParam(required = false, name = "permission") List<String> permissions
     ) {
         JwtAuthorityClaims authorityClaims = JwtAuthorityClaims.of(scopes, roles, permissions);
-        Instant now = Instant.now();
+        Instant now = clockPort.now();
         Instant expiresAt = now.plus(jwtProperties.accessTokenMaxTtl());
         JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
                 .issuer(jwtProperties.issuerUri())

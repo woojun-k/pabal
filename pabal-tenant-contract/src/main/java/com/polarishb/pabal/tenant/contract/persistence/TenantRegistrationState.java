@@ -10,24 +10,44 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record TenantRegistrationState(
-        TenantRegistrationSnapshot snapshot,
+        UUID id,
+        String tenantName,
+        String domainName,
+        String verificationToken,
+        TenantRegistrationStatus status,
+        Instant expiresAt,
+        Instant verifiedAt,
+        Instant activatedAt,
+        UUID tenantId,
+        Instant createdAt,
+        Instant updatedAt,
         Long version
 ) {
+    private static final String VERIFICATION_DNS_PREFIX = "_pabal-verification.";
+    private static final String VERIFICATION_TXT_PREFIX = "pabal-verification=";
+
     public TenantRegistrationState(
-            UUID id,
-            String tenantName,
-            String domainName,
-            String verificationToken,
-            TenantRegistrationStatus status,
-            Instant expiresAt,
-            Instant verifiedAt,
-            Instant activatedAt,
-            UUID tenantId,
-            Instant createdAt,
-            Instant updatedAt,
+            TenantRegistrationSnapshot snapshot,
             Long version
     ) {
-        this(new TenantRegistrationSnapshot(
+        this(
+                snapshot.id(),
+                snapshot.tenantName().value(),
+                snapshot.domainName().value(),
+                snapshot.verificationToken().value(),
+                snapshot.status(),
+                snapshot.expiresAt(),
+                snapshot.verifiedAt(),
+                snapshot.activatedAt(),
+                snapshot.tenantId(),
+                snapshot.createdAt(),
+                snapshot.updatedAt(),
+                version
+        );
+    }
+
+    public TenantRegistrationSnapshot snapshot() {
+        return new TenantRegistrationSnapshot(
                 id,
                 new TenantName(tenantName),
                 new TenantDomainName(domainName),
@@ -39,50 +59,14 @@ public record TenantRegistrationState(
                 tenantId,
                 createdAt,
                 updatedAt
-        ), version);
+        );
     }
 
-    public UUID id() {
-        return snapshot.id();
+    public String verificationDnsName() {
+        return VERIFICATION_DNS_PREFIX + domainName;
     }
 
-    public String tenantName() {
-        return snapshot.tenantName().value();
-    }
-
-    public String domainName() {
-        return snapshot.domainName().value();
-    }
-
-    public String verificationToken() {
-        return snapshot.verificationToken().value();
-    }
-
-    public TenantRegistrationStatus status() {
-        return snapshot.status();
-    }
-
-    public Instant expiresAt() {
-        return snapshot.expiresAt();
-    }
-
-    public Instant verifiedAt() {
-        return snapshot.verifiedAt();
-    }
-
-    public Instant activatedAt() {
-        return snapshot.activatedAt();
-    }
-
-    public UUID tenantId() {
-        return snapshot.tenantId();
-    }
-
-    public Instant createdAt() {
-        return snapshot.createdAt();
-    }
-
-    public Instant updatedAt() {
-        return snapshot.updatedAt();
+    public String verificationTxtValue() {
+        return VERIFICATION_TXT_PREFIX + verificationToken;
     }
 }

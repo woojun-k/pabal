@@ -1,7 +1,6 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.read;
 
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomPersistenceMapper;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
 import com.polarishb.pabal.messenger.domain.model.vo.RoomName;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomReadRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.ChatRoomEntity;
@@ -21,28 +20,25 @@ public class ChatRoomReadRepositoryImpl implements ChatRoomReadRepository {
     private final ChatRoomReadJpaRepository jpaRepository;
 
     @Override
-    public Optional<PersistedChatRoom> findByTenantIdAndId(UUID tenantId, UUID id) {
+    public Optional<ChatRoomState> findByTenantIdAndId(UUID tenantId, UUID id) {
         return jpaRepository.findByTenantIdAndId(tenantId, id)
-                .map(ChatRoomEntity::toState)
-                .map(ChatRoomPersistenceMapper::toPersisted);
+                .map(ChatRoomEntity::toState);
     }
 
     @Override
-    public List<PersistedChatRoom> findAllByTenantIdAndIds(UUID tenantId, Collection<UUID> ids) {
+    public List<ChatRoomState> findAllByTenantIdAndIds(UUID tenantId, Collection<UUID> ids) {
         return jpaRepository.findAllByTenantIdAndIdIn(tenantId, ids).stream()
                 .map(ChatRoomEntity::toState)
-                .map(ChatRoomPersistenceMapper::toPersisted)
                 .toList();
     }
 
     @Override
-    public Optional<PersistedChatRoom> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name) {
+    public Optional<ChatRoomState> findByTenantIdAndWorkspaceIdAndName(UUID tenantId, UUID workspaceId, RoomName name) {
         return jpaRepository.findActiveChannelByTenantIdAndWorkspaceIdAndNameIgnoreCase(
                         tenantId,
                         workspaceId,
                         name.valueOrNull()
                 )
-                .map(ChatRoomEntity::toState)
-                .map(ChatRoomPersistenceMapper::toPersisted);
+                .map(ChatRoomEntity::toState);
     }
 }

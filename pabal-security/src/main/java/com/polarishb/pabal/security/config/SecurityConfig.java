@@ -1,6 +1,7 @@
 package com.polarishb.pabal.security.config;
 
 import com.polarishb.pabal.security.authentication.PabalJwtAuthenticationConverter;
+import com.polarishb.pabal.security.context.CurrentAuthenticationScopeFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +10,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.Arrays;
@@ -27,6 +29,7 @@ public class SecurityConfig {
 
     private final WebsocketEndpointProperties websocketEndpointProperties;
     private final PabalJwtAuthenticationConverter jwtAuthenticationConverter;
+    private final CurrentAuthenticationScopeFilter currentAuthenticationScopeFilter;
     private final Environment environment;
 
     @Bean
@@ -59,6 +62,7 @@ public class SecurityConfig {
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter)
                         )
                 )
+                .addFilterAfter(currentAuthenticationScopeFilter, BearerTokenAuthenticationFilter.class)
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(form -> form.disable())
                 .csrf(csrf -> csrf.disable());

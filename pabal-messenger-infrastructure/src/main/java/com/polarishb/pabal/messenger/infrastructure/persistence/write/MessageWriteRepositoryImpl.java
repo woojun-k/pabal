@@ -29,11 +29,11 @@ public class MessageWriteRepositoryImpl implements MessageWriteRepository {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public PersistedMessage append(PersistedMessage persistedMessage) {
+    public MessageState append(PersistedMessage persistedMessage) {
         MessageState state = persistedMessage.state();
         try {
             MessageEntity saved = jpaRepository.saveAndFlush(MessageEntity.fromNewState(state));
-            return MessagePersistenceMapper.toPersisted(saved.toState());
+            return saved.toState();
         } catch (DataIntegrityViolationException e) {
             throw translateAppendViolation(state, e);
         }
@@ -41,7 +41,7 @@ public class MessageWriteRepositoryImpl implements MessageWriteRepository {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public PersistedMessage update(PersistedMessage persistedMessage) {
+    public MessageState update(PersistedMessage persistedMessage) {
         MessageState currentState = persistedMessage.state();
         Message message = persistedMessage.message();
 
@@ -64,7 +64,7 @@ public class MessageWriteRepositoryImpl implements MessageWriteRepository {
 
         entity.apply(nextState);
 
-        return MessagePersistenceMapper.toPersisted(entity.toState());
+        return entity.toState();
     }
 
     private RuntimeException translateAppendViolation(MessageState state, DataIntegrityViolationException cause) {

@@ -9,14 +9,20 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SecurityContextCurrentAuthenticationProviderTest {
 
+    private final CurrentAuthenticationScope currentAuthenticationScope = new CurrentAuthenticationScope();
+    private final CurrentAuthenticationResolver currentAuthenticationResolver = new CurrentAuthenticationResolver();
     private final SecurityContextCurrentAuthenticationProvider provider =
-            new SecurityContextCurrentAuthenticationProvider();
+            new SecurityContextCurrentAuthenticationProvider(
+                    currentAuthenticationScope,
+                    currentAuthenticationResolver
+            );
 
     @AfterEach
     void tearDown() {
@@ -41,6 +47,39 @@ class SecurityContextCurrentAuthenticationProviderTest {
         assertThat(currentAuthentication.orElseThrow().principal()).isEqualTo(principal);
         assertThat(currentAuthentication.orElseThrow().authorities())
                 .containsExactly("SCOPE_messenger:channel:create");
+    }
+
+    @Test
+    void currentAuthentication_prefers_scoped_authentication() {
+        UUID scopedTenantId = UUID.randomUUID();
+        UUID scopedUserId = UUID.randomUUID();
+        PabalPrincipal scopedPrincipal = new PabalPrincipal(
+                scopedUserId,
+                scopedTenantId,
+                scopedUserId.toString()
+        );
+        CurrentAuthentication scopedAuthentication = new CurrentAuthentication(
+                scopedPrincipal,
+                Set.of("SCOPE_scoped")
+        );
+
+        PabalPrincipal threadLocalPrincipal = new PabalPrincipal(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "thread-local"
+        );
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                threadLocalPrincipal,
+                "",
+                List.of(new SimpleGrantedAuthority("SCOPE_thread_local"))
+        ));
+
+        currentAuthenticationScope.run(scopedAuthentication, () -> {
+            Optional<CurrentAuthentication> currentAuthentication = provider.currentAuthentication();
+
+            assertThat(currentAuthentication).isPresent();
+            assertThat(currentAuthentication.orElseThrow()).isEqualTo(scopedAuthentication);
+        });
     }
 
     @Test

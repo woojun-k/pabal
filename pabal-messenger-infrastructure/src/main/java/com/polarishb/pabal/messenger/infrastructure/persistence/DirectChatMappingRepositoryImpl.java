@@ -1,5 +1,6 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence;
 
+import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
 import com.polarishb.pabal.messenger.application.port.out.persistence.DirectChatMappingReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.DirectChatMappingRepository;
@@ -34,6 +35,7 @@ public class DirectChatMappingRepositoryImpl implements DirectChatMappingReposit
 
     @Override
     public Optional<PersistedDirectChatMapping> findByTenantIdAndUserIds(UUID tenantId, UUID userId1, UUID userId2) {
-        return readRepository.findByTenantIdAndUserIds(tenantId, userId1, userId2);
+        return readRepository.findByTenantIdAndUserIds(tenantId, userId1, userId2)
+                .map(DirectChatMappingPersistenceMapper::toPersisted);
     }
 }

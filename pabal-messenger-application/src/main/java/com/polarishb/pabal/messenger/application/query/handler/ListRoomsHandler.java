@@ -3,8 +3,8 @@ package com.polarishb.pabal.messenger.application.query.handler;
 import com.polarishb.pabal.common.cqrs.QueryHandler;
 import com.polarishb.pabal.messenger.application.query.input.ListRoomsQuery;
 import com.polarishb.pabal.messenger.application.query.output.RoomDto;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
+import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import com.polarishb.pabal.messenger.domain.exception.ChatRoomNotFoundException;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomReadRepository;
@@ -31,7 +31,7 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
     @Override
     @Transactional(readOnly = true)
     public List<RoomDto> handle(ListRoomsQuery query) {
-        List<PersistedChatRoomMember> memberships = chatRoomMemberReadRepository.findAllActiveByTenantIdAndUserId(
+        List<ChatRoomMemberState> memberships = chatRoomMemberReadRepository.findAllActiveByTenantIdAndUserId(
                 query.tenantId(),
                 query.userId()
         );
@@ -41,25 +41,25 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
         }
 
         List<UUID> roomIds = memberships.stream()
-                .map(member -> member.state().chatRoomId())
+                .map(ChatRoomMemberState::chatRoomId)
                 .distinct()
                 .toList();
 
-        Map<UUID, PersistedChatRoom> roomsById = chatRoomReadRepository.findAllByTenantIdAndIds(
+        Map<UUID, ChatRoomState> roomsById = chatRoomReadRepository.findAllByTenantIdAndIds(
                 query.tenantId(),
                 roomIds
         ).stream().collect(
                 Collectors.toMap(
-                        persistedRoom -> persistedRoom.state().id(),
+                        ChatRoomState::id,
                         Function.identity()
                 )
         );
 
         Map<UUID, Long> lastReadSequenceByRoomId = memberships.stream()
                 .collect(Collectors.toMap(
-                        member -> member.state().chatRoomId(),
-                        member -> member.member().getLastReadSequence() != null
-                                ? member.member().getLastReadSequence()
+                        ChatRoomMemberState::chatRoomId,
+                        member -> member.lastReadSequence() != null
+                                ? member.lastReadSequence()
                                 : 0L,
                         Math::max
                 ));
@@ -80,13 +80,13 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
     }
 
     private RoomDto toRoomDto(
-            PersistedChatRoomMember member,
-            Map<UUID, PersistedChatRoom> roomsById,
+            ChatRoomMemberState member,
+            Map<UUID, ChatRoomState> roomsById,
             Map<UUID, Long> unreadCountsByRoomId
     ) {
-        UUID chatRoomId = member.state().chatRoomId();
+        UUID chatRoomId = member.chatRoomId();
 
-        PersistedChatRoom room = roomsById.get(chatRoomId);
+        ChatRoomState room = roomsById.get(chatRoomId);
         if (room == null) {
             throw new ChatRoomNotFoundException(chatRoomId);
         }
@@ -94,14 +94,14 @@ public class ListRoomsHandler implements QueryHandler<ListRoomsQuery, List<RoomD
         long unreadCount = unreadCountsByRoomId.getOrDefault(chatRoomId, 0L);
 
         return new RoomDto(
-                room.state().id(),
-                room.state().name(),
-                room.state().type().name(),
-                room.state().status().name(),
-                room.state().lastMessageId(),
-                room.state().lastMessageAt(),
+                room.id(),
+                room.name(),
+                room.type().name(),
+                room.status().name(),
+                room.lastMessageId(),
+                room.lastMessageAt(),
                 unreadCount,
-                member.state().joinedAt()
+                member.joinedAt()
         );
     }
 }

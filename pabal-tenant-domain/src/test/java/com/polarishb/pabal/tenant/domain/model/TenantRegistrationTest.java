@@ -1,7 +1,11 @@
 package com.polarishb.pabal.tenant.domain.model;
 
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationExpiredException;
+import com.polarishb.pabal.tenant.domain.model.snapshot.TenantRegistrationSnapshot;
 import com.polarishb.pabal.tenant.domain.model.type.TenantRegistrationStatus;
+import com.polarishb.pabal.tenant.domain.model.vo.TenantDomainName;
+import com.polarishb.pabal.tenant.domain.model.vo.TenantName;
+import com.polarishb.pabal.tenant.domain.model.vo.TenantVerificationToken;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -110,5 +114,34 @@ class TenantRegistrationTest {
         assertThat(renewed.verificationTxtValue()).isEqualTo("pabal-verification=" + renewedToken);
         assertThat(renewed.getExpiresAt()).isEqualTo(now.plusSeconds(600));
         assertThat(renewed.getUpdatedAt()).isEqualTo(now.plusSeconds(10));
+    }
+
+    @Test
+    void snapshot_requires_createdAt_and_updatedAt_for_persistence_reconstitution() {
+        Instant now = Instant.parse("2026-06-19T00:00:00Z");
+
+        assertThatThrownBy(() -> snapshot(null, now))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("createdAt must not be null");
+        assertThatThrownBy(() -> snapshot(now, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("updatedAt must not be null");
+    }
+
+    private TenantRegistrationSnapshot snapshot(Instant createdAt, Instant updatedAt) {
+        Instant now = Instant.parse("2026-06-19T00:00:00Z");
+        return new TenantRegistrationSnapshot(
+                UUID.randomUUID(),
+                new TenantName("Acme"),
+                new TenantDomainName("example.com"),
+                new TenantVerificationToken(TOKEN),
+                TenantRegistrationStatus.PENDING_VERIFICATION,
+                now.plusSeconds(60),
+                null,
+                null,
+                null,
+                createdAt,
+                updatedAt
+        );
     }
 }

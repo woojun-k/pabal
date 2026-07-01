@@ -1,7 +1,6 @@
 package com.polarishb.pabal.messenger.infrastructure.persistence.read;
 
-import com.polarishb.pabal.messenger.contract.persistence.message.MessagePersistenceMapper;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
 import com.polarishb.pabal.messenger.application.port.out.persistence.MessageReadRepository;
 import com.polarishb.pabal.messenger.infrastructure.persistence.jpa.entity.MessageEntity;
@@ -27,21 +26,19 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
     private final EntityManager entityManager;
 
     @Override
-    public Optional<PersistedMessage> findByTenantIdAndId(UUID tenantId, UUID id) {
+    public Optional<MessageState> findByTenantIdAndId(UUID tenantId, UUID id) {
         return jpaRepository.findByTenantIdAndId(tenantId, id)
-                .map(MessageEntity::toState)
-                .map(MessagePersistenceMapper::toPersisted);
+                .map(MessageEntity::toState);
     }
 
     @Override
-    public Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndId(UUID tenantId, UUID chatRoomId, UUID id) {
+    public Optional<MessageState> findByTenantIdAndChatRoomIdAndId(UUID tenantId, UUID chatRoomId, UUID id) {
         return jpaRepository.findByTenantIdAndChatRoomIdAndId(tenantId, chatRoomId, id)
-                .map(MessageEntity::toState)
-                .map(MessagePersistenceMapper::toPersisted);
+                .map(MessageEntity::toState);
     }
 
     @Override
-    public Optional<PersistedMessage> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
+    public Optional<MessageState> findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
             UUID tenantId,
             UUID chatRoomId,
             UUID senderId,
@@ -54,12 +51,11 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
                     senderId,
                     clientMessageId
                 )
-                .map(MessageEntity::toState)
-                .map(MessagePersistenceMapper::toPersisted);
+                .map(MessageEntity::toState);
     }
 
     @Override
-    public List<PersistedMessage> findByTenantIdAndChatRoomIdBeforeSequence(
+    public List<MessageState> findByTenantIdAndChatRoomIdBeforeSequence(
             UUID tenantId,
             UUID chatRoomId,
             Long cursor,
@@ -82,7 +78,6 @@ public class MessageReadRepositoryImpl implements MessageReadRepository {
 
         return messages.stream()
                 .map(MessageEntity::toState)
-                .map(MessagePersistenceMapper::toPersisted)
                 .toList();
     }
 

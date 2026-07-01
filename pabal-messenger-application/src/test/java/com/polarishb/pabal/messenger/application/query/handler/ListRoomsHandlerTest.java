@@ -3,14 +3,9 @@ package com.polarishb.pabal.messenger.application.query.handler;
 import com.polarishb.pabal.messenger.application.query.input.ListRoomsQuery;
 import com.polarishb.pabal.messenger.application.query.output.RoomDto;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
-import com.polarishb.pabal.messenger.domain.model.ChatRoom;
-import com.polarishb.pabal.messenger.domain.model.ChatRoomMember;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
-import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.MessageReadRepository;
@@ -51,11 +46,11 @@ class ListRoomsHandlerTest {
         UUID olderRoomId = UUID.randomUUID();
         Instant base = Instant.parse("2026-04-02T12:00:00Z");
 
-        PersistedChatRoomMember newerMembership = membership(tenantId, newerRoomId, userId, base);
-        PersistedChatRoomMember olderMembership = membership(tenantId, olderRoomId, userId, base.minusSeconds(60));
+        ChatRoomMemberState newerMembership = membership(tenantId, newerRoomId, userId, base);
+        ChatRoomMemberState olderMembership = membership(tenantId, olderRoomId, userId, base.minusSeconds(60));
 
-        PersistedChatRoom newerRoom = room(tenantId, newerRoomId, "newer", 11L, base.plusSeconds(30));
-        PersistedChatRoom olderRoom = room(tenantId, olderRoomId, "older", 9L, base.minusSeconds(30));
+        ChatRoomState newerRoom = room(tenantId, newerRoomId, "newer", 11L, base.plusSeconds(30));
+        ChatRoomState olderRoom = room(tenantId, olderRoomId, "older", 9L, base.minusSeconds(30));
 
         when(chatRoomMemberReadRepository.findAllActiveByTenantIdAndUserId(tenantId, userId))
                 .thenReturn(List.of(olderMembership, newerMembership));
@@ -81,8 +76,8 @@ class ListRoomsHandlerTest {
         assertThat(result.get(1).roomId()).isEqualTo(olderRoomId);
     }
 
-    private static PersistedChatRoomMember membership(UUID tenantId, UUID roomId, UUID userId, Instant joinedAt) {
-        ChatRoomMember member = ChatRoomMember.reconstitute(
+    private static ChatRoomMemberState membership(UUID tenantId, UUID roomId, UUID userId, Instant joinedAt) {
+        return new ChatRoomMemberState(
                 UUID.randomUUID(),
                 tenantId,
                 roomId,
@@ -93,33 +88,16 @@ class ListRoomsHandlerTest {
                 joinedAt,
                 null,
                 joinedAt,
-                joinedAt
-        );
-
-        return new PersistedChatRoomMember(
-                member,
-                new ChatRoomMemberState(
-                        member.getId(),
-                        tenantId,
-                        roomId,
-                        userId,
-                        null,
-                        0L,
-                        null,
-                        joinedAt,
-                        null,
-                        joinedAt,
-                        joinedAt,
-                        0L
-                )
+                joinedAt,
+                0L
         );
     }
 
-    private static PersistedChatRoom room(UUID tenantId, UUID roomId, String name, long lastMessageSequence, Instant lastMessageAt) {
-        ChatRoom chatRoom = ChatRoom.reconstitute(
+    private static ChatRoomState room(UUID tenantId, UUID roomId, String name, long lastMessageSequence, Instant lastMessageAt) {
+        return new ChatRoomState(
                 roomId,
                 RoomType.GROUP,
-                new OptionalName(name),
+                name,
                 UUID.randomUUID(),
                 tenantId,
                 null,
@@ -129,27 +107,8 @@ class ListRoomsHandlerTest {
                 lastMessageSequence,
                 lastMessageAt,
                 lastMessageAt.minusSeconds(60),
-                lastMessageAt
-        );
-
-        return new PersistedChatRoom(
-                chatRoom,
-                new ChatRoomState(
-                        roomId,
-                        RoomType.GROUP,
-                        name,
-                        chatRoom.getCreatedBy(),
-                        tenantId,
-                        null,
-                        RoomStatus.ACTIVE,
-                        null,
-                        chatRoom.getLastMessageId(),
-                        lastMessageSequence,
-                        lastMessageAt,
-                        lastMessageAt.minusSeconds(60),
-                        lastMessageAt,
-                        0L
-                )
+                lastMessageAt,
+                0L
         );
     }
 }

@@ -8,20 +8,33 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record WorkspaceState(
-        WorkspaceSnapshot snapshot,
+        UUID id,
+        UUID tenantId,
+        String name,
+        WorkspaceStatus status,
+        UUID createdBy,
+        Instant createdAt,
+        Instant updatedAt,
         Long version
 ) {
     public WorkspaceState(
-            UUID id,
-            UUID tenantId,
-            String name,
-            WorkspaceStatus status,
-            UUID createdBy,
-            Instant createdAt,
-            Instant updatedAt,
+            WorkspaceSnapshot snapshot,
             Long version
     ) {
-        this(new WorkspaceSnapshot(
+        this(
+                snapshot.id(),
+                snapshot.tenantId(),
+                snapshot.name().value(),
+                snapshot.status(),
+                snapshot.createdBy(),
+                snapshot.createdAt(),
+                snapshot.updatedAt(),
+                version
+        );
+    }
+
+    public WorkspaceSnapshot snapshot() {
+        return new WorkspaceSnapshot(
                 id,
                 tenantId,
                 new WorkspaceName(name),
@@ -29,34 +42,6 @@ public record WorkspaceState(
                 createdBy,
                 createdAt,
                 updatedAt
-        ), version);
-    }
-
-    public UUID id() {
-        return snapshot.id();
-    }
-
-    public UUID tenantId() {
-        return snapshot.tenantId();
-    }
-
-    public String name() {
-        return snapshot.name().value();
-    }
-
-    public WorkspaceStatus status() {
-        return snapshot.status();
-    }
-
-    public UUID createdBy() {
-        return snapshot.createdBy();
-    }
-
-    public Instant createdAt() {
-        return snapshot.createdAt();
-    }
-
-    public Instant updatedAt() {
-        return snapshot.updatedAt();
+        );
     }
 }

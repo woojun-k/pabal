@@ -8,6 +8,7 @@ import com.polarishb.pabal.messenger.contract.persistence.chatroommember.Persist
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.DirectChatMappingPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.directchatmapping.PersistedDirectChatMapping;
 import com.polarishb.pabal.messenger.contract.persistence.message.MessagePersistenceMapper;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.ChatRoomMember;
@@ -81,7 +82,7 @@ class MessengerRepositoryAdapterIntegrationTest extends AbstractPostgresDataJpaT
         entityManager.flush();
 
         long sequence = chatRoomSequenceRepository.allocateNextMessageSequence(tenantId, channelId);
-        PersistedMessage savedMessage = saveMessage(Message.create(
+        MessageState savedMessage = saveMessage(Message.create(
                 tenantId,
                 channelId,
                 ownerId,
@@ -92,8 +93,8 @@ class MessengerRepositoryAdapterIntegrationTest extends AbstractPostgresDataJpaT
         chatRoomSequenceRepository.updateLastMessageSnapshot(
                 tenantId,
                 channelId,
-                savedMessage.state().id(),
-                savedMessage.state().sequence(),
+                savedMessage.id(),
+                savedMessage.sequence(),
                 now
         );
 
@@ -138,16 +139,16 @@ class MessengerRepositoryAdapterIntegrationTest extends AbstractPostgresDataJpaT
         ).orElseThrow();
 
         assertThat(sequence).isEqualTo(1L);
-        assertThat(foundChannel.state().lastMessageId()).isEqualTo(savedMessage.state().id());
+        assertThat(foundChannel.state().lastMessageId()).isEqualTo(savedMessage.id());
         assertThat(foundChannel.state().lastMessageSequence()).isEqualTo(1L);
         assertThat(foundByName.state().id()).isEqualTo(channelId);
         assertThat(foundMember.state().userId()).isEqualTo(participantId);
         assertThat(chatRoomMemberReadRepository.findAllActiveByTenantIdAndUserId(tenantId, participantId))
-                .extracting(member -> member.state().chatRoomId())
+                .extracting(member -> member.chatRoomId())
                 .containsExactly(channelId);
         assertThat(foundMapping.state().id()).isEqualTo(directMapping.state().id());
-        assertThat(foundMessage.state().id()).isEqualTo(savedMessage.state().id());
-        assertThat(messageRepository.findByTenantIdAndChatRoomIdAndId(tenantId, channelId, savedMessage.state().id()))
+        assertThat(foundMessage.state().id()).isEqualTo(savedMessage.id());
+        assertThat(messageRepository.findByTenantIdAndChatRoomIdAndId(tenantId, channelId, savedMessage.id()))
                 .isPresent();
     }
 
@@ -222,7 +223,7 @@ class MessengerRepositoryAdapterIntegrationTest extends AbstractPostgresDataJpaT
         return new PersistedChatRoomMember(member, ChatRoomMemberPersistenceMapper.toState(member, null));
     }
 
-    private PersistedMessage saveMessage(Message message, long sequence) {
+    private MessageState saveMessage(Message message, long sequence) {
         Message sequenced = message.assignSequence(sequence);
         return messageRepository.append(
                 new PersistedMessage(sequenced, MessagePersistenceMapper.toState(sequenced, null))

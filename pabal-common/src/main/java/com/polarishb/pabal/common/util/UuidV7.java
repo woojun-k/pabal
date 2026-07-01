@@ -1,10 +1,11 @@
 package com.polarishb.pabal.common.util;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 
 import static java.util.concurrent.locks.LockSupport.parkNanos;
 
@@ -16,26 +17,29 @@ public final class UuidV7 {
     private static final long VERSION_7 = 0x7L;
     private static final long VARIANT_RFC4122 = 0x8000000000000000L;
 
-    private static final int MAX_SPIN_ATTEMPTS = Integer.getInteger("uuidv7.max.spin", 1000);
-
-    private static final SecureRandom RNG = new SecureRandom();
-    static {
-        RNG.nextBytes(new byte[1]);
-    }
+    // 카운터 기반이 아닌 경과시간 기반: ms 클럭 해상도(최악 ~1ms)를 확실히 넘는 여유(2ms)를
+    // 확보해야 시퀀스 오버플로 대기 중 클럭 틱을 놓쳐 스퓨리어스 예외가 나는 것을 막을 수 있다.
+    private static final long SPIN_DEADLINE_NANOS = Long.getLong("uuidv7.spin.deadline.nanos", 2_000_000L);
 
     private static final AtomicLong LAST_STATE = new AtomicLong(0);
+    private static volatile LongSupplier clockMillis = System::currentTimeMillis;
 
     private UuidV7() {}
 
+    // ID 생성 hot path에서는 예측 불가능성(비암호학적)만 있으면 충분하다. 공유 암호학적
+    // 난수 생성기는 내부 synchronized 진입점 때문에 스레드 경합을 유발하므로, 스레드별
+    // 인스턴스인 ThreadLocalRandom.current() 로 대체해 락 프리(lock-free) 경로를 확보한다.
+    // 보안 토큰 등 암호학적 난수가 필요한 곳은 pabal-security 모듈 쪽 구현을 그대로 사용한다.
+
     public static UUID random() {
-        long ts = System.currentTimeMillis() & TS_MASK_48;
-        int randA = RNG.nextInt(1 << 12);
+        long ts = clockMillis.getAsLong() & TS_MASK_48;
+        int randA = ThreadLocalRandom.current().nextInt(1 << 12);
         long randB = nextRandB62();
         return build(ts, randA, randB);
     }
 
     public static UUID monotonic() {
-        long ts = System.currentTimeMillis() & TS_MASK_48;
+        long ts = clockMillis.getAsLong() & TS_MASK_48;
         int randA;
         long randB;
 
@@ -46,7 +50,7 @@ public final class UuidV7 {
 
             if (ts > prevTs) {
                 // 시간이 흘렀으면 새로운 랜덤 시드
-                randA = RNG.nextInt(1 << 12);
+                randA = ThreadLocalRandom.current().nextInt(1 << 12);
             } else {
                 // 동일 밀리초거나 클락 롤백 시 시퀀스 증가
                 ts = prevTs;
@@ -54,21 +58,23 @@ public final class UuidV7 {
 
                 // 시퀀스 오버플로 시 다음 ms까지 대기
                 if (randA == 0) {
+                    long deadline = System.nanoTime() + SPIN_DEADLINE_NANOS;
                     int spinCount = 0;
                     do {
-                        if (++spinCount > MAX_SPIN_ATTEMPTS) {
+                        if (System.nanoTime() >= deadline) {
                             throw new IllegalStateException(
                                     "UUID generation rate exceeded (timestamp frozen at " + prevTs + ")"
                             );
                         }
+                        spinCount++;
                         if ((spinCount & 0xFF) == 0) {
                             parkNanos(100_000); // 0.1ms
                         } else {
                             Thread.onSpinWait();
                         }
-                        ts = System.currentTimeMillis() & TS_MASK_48;
+                        ts = clockMillis.getAsLong() & TS_MASK_48;
                     } while (ts <= prevTs);
-                    randA = RNG.nextInt(1 << 12);
+                    randA = ThreadLocalRandom.current().nextInt(1 << 12);
                 }
             }
 
@@ -78,7 +84,7 @@ public final class UuidV7 {
             }
 
             Thread.onSpinWait();
-            ts = System.currentTimeMillis() & TS_MASK_48;
+            ts = clockMillis.getAsLong() & TS_MASK_48;
         }
 
         randB = nextRandB62();
@@ -112,7 +118,7 @@ public final class UuidV7 {
     }
 
     private static long nextRandB62() {
-        return RNG.nextLong() & RAND_B_MASK_62;
+        return ThreadLocalRandom.current().nextLong() & RAND_B_MASK_62;
     }
 
     private static UUID build(long unixTsMs, int randA12, long randB62) {
@@ -133,5 +139,25 @@ public final class UuidV7 {
         int msbCmp = Long.compareUnsigned(left.getMostSignificantBits(), right.getMostSignificantBits());
         if (msbCmp != 0) return msbCmp;
         return Long.compareUnsigned(left.getLeastSignificantBits(), right.getLeastSignificantBits());
+    }
+
+    // ---------------------------------------------------------------------
+    // 테스트 전용
+    // ---------------------------------------------------------------------
+
+    /** 밀리초 시간 소스를 교체한다. 테스트 종료 시 반드시 {@link #resetForTest()} 로 복구할 것. */
+    static void overrideClockForTest(LongSupplier source) {
+        clockMillis = source;
+    }
+
+    /** {@code LAST_STATE} 를 특정 (timestamp, randA) 상태로 시드해 후속 호출 분기를 강제한다. */
+    static void seedStateForTest(long tsMillis, int randA12) {
+        LAST_STATE.set(((tsMillis & TS_MASK_48) << 12) | (randA12 & RAND_A_MASK_12));
+    }
+
+    /** 시간 소스와 단조 상태를 프로덕션 기본값으로 되돌린다. */
+    static void resetForTest() {
+        clockMillis = System::currentTimeMillis;
+        LAST_STATE.set(0L);
     }
 }

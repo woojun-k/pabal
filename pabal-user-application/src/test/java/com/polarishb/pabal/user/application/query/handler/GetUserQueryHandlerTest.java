@@ -3,8 +3,6 @@ package com.polarishb.pabal.user.application.query.handler;
 import com.polarishb.pabal.user.application.port.out.persistence.UserRepository;
 import com.polarishb.pabal.user.application.query.input.GetUserQuery;
 import com.polarishb.pabal.user.application.query.output.UserDto;
-import com.polarishb.pabal.user.contract.persistence.PersistedUser;
-import com.polarishb.pabal.user.contract.persistence.UserPersistenceMapper;
 import com.polarishb.pabal.user.contract.persistence.UserState;
 import com.polarishb.pabal.user.domain.exception.UserNotFoundException;
 import com.polarishb.pabal.user.domain.model.type.UserStatus;
@@ -37,8 +35,8 @@ class GetUserQueryHandlerTest {
     void handle_reads_user_through_tenant_scoped_repository_lookup() {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        when(userRepository.findByTenantIdAndId(tenantId, userId))
-                .thenReturn(Optional.of(persistedUser(tenantId, userId, UserStatus.ACTIVE)));
+        when(userRepository.findStateByTenantIdAndId(tenantId, userId))
+                .thenReturn(Optional.of(userState(tenantId, userId, UserStatus.ACTIVE)));
 
         UserDto result = handler.handle(new GetUserQuery(tenantId, userId));
 
@@ -49,7 +47,7 @@ class GetUserQueryHandlerTest {
         assertThat(result.createdAt()).isEqualTo(CREATED_AT);
         assertThat(result.updatedAt()).isEqualTo(UPDATED_AT);
 
-        verify(userRepository).findByTenantIdAndId(tenantId, userId);
+        verify(userRepository).findStateByTenantIdAndId(tenantId, userId);
         verify(userRepository, never()).findById(userId);
     }
 
@@ -57,12 +55,12 @@ class GetUserQueryHandlerTest {
     void handle_does_not_fallback_to_global_lookup_when_user_id_exists_in_other_tenant() {
         UUID requestedTenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        when(userRepository.findByTenantIdAndId(requestedTenantId, userId)).thenReturn(Optional.empty());
+        when(userRepository.findStateByTenantIdAndId(requestedTenantId, userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> handler.handle(new GetUserQuery(requestedTenantId, userId)))
                 .isInstanceOf(UserNotFoundException.class);
 
-        verify(userRepository).findByTenantIdAndId(requestedTenantId, userId);
+        verify(userRepository).findStateByTenantIdAndId(requestedTenantId, userId);
         verify(userRepository, never()).findById(userId);
     }
 
@@ -70,15 +68,15 @@ class GetUserQueryHandlerTest {
     void handle_hides_inactive_user_even_when_tenant_scoped_lookup_returns_it() {
         UUID tenantId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        when(userRepository.findByTenantIdAndId(tenantId, userId))
-                .thenReturn(Optional.of(persistedUser(tenantId, userId, UserStatus.DISABLED)));
+        when(userRepository.findStateByTenantIdAndId(tenantId, userId))
+                .thenReturn(Optional.of(userState(tenantId, userId, UserStatus.DISABLED)));
 
         assertThatThrownBy(() -> handler.handle(new GetUserQuery(tenantId, userId)))
                 .isInstanceOf(UserNotFoundException.class);
     }
 
-    private PersistedUser persistedUser(UUID tenantId, UUID userId, UserStatus status) {
-        UserState state = new UserState(
+    private UserState userState(UUID tenantId, UUID userId, UserStatus status) {
+        return new UserState(
                 userId,
                 tenantId,
                 "Alice",
@@ -87,6 +85,5 @@ class GetUserQueryHandlerTest {
                 UPDATED_AT,
                 0L
         );
-        return UserPersistenceMapper.toPersisted(state);
     }
 }

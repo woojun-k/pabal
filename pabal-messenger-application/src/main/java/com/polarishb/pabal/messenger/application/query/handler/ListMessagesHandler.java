@@ -6,7 +6,7 @@ import com.polarishb.pabal.messenger.application.query.mapper.MessageQueryMapper
 import com.polarishb.pabal.messenger.application.query.output.MessageDto;
 import com.polarishb.pabal.messenger.application.query.output.MessagePageDto;
 import com.polarishb.pabal.messenger.application.service.ChatRoomReadAccessSupport;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.application.port.out.persistence.MessageReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -33,7 +33,7 @@ public class ListMessagesHandler implements QueryHandler<ListMessagesQuery, Mess
 
         int fetchSize = query.size() + 1;
 
-        List<PersistedMessage> fetched = messageReadRepository.findByTenantIdAndChatRoomIdBeforeSequence(
+        List<MessageState> fetched = messageReadRepository.findByTenantIdAndChatRoomIdBeforeSequence(
                 query.tenantId(),
                 query.chatRoomId(),
                 query.cursor(),
@@ -41,13 +41,13 @@ public class ListMessagesHandler implements QueryHandler<ListMessagesQuery, Mess
         );
 
         boolean hasNext = fetched.size() > query.size();
-        List<PersistedMessage> page = hasNext
+        List<MessageState> page = hasNext
                 ? fetched.subList(0, query.size())
                 : fetched;
 
         Long nextCursor = null;
         if (hasNext && !page.isEmpty()) {
-            nextCursor = page.get(page.size() - 1).state().sequence();
+            nextCursor = page.get(page.size() - 1).sequence();
         }
 
         List<MessageDto> messages = messageQueryMapper.toMessageDtosOldestFirst(page);

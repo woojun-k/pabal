@@ -11,7 +11,6 @@ import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChat
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.ChatRoomMember;
@@ -72,8 +71,8 @@ class SendReplyCommandHandlerTest {
 
         PersistedChatRoom room = persistedRoom(tenantId, chatRoomId, senderId, now);
         PersistedChatRoomMember member = persistedMember(tenantId, chatRoomId, senderId, now);
-        PersistedMessage replyTarget = persistedMessage(tenantId, chatRoomId, senderId, replyToMessageId, UUID.randomUUID(), now);
-        PersistedMessage duplicate = persistedMessage(tenantId, chatRoomId, senderId, duplicateMessageId, clientMessageId, now);
+        MessageState replyTarget = messageState(tenantId, chatRoomId, senderId, replyToMessageId, UUID.randomUUID(), now);
+        MessageState duplicate = messageState(tenantId, chatRoomId, senderId, duplicateMessageId, clientMessageId, now);
         SendMessageResult duplicateResult = new SendMessageResult(duplicateMessageId, 1L, clientMessageId, now, true);
 
         when(chatRoomAccessSupport.loadSendableActiveMember(tenantId, chatRoomId, senderId))
@@ -89,7 +88,7 @@ class SendReplyCommandHandlerTest {
         SendMessageResult result = handler.handle(command);
 
         assertThat(result).isEqualTo(duplicateResult);
-        verify(messageSendSupport).validateReplyTarget(replyTarget.message(), chatRoomId);
+        verify(messageSendSupport).validateReplyTarget(replyTarget, chatRoomId);
         verify(messageSendSupport).loadDuplicate(command);
         verify(messageSendSupport, never()).toSentResult(any());
     }
@@ -161,7 +160,7 @@ class SendReplyCommandHandlerTest {
         return new PersistedChatRoomMember(member, state);
     }
 
-    private static PersistedMessage persistedMessage(
+    private static MessageState messageState(
             UUID tenantId,
             UUID chatRoomId,
             UUID senderId,
@@ -169,7 +168,7 @@ class SendReplyCommandHandlerTest {
             UUID clientMessageId,
             Instant now
     ) {
-        MessageState state = new MessageState(
+        return new MessageState(
                 messageId,
                 tenantId,
                 chatRoomId,
@@ -185,6 +184,5 @@ class SendReplyCommandHandlerTest {
                 null,
                 0L
         );
-        return new PersistedMessage(Message.reconstitute(state.snapshot()), state);
     }
 }

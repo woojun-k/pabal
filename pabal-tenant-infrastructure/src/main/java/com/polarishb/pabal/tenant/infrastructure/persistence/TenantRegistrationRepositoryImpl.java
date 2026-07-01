@@ -78,6 +78,12 @@ public class TenantRegistrationRepositoryImpl implements TenantRegistrationRepos
     }
 
     @Override
+    public Optional<TenantRegistrationState> findStateById(UUID registrationId) {
+        return jpaRepository.findById(registrationId)
+                .map(TenantRegistrationEntity::toState);
+    }
+
+    @Override
     public Optional<PersistedTenantRegistration> findByIdForUpdate(UUID registrationId) {
         return jpaRepository.findByIdForUpdate(registrationId)
                 .map(TenantRegistrationEntity::toState)

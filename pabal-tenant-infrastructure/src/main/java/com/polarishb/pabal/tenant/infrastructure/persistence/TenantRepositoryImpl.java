@@ -3,6 +3,7 @@ package com.polarishb.pabal.tenant.infrastructure.persistence;
 import com.polarishb.pabal.tenant.application.port.out.persistence.TenantRepository;
 import com.polarishb.pabal.tenant.contract.persistence.PersistedTenant;
 import com.polarishb.pabal.tenant.contract.persistence.TenantPersistenceMapper;
+import com.polarishb.pabal.tenant.contract.persistence.TenantState;
 import com.polarishb.pabal.tenant.domain.model.type.TenantStatus;
 import com.polarishb.pabal.tenant.infrastructure.persistence.jpa.TenantJpaRepository;
 import com.polarishb.pabal.tenant.infrastructure.persistence.jpa.entity.TenantEntity;
@@ -29,6 +30,12 @@ public class TenantRepositoryImpl implements TenantRepository {
         return jpaRepository.findById(tenantId)
                 .map(TenantEntity::toState)
                 .map(TenantPersistenceMapper::toPersisted);
+    }
+
+    @Override
+    public Optional<TenantState> findStateById(UUID tenantId) {
+        return jpaRepository.findById(tenantId)
+                .map(TenantEntity::toState);
     }
 
     @Override

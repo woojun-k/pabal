@@ -1,64 +1,28 @@
 package com.polarishb.pabal.messenger.application.query.output;
 
-import com.polarishb.pabal.messenger.domain.model.snapshot.MessageSnapshot;
-import com.polarishb.pabal.messenger.domain.model.type.MessageStatus;
-import com.polarishb.pabal.messenger.domain.model.vo.MessageContent;
-
 import java.time.Instant;
-import java.util.Objects;
 import java.util.UUID;
 
 public record MessageDto(
-        MessageSnapshot snapshot
+        UUID messageId,
+        UUID chatRoomId,
+        UUID senderId,
+        UUID clientMessageId,
+        Long sequence,
+        String content,
+        String status,
+        UUID replyToMessageId,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant deletedAt
 ) {
-    public MessageDto {
-        Objects.requireNonNull(snapshot);
-    }
-
-    public UUID messageId() {
-        return snapshot.id();
-    }
-
-    public UUID chatRoomId() {
-        return snapshot.chatRoomId();
-    }
-
-    public UUID senderId() {
-        return snapshot.senderId();
-    }
-
-    public UUID clientMessageId() {
-        return snapshot.clientMessageId();
-    }
-
-    public Long sequence() {
-        return snapshot.sequence();
-    }
+    private static final String DELETED_STATUS = "DELETED";
+    private static final String DELETED_TOMBSTONE_VALUE = "[deleted]";
 
     public String content() {
-        if (snapshot.status() == MessageStatus.DELETED) {
-            return MessageContent.DELETED_TOMBSTONE_VALUE;
+        if (DELETED_STATUS.equals(status)) {
+            return DELETED_TOMBSTONE_VALUE;
         }
-        return snapshot.content().value();
-    }
-
-    public String status() {
-        return snapshot.status().name();
-    }
-
-    public UUID replyToMessageId() {
-        return snapshot.replyToMessageId();
-    }
-
-    public Instant createdAt() {
-        return snapshot.createdAt();
-    }
-
-    public Instant updatedAt() {
-        return snapshot.updatedAt();
-    }
-
-    public Instant deletedAt() {
-        return snapshot.deletedAt();
+        return content;
     }
 }

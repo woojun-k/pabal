@@ -6,6 +6,7 @@ import com.polarishb.pabal.messenger.application.command.input.DeleteMessageComm
 import com.polarishb.pabal.messenger.application.command.output.DeleteMessageResult;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageDeletedEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageDeleteForbiddenException;
@@ -54,27 +55,25 @@ public class DeleteMessageCommandHandler implements CommandHandler<DeleteMessage
         Message deleted = message.delete(clockPort.now());
 
         // 저장
-        PersistedMessage updated = messageRepository.update(persisted.withMessage(deleted));
-
-        message = updated.message();
+        MessageState updated = messageRepository.update(persisted.withMessage(deleted));
 
         // 이벤트 발행
         eventPublisher.publishAfterCommit(
                 new MessageDeletedEvent(
                         command.tenantId(),
-                        updated.state().id(),
-                        updated.state().chatRoomId(),
-                        updated.state().senderId(),
-                        updated.state().sequence(),
-                        updated.state().deletedAt(),
-                        updated.state().version()
+                        updated.id(),
+                        updated.chatRoomId(),
+                        updated.senderId(),
+                        updated.sequence(),
+                        updated.deletedAt(),
+                        updated.version()
                 )
         );
 
         return new DeleteMessageResult(
-                message.getId(),
-                updated.state().sequence(),
-                message.getDeletedAt()
+                updated.id(),
+                updated.sequence(),
+                updated.deletedAt()
         );
     }
 }

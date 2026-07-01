@@ -5,7 +5,7 @@ import com.polarishb.pabal.messenger.application.query.input.ReadMessageQuery;
 import com.polarishb.pabal.messenger.application.query.mapper.MessageQueryMapper;
 import com.polarishb.pabal.messenger.application.query.output.MessageDto;
 import com.polarishb.pabal.messenger.application.service.ChatRoomReadAccessSupport;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.domain.exception.MessageNotFoundException;
 import com.polarishb.pabal.messenger.application.port.out.persistence.MessageReadRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class ReadMessageHandler implements QueryHandler<ReadMessageQuery, Messag
                 query.userId()
         );
 
-        PersistedMessage message = messageReadRepository.findByTenantIdAndChatRoomIdAndId(
+        MessageState message = messageReadRepository.findByTenantIdAndChatRoomIdAndId(
                 query.tenantId(),
                 query.chatRoomId(),
                 query.messageId()

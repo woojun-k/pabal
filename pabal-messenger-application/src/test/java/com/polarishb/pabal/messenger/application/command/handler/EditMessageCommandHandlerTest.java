@@ -66,10 +66,7 @@ class EditMessageCommandHandlerTest {
         when(clockPort.now()).thenReturn(Instant.parse("2026-04-02T12:05:00Z"));
         when(messageRepository.update(any(PersistedMessage.class))).thenAnswer(invocation -> {
             PersistedMessage candidate = invocation.getArgument(0);
-            return new PersistedMessage(
-                    candidate.message(),
-                    MessagePersistenceMapper.toState(candidate.message(), 1L)
-            );
+            return MessagePersistenceMapper.toState(candidate.message(), 1L);
         });
 
         handler.handle(command);

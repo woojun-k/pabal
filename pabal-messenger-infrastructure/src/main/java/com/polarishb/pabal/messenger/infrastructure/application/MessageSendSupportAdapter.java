@@ -3,8 +3,9 @@ package com.polarishb.pabal.messenger.infrastructure.application;
 import com.polarishb.pabal.common.event.DomainEventPublisher;
 import com.polarishb.pabal.messenger.application.command.SendableCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
+import com.polarishb.pabal.messenger.application.port.out.persistence.MessageReadRepository;
+import com.polarishb.pabal.messenger.application.port.out.persistence.MessageWriteRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomSequenceRepository;
-import com.polarishb.pabal.messenger.application.port.out.persistence.MessageRepository;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.message.MessagePersistenceMapper;
@@ -26,26 +27,27 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MessageSendSupportAdapter implements MessageSendSupport {
 
-    private final MessageRepository messageRepository;
+    private final MessageReadRepository messageReadRepository;
+    private final MessageWriteRepository messageWriteRepository;
     private final ChatRoomSequenceRepository chatRoomSequenceRepository;
     private final DomainEventPublisher eventPublisher;
 
     @Override
-    public PersistedMessage loadReplyTarget(UUID tenantId, UUID replyToMessageId) {
-        return messageRepository.findByTenantIdAndId(tenantId, replyToMessageId)
+    public MessageState loadReplyTarget(UUID tenantId, UUID replyToMessageId) {
+        return messageReadRepository.findByTenantIdAndId(tenantId, replyToMessageId)
                 .orElseThrow(() -> new MessageNotFoundException(replyToMessageId));
     }
 
     @Override
-    public void validateReplyTarget(Message replyTarget, UUID chatRoomId) {
-        if (!replyTarget.getChatRoomId().equals(chatRoomId)) {
-            throw new InvalidReplyTargetException(replyTarget.getId(), chatRoomId);
+    public void validateReplyTarget(MessageState replyTarget, UUID chatRoomId) {
+        if (!replyTarget.chatRoomId().equals(chatRoomId)) {
+            throw new InvalidReplyTargetException(replyTarget.id(), chatRoomId);
         }
     }
 
     @Override
-    public Optional<PersistedMessage> findDuplicate(SendableCommand command) {
-        return messageRepository.findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
+    public Optional<MessageState> findDuplicate(SendableCommand command) {
+        return messageReadRepository.findByTenantIdAndChatRoomIdAndSenderIdAndClientMessageId(
                 command.tenantId(),
                 command.chatRoomId(),
                 command.senderId(),
@@ -54,41 +56,41 @@ public class MessageSendSupportAdapter implements MessageSendSupport {
     }
 
     @Override
-    public PersistedMessage loadDuplicate(SendableCommand command) {
+    public MessageState loadDuplicate(SendableCommand command) {
         return findDuplicate(command)
                 .orElseThrow(() -> new MessageNotFoundException(command.clientMessageId()));
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public PersistedMessage send(PersistedChatRoom persistedChatRoom, Message message) {
+    public MessageState send(PersistedChatRoom persistedChatRoom, Message message) {
         long sequence = chatRoomSequenceRepository.allocateNextMessageSequence(
                 persistedChatRoom.state().tenantId(),
                 persistedChatRoom.state().id()
         );
         Message sequenced = message.assignSequence(sequence);
 
-        PersistedMessage saved = messageRepository.append(draft(sequenced));
+        MessageState saved = messageWriteRepository.append(draft(sequenced));
 
         chatRoomSequenceRepository.updateLastMessageSnapshot(
-                saved.state().tenantId(),
-                saved.state().chatRoomId(),
-                saved.state().id(),
-                saved.state().sequence(),
-                saved.state().createdAt()
+                saved.tenantId(),
+                saved.chatRoomId(),
+                saved.id(),
+                saved.sequence(),
+                saved.createdAt()
         );
 
         eventPublisher.publishAfterCommit(
                 new MessageSentEvent(
-                        saved.state().tenantId(),
-                        saved.state().id(),
-                        saved.state().chatRoomId(),
-                        saved.state().senderId(),
-                        saved.state().clientMessageId(),
-                        saved.state().sequence(),
-                        saved.state().content(),
-                        saved.state().createdAt(),
-                        saved.state().version()
+                        saved.tenantId(),
+                        saved.id(),
+                        saved.chatRoomId(),
+                        saved.senderId(),
+                        saved.clientMessageId(),
+                        saved.sequence(),
+                        saved.content(),
+                        saved.createdAt(),
+                        saved.version()
                 )
         );
 
@@ -96,23 +98,23 @@ public class MessageSendSupportAdapter implements MessageSendSupport {
     }
 
     @Override
-    public SendMessageResult toDuplicateResult(PersistedMessage persistedMessage) {
+    public SendMessageResult toDuplicateResult(MessageState message) {
         return new SendMessageResult(
-                persistedMessage.state().id(),
-                persistedMessage.state().sequence(),
-                persistedMessage.state().clientMessageId(),
-                persistedMessage.state().createdAt(),
+                message.id(),
+                message.sequence(),
+                message.clientMessageId(),
+                message.createdAt(),
                 true
         );
     }
 
     @Override
-    public SendMessageResult toSentResult(PersistedMessage persistedMessage) {
+    public SendMessageResult toSentResult(MessageState message) {
         return new SendMessageResult(
-                persistedMessage.state().id(),
-                persistedMessage.state().sequence(),
-                persistedMessage.state().clientMessageId(),
-                persistedMessage.state().createdAt(),
+                message.id(),
+                message.sequence(),
+                message.clientMessageId(),
+                message.createdAt(),
                 false
         );
     }

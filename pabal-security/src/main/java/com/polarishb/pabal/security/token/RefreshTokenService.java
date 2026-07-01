@@ -2,6 +2,7 @@ package com.polarishb.pabal.security.token;
 
 import com.polarishb.pabal.security.config.JwtSecurityProperties;
 import com.polarishb.pabal.security.config.RefreshTokenReplayProperties;
+import com.polarishb.pabal.security.time.ClockPort;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,7 @@ public class RefreshTokenService {
     private final ObjectProvider<JwtEncoder> jwtEncoderProvider;
     private final RefreshTokenStore refreshTokenStore;
     private final RefreshTokenReplayCache replayCache;
+    private final ClockPort clockPort;
 
     @Transactional
     public IssuedTokenPair issueTokenPair(
@@ -58,7 +60,7 @@ public class RefreshTokenService {
         Objects.requireNonNull(subject, "subject must not be null");
         Objects.requireNonNull(authorityClaims, "authorityClaims must not be null");
 
-        Instant now = Instant.now();
+        Instant now = clockPort.now();
         AccessTokenIssue accessToken = issueAccessToken(userId, tenantId, subject, authorityClaims, now);
         RefreshTokenIssue refreshToken = issueRefreshToken(userId, tenantId, subject, authorityClaims, now);
 
@@ -89,7 +91,7 @@ public class RefreshTokenService {
         RefreshTokenRecord current = refreshTokenStore.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token was not found"));
 
-        Instant now = Instant.now();
+        Instant now = clockPort.now();
         if (!current.isActive(now)) {
             Optional<IssuedTokenPair> graceReplay = findGraceReplay(current, now);
             if (graceReplay.isPresent()) {
@@ -157,12 +159,12 @@ public class RefreshTokenService {
     public void revoke(String rawRefreshToken) {
         String tokenHash = hash(rawRefreshToken);
         refreshTokenStore.findByTokenHash(tokenHash)
-                .ifPresent(token -> refreshTokenStore.revoke(token.id(), null, Instant.now()));
+                .ifPresent(token -> refreshTokenStore.revoke(token.id(), null, clockPort.now()));
     }
 
     @Transactional
     public void revokeUserTokens(UUID tenantId, UUID userId) {
-        refreshTokenStore.revokeUserTokens(tenantId, userId, Instant.now());
+        refreshTokenStore.revokeUserTokens(tenantId, userId, clockPort.now());
     }
 
     private AccessTokenIssue issueAccessToken(

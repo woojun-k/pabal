@@ -6,6 +6,7 @@ import com.polarishb.pabal.messenger.application.command.input.EditMessageComman
 import com.polarishb.pabal.messenger.application.command.output.EditMessageResult;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
+import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.event.MessageEditedEvent;
 import com.polarishb.pabal.messenger.domain.exception.MessageEditForbiddenException;
@@ -54,29 +55,27 @@ public class EditMessageCommandHandler implements CommandHandler<EditMessageComm
         Message edited = message.edit(command.newContent(), clockPort.now());
 
         // 저장
-        PersistedMessage updated = messageRepository.update(persisted.withMessage(edited));
-
-        message = updated.message();
+        MessageState updated = messageRepository.update(persisted.withMessage(edited));
 
         // 이벤트 발행
         eventPublisher.publishAfterCommit(
                 new MessageEditedEvent(
                         command.tenantId(),
-                        updated.state().id(),
-                        updated.state().chatRoomId(),
-                        updated.state().senderId(),
-                        updated.state().sequence(),
-                        updated.state().content(),
-                        updated.state().updatedAt(),
-                        updated.state().version()
+                        updated.id(),
+                        updated.chatRoomId(),
+                        updated.senderId(),
+                        updated.sequence(),
+                        updated.content(),
+                        updated.updatedAt(),
+                        updated.version()
                 )
         );
 
         return new EditMessageResult(
-                message.getId(),
-                updated.state().sequence(),
-                message.getContent().value(),
-                message.getUpdatedAt()
+                updated.id(),
+                updated.sequence(),
+                updated.content(),
+                updated.updatedAt()
         );
     }
 }

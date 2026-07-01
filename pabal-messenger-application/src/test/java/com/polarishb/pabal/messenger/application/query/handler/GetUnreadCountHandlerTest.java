@@ -4,14 +4,9 @@ import com.polarishb.pabal.messenger.application.query.input.GetUnreadCountQuery
 import com.polarishb.pabal.messenger.application.query.output.UnreadCountResult;
 import com.polarishb.pabal.messenger.application.service.ChatRoomReadAccessSupport;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
-import com.polarishb.pabal.messenger.domain.model.ChatRoom;
-import com.polarishb.pabal.messenger.domain.model.ChatRoomMember;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
-import com.polarishb.pabal.messenger.domain.model.vo.OptionalName;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.MessageReadRepository;
@@ -59,74 +54,43 @@ class GetUnreadCountHandlerTest {
         Instant createdAt = Instant.parse("2026-04-02T12:00:00Z");
         long lastReadSequence = 7L;
 
-        PersistedChatRoom room = new PersistedChatRoom(
-                ChatRoom.reconstitute(
-                        chatRoomId,
-                        RoomType.GROUP,
-                        new OptionalName("team"),
-                        userId,
-                        tenantId,
-                        null,
-                        RoomStatus.ACTIVE,
-                        null,
-                        null,
-                        12L,
-                        null,
-                        createdAt,
-                        createdAt
-                ),
-                new ChatRoomState(
-                        chatRoomId,
-                        RoomType.GROUP,
-                        "team",
-                        userId,
-                        tenantId,
-                        null,
-                        RoomStatus.ACTIVE,
-                        null,
-                        null,
-                        12L,
-                        null,
-                        createdAt,
-                        createdAt,
-                        0L
-                )
+        ChatRoomState room = new ChatRoomState(
+                chatRoomId,
+                RoomType.GROUP,
+                "team",
+                userId,
+                tenantId,
+                null,
+                RoomStatus.ACTIVE,
+                null,
+                null,
+                12L,
+                null,
+                createdAt,
+                createdAt,
+                0L
         );
 
-        ChatRoomMember member = ChatRoomMember.reconstitute(
+        UUID lastReadMessageId = UUID.randomUUID();
+        Instant lastReadAt = createdAt.plusSeconds(30);
+        ChatRoomMemberState member = new ChatRoomMemberState(
                 UUID.randomUUID(),
                 tenantId,
                 chatRoomId,
                 userId,
-                UUID.randomUUID(),
+                lastReadMessageId,
                 lastReadSequence,
-                createdAt.plusSeconds(30),
+                lastReadAt,
                 createdAt,
                 null,
                 createdAt,
-                createdAt.plusSeconds(30)
-        );
-        PersistedChatRoomMember persistedMember = new PersistedChatRoomMember(
-                member,
-                new ChatRoomMemberState(
-                        member.getId(),
-                        tenantId,
-                        chatRoomId,
-                        userId,
-                        member.getLastReadMessageId(),
-                        lastReadSequence,
-                        member.getLastReadAt(),
-                        createdAt,
-                        null,
-                        createdAt,
-                        member.getLastReadAt(),
-                        0L
-                )
+                lastReadAt,
+                0L
         );
 
         when(chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId)).thenReturn(Optional.of(room));
         when(chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
-                .thenReturn(Optional.of(persistedMember));
+                .thenReturn(Optional.of(member));
         when(messageReadRepository.countUnreadInRoom(tenantId, chatRoomId, userId, lastReadSequence))
                 .thenReturn(4L);
 

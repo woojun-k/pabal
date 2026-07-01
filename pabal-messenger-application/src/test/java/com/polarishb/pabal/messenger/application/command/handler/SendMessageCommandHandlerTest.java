@@ -11,7 +11,6 @@ import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChat
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
-import com.polarishb.pabal.messenger.contract.persistence.message.PersistedMessage;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.ChatRoom;
 import com.polarishb.pabal.messenger.domain.model.ChatRoomMember;
@@ -142,14 +141,12 @@ class SendMessageCommandHandlerTest {
                 null,
                 0L
         );
-        PersistedMessage saved = new PersistedMessage(Message.reconstitute(savedState.snapshot()), savedState);
-
         when(clockPort.now()).thenReturn(now);
         when(chatRoomAccessSupport.loadSendableActiveMember(tenantId, chatRoomId, senderId))
                 .thenReturn(new ChatRoomAccess(chatRoom, member));
         when(messageSendSupport.findDuplicate(command)).thenReturn(Optional.empty());
-        when(messageSendSupport.send(any(PersistedChatRoom.class), any(Message.class))).thenReturn(saved);
-        when(messageSendSupport.toSentResult(saved)).thenReturn(new SendMessageResult(messageId, 1L, clientMessageId, now, false));
+        when(messageSendSupport.send(any(PersistedChatRoom.class), any(Message.class))).thenReturn(savedState);
+        when(messageSendSupport.toSentResult(savedState)).thenReturn(new SendMessageResult(messageId, 1L, clientMessageId, now, false));
 
         SendMessageResult result = sendMessageCommandHandler.handle(command);
 
@@ -250,7 +247,6 @@ class SendMessageCommandHandlerTest {
                 null,
                 0L
         );
-        PersistedMessage duplicate = new PersistedMessage(Message.reconstitute(duplicateState.snapshot()), duplicateState);
         SendMessageResult duplicateResult = new SendMessageResult(messageId, 1L, clientMessageId, now, true);
 
         when(clockPort.now()).thenReturn(now);
@@ -259,8 +255,8 @@ class SendMessageCommandHandlerTest {
         when(messageSendSupport.findDuplicate(command)).thenReturn(Optional.empty());
         when(messageSendSupport.send(any(PersistedChatRoom.class), any(Message.class)))
                 .thenThrow(new DuplicateMessageException());
-        when(messageSendSupport.loadDuplicate(command)).thenReturn(duplicate);
-        when(messageSendSupport.toDuplicateResult(duplicate)).thenReturn(duplicateResult);
+        when(messageSendSupport.loadDuplicate(command)).thenReturn(duplicateState);
+        when(messageSendSupport.toDuplicateResult(duplicateState)).thenReturn(duplicateResult);
 
         SendMessageResult result = sendMessageCommandHandler.handle(command);
 

@@ -1,10 +1,9 @@
 package com.polarishb.pabal.messenger.infrastructure.realtime.ws.security;
 
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
-import com.polarishb.pabal.messenger.domain.model.ChatRoomMember;
-import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberRepository;
+import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomReadRepository;
+import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
+import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
@@ -30,7 +29,7 @@ public class RoomSubscriptionAuthorizationManager implements AuthorizationManage
     );
 
     private final ChatRoomReadRepository chatRoomReadRepository;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomMemberReadRepository chatRoomMemberReadRepository;
 
     @Override
     public AuthorizationResult authorize(
@@ -71,17 +70,16 @@ public class RoomSubscriptionAuthorizationManager implements AuthorizationManage
             return new AuthorizationDecision(false);
         }
 
-        PersistedChatRoom room = chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId)
+        ChatRoomState room = chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId)
                 .orElse(null);
 
-        if (room == null || !room.chatRoom().canSubscribe()) {
+        if (room == null || room.status() != RoomStatus.ACTIVE) {
             return new AuthorizationDecision(false);
         }
 
-        boolean granted = chatRoomMemberRepository
+        boolean granted = chatRoomMemberReadRepository
                 .findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId)
-                .map(PersistedChatRoomMember::member)
-                .map(ChatRoomMember::isActive)
+                .map(member -> member.leftAt() == null)
                 .orElse(false);
 
         return new AuthorizationDecision(granted);

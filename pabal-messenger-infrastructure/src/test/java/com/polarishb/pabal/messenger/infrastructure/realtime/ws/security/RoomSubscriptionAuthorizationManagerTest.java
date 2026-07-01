@@ -1,13 +1,9 @@
 package com.polarishb.pabal.messenger.infrastructure.realtime.ws.security;
 
-import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberRepository;
+import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomMemberReadRepository;
 import com.polarishb.pabal.messenger.application.port.out.persistence.ChatRoomReadRepository;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.chatroom.ChatRoomState;
-import com.polarishb.pabal.messenger.contract.persistence.chatroom.PersistedChatRoom;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberPersistenceMapper;
 import com.polarishb.pabal.messenger.contract.persistence.chatroommember.ChatRoomMemberState;
-import com.polarishb.pabal.messenger.contract.persistence.chatroommember.PersistedChatRoomMember;
 import com.polarishb.pabal.messenger.domain.model.type.RoomStatus;
 import com.polarishb.pabal.messenger.domain.model.type.RoomType;
 import com.polarishb.pabal.security.authentication.PabalPrincipal;
@@ -35,7 +31,7 @@ class RoomSubscriptionAuthorizationManagerTest {
     private static final Instant NOW = Instant.parse("2026-06-19T00:00:00Z");
 
     private final ChatRoomReadRepository chatRoomReadRepository = mock(ChatRoomReadRepository.class);
-    private final ChatRoomMemberRepository chatRoomMemberRepository = mock(ChatRoomMemberRepository.class);
+    private final ChatRoomMemberReadRepository chatRoomMemberReadRepository = mock(ChatRoomMemberReadRepository.class);
 
     private RoomSubscriptionAuthorizationManager manager;
 
@@ -43,7 +39,7 @@ class RoomSubscriptionAuthorizationManagerTest {
     void setUp() {
         manager = new RoomSubscriptionAuthorizationManager(
                 chatRoomReadRepository,
-                chatRoomMemberRepository
+                chatRoomMemberReadRepository
         );
     }
 
@@ -54,7 +50,7 @@ class RoomSubscriptionAuthorizationManagerTest {
         UUID userId = UUID.randomUUID();
         when(chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId))
                 .thenReturn(Optional.of(room(tenantId, chatRoomId, RoomStatus.ACTIVE)));
-        when(chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
+        when(chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
                 .thenReturn(Optional.of(member(tenantId, chatRoomId, userId, true)));
 
         AuthorizationResult result = authorize(
@@ -72,7 +68,7 @@ class RoomSubscriptionAuthorizationManagerTest {
         UUID userId = UUID.randomUUID();
         when(chatRoomReadRepository.findByTenantIdAndId(tenantId, chatRoomId))
                 .thenReturn(Optional.of(room(tenantId, chatRoomId, RoomStatus.ACTIVE)));
-        when(chatRoomMemberRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
+        when(chatRoomMemberReadRepository.findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId))
                 .thenReturn(Optional.empty());
 
         AuthorizationResult result = authorize(
@@ -81,7 +77,7 @@ class RoomSubscriptionAuthorizationManagerTest {
         );
 
         assertThat(result.isGranted()).isFalse();
-        verify(chatRoomMemberRepository).findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId);
+        verify(chatRoomMemberReadRepository).findByTenantIdAndChatRoomIdAndUserId(tenantId, chatRoomId, userId);
     }
 
     @Test
@@ -98,7 +94,7 @@ class RoomSubscriptionAuthorizationManagerTest {
         );
 
         assertThat(result.isGranted()).isFalse();
-        verifyNoInteractions(chatRoomMemberRepository);
+        verifyNoInteractions(chatRoomMemberReadRepository);
     }
 
     @Test
@@ -112,7 +108,7 @@ class RoomSubscriptionAuthorizationManagerTest {
         );
 
         assertThat(result.isGranted()).isFalse();
-        verifyNoInteractions(chatRoomReadRepository, chatRoomMemberRepository);
+        verifyNoInteractions(chatRoomReadRepository, chatRoomMemberReadRepository);
     }
 
     @Test
@@ -128,7 +124,7 @@ class RoomSubscriptionAuthorizationManagerTest {
         );
 
         assertThat(result.isGranted()).isFalse();
-        verifyNoInteractions(chatRoomMemberRepository);
+        verifyNoInteractions(chatRoomMemberReadRepository);
     }
 
     private AuthorizationResult authorize(Authentication authentication, String destination) {
@@ -153,8 +149,8 @@ class RoomSubscriptionAuthorizationManagerTest {
         );
     }
 
-    private PersistedChatRoom room(UUID tenantId, UUID chatRoomId, RoomStatus status) {
-        ChatRoomState state = new ChatRoomState(
+    private ChatRoomState room(UUID tenantId, UUID chatRoomId, RoomStatus status) {
+        return new ChatRoomState(
                 chatRoomId,
                 RoomType.GROUP,
                 "Room",
@@ -170,16 +166,15 @@ class RoomSubscriptionAuthorizationManagerTest {
                 NOW,
                 0L
         );
-        return ChatRoomPersistenceMapper.toPersisted(state);
     }
 
-    private PersistedChatRoomMember member(
+    private ChatRoomMemberState member(
             UUID tenantId,
             UUID chatRoomId,
             UUID userId,
             boolean active
     ) {
-        ChatRoomMemberState state = new ChatRoomMemberState(
+        return new ChatRoomMemberState(
                 UUID.randomUUID(),
                 tenantId,
                 chatRoomId,
@@ -193,7 +188,6 @@ class RoomSubscriptionAuthorizationManagerTest {
                 NOW,
                 0L
         );
-        return ChatRoomMemberPersistenceMapper.toPersisted(state);
     }
 
     private String roomEventsTopic(UUID tenantId, UUID chatRoomId) {

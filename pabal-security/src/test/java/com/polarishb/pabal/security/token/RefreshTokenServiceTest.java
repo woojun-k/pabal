@@ -2,6 +2,7 @@ package com.polarishb.pabal.security.token;
 
 import com.polarishb.pabal.security.config.JwtSecurityProperties;
 import com.polarishb.pabal.security.config.RefreshTokenReplayProperties;
+import com.polarishb.pabal.security.time.ClockPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -38,6 +39,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RefreshTokenServiceTest {
 
+    private static final Instant NOW = Instant.parse("2026-04-02T12:00:00Z");
+
     private final JwtSecurityProperties properties = new JwtSecurityProperties(
             "local-dev",
             "pabal-api",
@@ -53,6 +56,7 @@ class RefreshTokenServiceTest {
             Duration.ofSeconds(3),
             Duration.ofSeconds(30)
     );
+    private final ClockPort clockPort = () -> NOW;
 
     @Test
     void issueTokenPair_issues_short_lived_access_token_and_persisted_refresh_token() {
@@ -62,8 +66,6 @@ class RefreshTokenServiceTest {
 
         UUID userId = UUID.randomUUID();
         UUID tenantId = UUID.randomUUID();
-        Instant before = Instant.now();
-
         IssuedTokenPair tokenPair = service.issueTokenPair(
                 userId,
                 tenantId,
@@ -75,11 +77,12 @@ class RefreshTokenServiceTest {
         assertThat(tokenPair.accessToken()).isEqualTo("access-1");
         assertThat(tokenPair.refreshToken()).isNotBlank();
         assertThat(tokenPair.accessTokenExpiresAt()).isBetween(
-                before.plus(Duration.ofMinutes(60)),
-                before.plus(Duration.ofMinutes(91))
+                NOW.plus(Duration.ofMinutes(60)),
+                NOW.plus(Duration.ofMinutes(90))
         );
         assertThat(encoder.lastExpiresAt()).isEqualTo(tokenPair.accessTokenExpiresAt());
-        assertThat(tokenPair.refreshTokenExpiresAt()).isAfter(before.plus(Duration.ofDays(6)));
+        assertThat(tokenPair.refreshTokenExpiresAt()).isEqualTo(NOW.plus(Duration.ofDays(7)));
+        assertThat(store.singleRecord().issuedAt()).isEqualTo(NOW);
         assertThat(store.records).hasSize(1);
         assertThat(encoder.lastClaims())
                 .containsEntry("uid", userId.toString())
@@ -125,7 +128,7 @@ class RefreshTokenServiceTest {
         assertThat(store.records.values())
                 .filteredOn(record -> record.replacedByTokenId() != null)
                 .hasSize(1);
-        assertThat(store.findByRawToken(first.refreshToken()).orElseThrow().usedAt()).isNotNull();
+        assertThat(store.findByRawToken(first.refreshToken()).orElseThrow().usedAt()).isEqualTo(NOW);
     }
 
     @Test
@@ -310,7 +313,7 @@ class RefreshTokenServiceTest {
                 JwtAuthorityClaims.empty()
         );
         RefreshTokenRecord issued = store.singleRecord();
-        store.replace(withExpiresAt(issued, Instant.now().minus(Duration.ofMinutes(1))));
+        store.replace(withExpiresAt(issued, NOW.minus(Duration.ofMinutes(1))));
 
         assertThatThrownBy(() -> service.refresh(tokenPair.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class)
@@ -357,6 +360,22 @@ class RefreshTokenServiceTest {
     }
 
     @Test
+    void revoke_revokes_existing_token_at_clock_time() {
+        InMemoryRefreshTokenStore store = new InMemoryRefreshTokenStore();
+        RefreshTokenService service = service(new FakeJwtEncoder(), store);
+        IssuedTokenPair tokenPair = service.issueTokenPair(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "subject",
+                JwtAuthorityClaims.empty()
+        );
+
+        service.revoke(tokenPair.refreshToken());
+
+        assertThat(store.findByRawToken(tokenPair.refreshToken()).orElseThrow().revokedAt()).isEqualTo(NOW);
+    }
+
+    @Test
     void revokeUserTokens_revokes_active_user_tokens() {
         InMemoryRefreshTokenStore store = new InMemoryRefreshTokenStore();
         RefreshTokenService service = service(new FakeJwtEncoder(), store);
@@ -371,6 +390,7 @@ class RefreshTokenServiceTest {
 
         service.revokeUserTokens(tenantId, userId);
 
+        assertThat(store.findByRawToken(tokenPair.refreshToken()).orElseThrow().revokedAt()).isEqualTo(NOW);
         assertThatThrownBy(() -> service.refresh(tokenPair.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
     }
@@ -451,7 +471,8 @@ class RefreshTokenServiceTest {
                 replayProperties,
                 provider(encoder),
                 store,
-                replayCache
+                replayCache,
+                clockPort
         );
     }
 

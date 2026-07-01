@@ -26,8 +26,8 @@ public class GetUnreadCountHandler implements QueryHandler<GetUnreadCountQuery, 
                 query.userId()
         );
 
-        long lastReadSequence = access.member().member().getLastReadSequence() != null
-                ? access.member().member().getLastReadSequence()
+        long lastReadSequence = access.member().lastReadSequence() != null
+                ? access.member().lastReadSequence()
                 : 0L;
 
         return new UnreadCountResult(
