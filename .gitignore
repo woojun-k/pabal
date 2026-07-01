@@ -35,8 +35,14 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### AI ###
 .codex/
+.agents/
 .claude/
+.ai/
+AGENTS.md
+CLAUDE.md
 
 ### Environments ###
 .env.local
