@@ -44,9 +44,9 @@ class UserRepositoryImplTest extends AbstractUserPostgresDataJpaTest {
         UUID tenantId = UUID.randomUUID();
         Instant now = Instant.parse("2026-04-08T00:00:00Z");
         User user = User.create(userId, tenantId, "Alice", now);
-        user.disable(now.plusSeconds(60));
+        User disabledUser = user.disable(now.plusSeconds(60));
 
-        userRepository.save(user);
+        userRepository.save(disabledUser);
 
         assertThat(userRepository.existsActiveByTenantIdAndId(tenantId, userId)).isFalse();
     }
@@ -60,8 +60,8 @@ class UserRepositoryImplTest extends AbstractUserPostgresDataJpaTest {
         UUID otherTenantUserId = UUID.randomUUID();
         UUID missingUserId = UUID.randomUUID();
         Instant now = Instant.parse("2026-04-08T00:00:00Z");
-        User disabledUser = User.create(disabledUserId, tenantId, "Disabled", now);
-        disabledUser.disable(now.plusSeconds(60));
+        User disabledUser = User.create(disabledUserId, tenantId, "Disabled", now)
+                .disable(now.plusSeconds(60));
 
         userRepository.save(User.create(activeUserId, tenantId, "Active", now));
         userRepository.save(disabledUser);

@@ -13,10 +13,10 @@ tags:
 ## 한눈에 보기
 
 Layer: Domain
-Module: `pabal-messenger-domain`, `pabal-workspace-domain`
+Module: `pabal-messenger-domain`, `pabal-workspace-domain`, `pabal-user-domain`
 Status: Implemented
 
-도메인 모델은 `ChatRoom`, `ChatRoomMember`, `Message`, `DirectChatMapping`을 중심으로 구성된다. Messenger에서 참조하는 workspace membership invariant는 `pabal-workspace-domain`의 `WorkspaceMember`가 소유한다. repository port는 현재 domain이 아니라 application layer의 `port.out.persistence`에 있다.
+도메인 모델은 `ChatRoom`, `ChatRoomMember`, `Message`, `DirectChatMapping`을 중심으로 구성된다. Messenger에서 참조하는 workspace membership invariant는 `pabal-workspace-domain`의 `WorkspaceMember`가 소유한다. tenant user aggregate invariant는 `pabal-user-domain`의 `User`가 소유한다. repository port는 현재 domain이 아니라 application layer의 `port.out.persistence`에 있다.
 
 ## Aggregate / Entity
 
@@ -89,6 +89,28 @@ Status: Implemented
 - role 변경 성공 시 같은 `WorkspaceMember` instance의 `role`과 `updatedAt`만 바뀌며 identity, status, join/create/left 값은 유지된다.
 - 거부된 leave와 role 변경은 snapshot을 부분 변경하지 않는다.
 - `snapshot()`은 `LEFT` 상태와 non-null `leftAt` 정합성을 보존한다. `reconstitute(WorkspaceMemberSnapshot)`는 persistence hydration 용도이며 leave business transition API가 아니다.
+
+### User
+
+Layer: Domain
+Module: `pabal-user-domain`
+Status: Implemented
+
+주요 속성:
+
+- `id`, `tenantId`, `name`, `status`, `createdAt`, `updatedAt` — 6개 필드 모두 `private final`이다.
+
+핵심 규칙:
+
+- `User`는 immutable aggregate다. 생성자 이후 필드 재할당이 없고, in-place mutator(`void` 상태 변경 메서드)가 없다.
+- `rename(String newName, Instant updatedAt)`과 `disable(Instant updatedAt)`은 receiver를 바꾸지 않고 새 `User` instance를 반환한다. 나머지 필드는 receiver 값을 그대로 복사한다.
+- `rename`이 성공하면 반환된 instance의 `name`이 새 이름, `updatedAt`이 인자로 받은 값이 된다. `id`, `tenantId`, `status`, `createdAt`은 유지된다.
+- `disable`이 성공하면 반환된 instance의 `status`가 `UserStatus.DISABLED`, `updatedAt`이 인자로 받은 값이 된다. `id`, `tenantId`, `name`, `createdAt`은 유지된다.
+- 이미 `DISABLED`인 user에 `disable`을 호출하면 `UserAlreadyDisabledException`(`USR409002`)이 발생한다. `DISABLED` user에 `rename`을 호출해도 같은 예외가 발생한다. 두 경우 모두 새 instance는 만들어지지 않고 receiver는 그대로 남는다.
+- `updatedAt`은 caller-supplied time이다. domain은 `rename`/`disable` 내부에서 `Instant.now()`를 호출하지 않는다.
+- `rename`/`disable`은 `updatedAt`이 `null`이면 `Objects.requireNonNull`을 통해 `NullPointerException`을 던진다. guard 순서(null 체크와 상태 체크 사이)는 계약상 고정되어 있지 않다.
+- `create`, `reconstitute`, `snapshot`, `isActive`, equality/hashCode(`id` 기준) semantic은 이번 변경으로 바뀌지 않았다.
+- 현재 production caller는 없다. `rename`/`disable` 호출은 `pabal-user-domain`과 `pabal-user-infrastructure`의 regression test에서만 이뤄진다.
 
 ### Message
 

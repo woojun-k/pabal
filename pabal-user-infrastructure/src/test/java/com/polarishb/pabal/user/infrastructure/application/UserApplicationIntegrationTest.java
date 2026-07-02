@@ -123,8 +123,8 @@ class UserApplicationIntegrationTest extends AbstractUserPostgresDataJpaTest {
         Instant now = Instant.parse("2026-06-19T00:00:00Z");
 
         userRepository.save(User.create(activeUserId, tenantId, "Active", now));
-        User disabled = User.create(disabledUserId, tenantId, "Disabled", now);
-        disabled.disable(now.plusSeconds(60));
+        User disabled = User.create(disabledUserId, tenantId, "Disabled", now)
+                .disable(now.plusSeconds(60));
         userRepository.save(disabled);
         userRepository.save(User.create(otherTenantUserId, UUID.randomUUID(), "Other", now));
         flushAndClear();

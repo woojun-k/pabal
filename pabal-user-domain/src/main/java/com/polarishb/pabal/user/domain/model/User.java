@@ -1,5 +1,6 @@
 package com.polarishb.pabal.user.domain.model;
 
+import com.polarishb.pabal.user.domain.exception.UserAlreadyDisabledException;
 import com.polarishb.pabal.user.domain.model.snapshot.UserSnapshot;
 import com.polarishb.pabal.user.domain.model.type.UserStatus;
 import com.polarishb.pabal.user.domain.model.vo.UserName;
@@ -18,12 +19,12 @@ import java.util.UUID;
 public class User {
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private UUID tenantId;
-    private UserName name;
-    private UserStatus status;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final UUID id;
+    private final UUID tenantId;
+    private final UserName name;
+    private final UserStatus status;
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
     public static User create(UUID id, UUID tenantId, String name, Instant createdAt) {
         return new User(
@@ -63,13 +64,33 @@ public class User {
         return status == UserStatus.ACTIVE;
     }
 
-    public void rename(String newName, Instant updatedAt) {
-        this.name = new UserName(newName);
-        this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+    public User rename(String newName, Instant updatedAt) {
+        Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+        if (this.status == UserStatus.DISABLED) {
+            throw new UserAlreadyDisabledException();
+        }
+        return new User(
+                id,
+                tenantId,
+                new UserName(newName),
+                status,
+                createdAt,
+                updatedAt
+        );
     }
 
-    public void disable(Instant updatedAt) {
-        this.status = UserStatus.DISABLED;
-        this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+    public User disable(Instant updatedAt) {
+        Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+        if (this.status == UserStatus.DISABLED) {
+            throw new UserAlreadyDisabledException();
+        }
+        return new User(
+                id,
+                tenantId,
+                name,
+                UserStatus.DISABLED,
+                createdAt,
+                updatedAt
+        );
     }
 }

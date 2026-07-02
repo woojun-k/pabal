@@ -64,6 +64,7 @@ Layer: Domain / Application
 | --- | --- | --- | --- |
 | `USR404001` | `USER_NOT_FOUND` | 404 | `UserNotFoundException` |
 | `USR409001` | `DUPLICATE_USER` | 409 | `DuplicateUserException` |
+| `USR409002` | `USER_ALREADY_DISABLED` | 409 | `UserAlreadyDisabledException` |
 
 ## Tenant 도메인 에러
 

@@ -160,6 +160,16 @@ When: `CreateUserCommand` 처리
 Then: `InvalidInputException`이 발생하고 clock/save는 호출되지 않음
 Related: [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
 
+## User rename/disable immutable transition
+
+Layer: Domain
+Target: `User`
+Purpose: `User` aggregate가 immutable하게 상태를 전이하고 이미 `DISABLED`인 user의 재전이를 막도록 보장
+Given: `ACTIVE` user, 그리고 이미 `disable`된 user
+When: `rename(newName, updatedAt)` 또는 `disable(updatedAt)`을 호출
+Then: 성공 시 receiver와 다른 새 `User` instance가 반환되고 receiver는 관찰 가능한 변경 없이 유지되며, 이미 `DISABLED`인 user에 대한 `disable`/`rename` 호출은 `UserAlreadyDisabledException`(`USR409002`)을 던지고 새 instance를 만들지 않는다. `updatedAt`이 `null`이면 두 메서드 모두 `NullPointerException`을 던진다
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md)
+
 ## Workspace create owner membership
 
 Layer: Application / Infrastructure
