@@ -48,7 +48,7 @@ class GetTenantRegistrationQueryHandlerTest {
         TenantRegistrationState state = new TenantRegistrationState(
                 registrationId,
                 "Acme",
-                "example.com",
+                "Example.COM",
                 TOKEN,
                 TenantRegistrationStatus.PENDING_VERIFICATION,
                 verificationExpiresAt,
@@ -66,6 +66,8 @@ class GetTenantRegistrationQueryHandlerTest {
 
         assertThat(dto.registrationId()).isEqualTo(registrationId);
         assertThat(dto.status()).isEqualTo("PENDING_VERIFICATION");
+        assertThat(dto.verificationDnsName()).isEqualTo("_pabal-verification.example.com");
+        assertThat(dto.verificationTxtValue()).isEqualTo("pabal-verification=" + TOKEN);
         assertThat(dto.verificationExpiresAt()).isEqualTo(verificationExpiresAt);
         assertThat(dto.activationExpiresAt()).isNull();
     }

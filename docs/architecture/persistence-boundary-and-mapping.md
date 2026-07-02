@@ -63,6 +63,7 @@ Message.snapshot
 | Domain Model | State | Persisted Wrapper | JPA Entity |
 | --- | --- | --- | --- |
 | `Tenant` | `TenantState` | `PersistedTenant` | `TenantEntity` |
+| `TenantRegistration` | `TenantRegistrationState` | `PersistedTenantRegistration` | `TenantRegistrationEntity` |
 | `Workspace` | `WorkspaceState` | `PersistedWorkspace` | `WorkspaceEntity` |
 | `WorkspaceMember` | `WorkspaceMemberState` | `PersistedWorkspaceMember` | `WorkspaceMemberEntity` |
 | `User` | `UserState` | `PersistedUser` | `TenantUserEntity` |
@@ -71,7 +72,25 @@ Message.snapshot
 | `ChatRoomMember` | `ChatRoomMemberState` | `PersistedChatRoomMember` | `ChatRoomMemberEntity` |
 | `DirectChatMapping` | `DirectChatMappingState` | `PersistedDirectChatMapping` | `DirectChatMappingEntity` |
 
-각 aggregate는 domain snapshot을 통해 persistence shape로 넘어간다. `TenantSnapshot`, `WorkspaceSnapshot`, `WorkspaceMemberSnapshot`, `UserSnapshot`, `ChatRoomSnapshot`, `ChatRoomMemberSnapshot`, `DirectChatMappingSnapshot`, `MessageSnapshot`이 domain에 있고, contract `State`는 해당 snapshot을 감싼다. 예를 들어 `ChatRoomSnapshot`과 `ChatRoomState`는 `deletedAt`을 포함하며, `DELETED` 상태와 `deletedAt` 정합성을 snapshot 생성 시 검증한다.
+각 aggregate는 domain snapshot을 통해 persistence shape로 넘어간다. `TenantSnapshot`, `TenantRegistrationSnapshot`, `WorkspaceSnapshot`, `WorkspaceMemberSnapshot`, `UserSnapshot`, `ChatRoomSnapshot`, `ChatRoomMemberSnapshot`, `DirectChatMappingSnapshot`, `MessageSnapshot`이 domain에 있고, contract `State`는 해당 snapshot을 감싼다. 예를 들어 `ChatRoomSnapshot`과 `ChatRoomState`는 `deletedAt`을 포함하며, `DELETED` 상태와 `deletedAt` 정합성을 snapshot 생성 시 검증한다.
+
+## TenantRegistration persistence read-path 경계
+
+Layer: Contract / Application / Domain
+Status: Implemented
+
+`TenantRegistrationState`는 저장된 row shape를 운반하는 persistence state carrier다. `TenantRegistrationState`는 domain snapshot을 만들기 위한 필드와 `snapshot()` 변환만 제공하며, DNS/TXT verification 문자열을 formatting하는 `verificationDnsName()`/`verificationTxtValue()` helper나 prefix constant를 소유하지 않는다.
+
+Verification DNS name과 TXT value의 production source of truth는 domain model인 `TenantRegistration`이다.
+
+- `TenantRegistration.verificationDnsName()`은 `_pabal-verification.{canonicalDomain}`을 만든다.
+- `TenantRegistration.verificationTxtValue()`는 `pabal-verification={token}`을 만든다.
+- `GetTenantRegistrationQueryHandler`는 `TenantRegistrationRepository.findStateById`로 `TenantRegistrationState`를 읽은 뒤 `TenantRegistrationPersistenceMapper.toDomain(state)`로 reconstitute한 `TenantRegistration`에서 두 값을 얻어 `TenantRegistrationDto`에 담는다.
+- command/query DTO와 API response shape는 바뀌지 않는다. read path도 persistence state에 저장된 primitive를 그대로 formatting하지 않고 domain을 거쳐 같은 값을 노출한다.
+
+`PersistedTenant`는 `Tenant` domain object와 `TenantState`가 같은 aggregate row를 가리키는지 생성 시점에 확인한다. `tenant`/`state`가 `null`이면 즉시 실패하고, `tenant.getId()`와 `state.id()` 또는 `tenant.getName().value()`와 `state.name()`이 다르면 `IllegalArgumentException`으로 거부한다. 이 검증은 domain object와 persistence 기준점이 어긋난 wrapper가 repository 경계로 흘러가는 것을 막기 위한 contract layer 방어선이다.
+
+운영 주의: `TenantRegistrationState.snapshot()`은 `TenantName`, `TenantDomainName`, `TenantVerificationToken` 같은 domain VO를 다시 만든다. 따라서 향후 VO validation rule을 강화하면 기존 persistence row가 read path에서 reconstitution 실패를 일으킬 수 있다. 이런 변경은 배포 전에 migration/backfill을 함께 수행하거나, legacy row를 어떻게 읽을지에 대한 explicit read-path factory 결정을 먼저 문서화하고 구현해야 한다. 이 결정 없이 VO validation만 강화하면 query handler와 repository hydration이 운영 데이터에 의해 실패할 수 있다.
 
 ## Repository port와 adapter
 

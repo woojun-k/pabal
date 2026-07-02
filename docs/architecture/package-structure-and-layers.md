@@ -59,11 +59,11 @@ pabal
 | `pabal-authorization` | Authorization | `AuthorityNormalizer`, `PermissionAuthorityMatcher`, `RbacPermissionStore`, `JdbcRbacPermissionStore` | authority normalization/matching, RBAC permission 조회/cache, persisted authorization policy access |
 | `pabal-infra-redis` | Shared Infrastructure | Spring Data Redis starter dependencies | Redis 기반 cache/pub-sub adapter가 공통으로 사용할 Redis infrastructure dependency 집약 |
 | `pabal-persistence-support` | Shared Infrastructure Support | `BaseEntity`, `UpdatableEntity`, `DeletableEntity`, `UuidV7Generated`, `UuidV7IdGenerator` | JPA entity base field와 UUID v7 Hibernate generator |
-| `pabal-tenant-domain` | Domain | `Tenant`, `TenantName`, `TenantStatus` | tenant 상태, 이름 invariant, tenant domain exception |
-| `pabal-tenant-contract` | Contract | `TenantState`, `PersistedTenant`, `TenantPersistenceMapper` | tenant persistence 경계 shape와 mapper |
+| `pabal-tenant-domain` | Domain | `Tenant`, `TenantRegistration`, `TenantName`, `TenantRegistrationStatus` | tenant 상태, tenant registration 상태/verification invariant, tenant domain exception |
+| `pabal-tenant-contract` | Contract | `TenantState`, `TenantRegistrationState`, `PersistedTenant`, `PersistedTenantRegistration`, `TenantRegistrationPersistenceMapper` | tenant/tenant registration persistence 경계 shape와 mapper |
 | `pabal-tenant-application` | Application | `RequestTenantRegistrationCommandHandler`, `VerifyTenantDomainCommandHandler`, `CreateTenantCommandHandler`, `TenantContractService` | tenant registration orchestration, dev seed command/query, repository port, 공통 `TenantContract` 구현 |
 | `pabal-tenant-api` | API | `TenantRegistrationCommandController`, `TenantRegistrationQueryController`, `DevTenantCommandController`, `DevTenantQueryController` | `/api/v1/tenant-registrations/**` onboarding entrypoint, local/test `/dev/tenants/**` entrypoint |
-| `pabal-tenant-infrastructure` | Infrastructure | `TenantRepositoryImpl`, `TenantEntity`, `TenantJpaRepository` | `pabal_tenant` JPA 구현, tenant clock adapter |
+| `pabal-tenant-infrastructure` | Infrastructure | `TenantRepositoryImpl`, `TenantRegistrationRepositoryImpl`, `TenantEntity`, `TenantRegistrationEntity` | `pabal_tenant`/`tenant_registration` JPA 구현, tenant clock adapter |
 | `pabal-workspace-domain` | Domain | `Workspace`, `WorkspaceMember`, `WorkspaceRole` | workspace와 workspace member 상태, role/status invariant |
 | `pabal-workspace-contract` | Contract | `WorkspaceState`, `PersistedWorkspace`, `WorkspaceMemberState` | workspace persistence 경계 shape와 mapper |
 | `pabal-workspace-application` | Application | `CreateWorkspaceCommandHandler`, `GetWorkspaceQueryHandler`, `WorkspaceContractService` | workspace command/query orchestration, member repository port, 공통 `WorkspaceContract` 구현 |

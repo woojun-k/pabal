@@ -24,9 +24,6 @@ public record TenantRegistrationState(
         Instant updatedAt,
         Long version
 ) {
-    private static final String VERIFICATION_DNS_PREFIX = "_pabal-verification.";
-    private static final String VERIFICATION_TXT_PREFIX = "pabal-verification=";
-
     public TenantRegistrationState(
             TenantRegistrationSnapshot snapshot,
             Long version
@@ -63,13 +60,5 @@ public record TenantRegistrationState(
                 createdAt,
                 updatedAt
         );
-    }
-
-    public String verificationDnsName() {
-        return VERIFICATION_DNS_PREFIX + domainName;
-    }
-
-    public String verificationTxtValue() {
-        return VERIFICATION_TXT_PREFIX + verificationToken;
     }
 }
