@@ -264,3 +264,32 @@ Layer: Onboarding / Testing / Documentation
 - [ ] tenant/user authorization checkpoint가 있는가?
 - [ ] domain/application/api/infrastructure 테스트를 어디에 둘지 결정했는가?
 - [ ] 관련 `docs/` 문서를 갱신했는가?
+
+## 10. TenantRegistration domain verification/activation 분리와 persistence/application/api 반영 (해소됨)
+
+Status: Implemented
+Layer: Domain / Contract / Infrastructure / Application / API
+
+현재 확인된 상태:
+
+- `pabal-tenant-domain`의 `TenantRegistration`, `TenantRegistrationStatus`, `TenantRegistrationSnapshot`은 단일 `expiresAt`을 `verificationExpiresAt`/`activationExpiresAt`으로 분리하고, status를 `PENDING_VERIFICATION`, `DOMAIN_VERIFIED`, `REVERIFICATION_REQUIRED`, `ACTIVATED`, `EXPIRED` 5개로 확장했다. `activate()`는 `activationExpiresAt`을 넘긴 activation을 `TenantRegistrationExpiredException`으로 거부하고, `requireReverification`/`reverify`로 lapsed activation window를 관측 가능한 상태로 전환/복구할 수 있다. 읽기 전용 guard `validateReverificationAllowed()`가 `ReverifyTenantRegistrationCommandHandler`의 DNS 조회 이전 상태 검증에 쓰인다.
+- `pabal-tenant-contract`의 `TenantRegistrationState`도 같은 두 timestamp 필드를 반영하도록 갱신되었다.
+- `pabal-tenant-infrastructure`의 persistence + scheduler 계층은 domain/contract를 따라잡았다: `V10__tenant_registration_split_expiry_and_reverification_status.sql`이 `expires_at`을 `verification_expires_at`(NOT NULL)/`activation_expires_at`(nullable)로 분리하고 5-status CHECK와 status별 timestamp CHECK를 갱신했으며, `TenantRegistrationEntity`는 새 `TenantRegistrationState` 13-arg 생성자 순서에 맞춰 두 timestamp를 매핑한다. `TenantRegistrationRepositoryImpl.OPEN_STATUSES`는 `DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`를 포함한 4개 open status를 사용하고, `TenantRegistrationExpirationScheduler.reverifyLapsedRegistrations()`가 lapsed `DOMAIN_VERIFIED` registration을 도메인 메서드 `requireReverification(now)`를 통해서만 `REVERIFICATION_REQUIRED`로 전이하는 sweep을 `pabal.tenant.registration.reverification-sweep-delay-ms`(기본 600000ms) 간격으로 실행한다.
+- `pabal-tenant-application`의 `RequestTenantRegistrationCommandHandler`/`RenewTenantRegistrationTokenCommandHandler`(verification window)와 `VerifyTenantDomainCommandHandler`(activation window)는 더 이상 하드코딩된 `Duration` 상수를 갖지 않는다. window 값은 `pabal.tenant.registration.verification-window-ms`/`activation-window-ms`(둘 다 기본 604800000ms = 7일) 프로퍼티로 외부화되어 `@Value` 생성자 주입된다. 새 `ReverifyLapsedTenantRegistrationsCommand`/`CommandHandler<…, Integer>`가 sweep 유스케이스를 구현한다.
+- `VerifyTenantDomainCommandHandler`는 verify-only handler로 재작성되어 DNS 검증 후 `markVerified`로 `DOMAIN_VERIFIED`에서 멈추고 `Tenant`를 생성하지 않는다(`TenantRepository` 의존성 자체가 없다). Activation은 새 `ActivateTenantRegistrationCommandHandler`가 `findByIdForUpdate` 락 이후 `activate(tenantId, now)`로 수행하며, `Tenant`를 정확히 1건 생성하고 registration에 연결한다. 단일 registration에 대한 명시적 재검증은 새 `ReverifyTenantRegistrationCommandHandler`(DNS 조회 이전에 `validateReverificationAllowed()`로 상태를 먼저 검증)가 `reverify(now, now+window)`로 수행한다.
+- `pabal-tenant-api`는 새 endpoint `POST /api/v1/tenant-registrations/{registrationId}/activation`, `POST /api/v1/tenant-registrations/{registrationId}/reverification`을 노출하고, `TenantRegistrationResponse`/`TenantRegistrationDetailResponse`/`VerifyTenantDomainResponse`/`ActivateTenantRegistrationResponse`/`ReverifyTenantRegistrationResponse` 모두 단일 `expiresAt` 대신 `verificationExpiresAt`/`activationExpiresAt`을 노출한다. `status` 필드는 5-status 문자열을 그대로 echo한다.
+- `REVERIFICATION_REQUIRED` row는 `activationExpiresAt + reverification-grace-ms <= now`가 되면 `TenantRegistrationRepository.expireLapsedReverificationRegistrations(Instant, long)`(bulk UPDATE)를 통해 `EXPIRED`로 닫힌다. 새 프로퍼티 `pabal.tenant.registration.reverification-grace-ms`(기본 604800000ms)로 grace window 길이를 제어하며, `TenantRegistrationExpirationScheduler.expirePendingRegistrations()`가 기존 pending expiry sweep과 함께 실행한다. `DOMAIN_VERIFIED` row는 이 sweep이 건드리지 않는다 — 먼저 `reverifyLapsedRegistrations()`로 `REVERIFICATION_REQUIRED`를 거쳐야 한다.
+- 이 결정의 배경은 [ADR-0013](../adr/0013-split-overloaded-expiry-timestamp-into-verification-and-activation-windows.md)에 있다(follow-up 항목 완료 반영됨).
+
+필요했던 후속 작업(전부 완료):
+
+- [x] `V10__*.sql`로 `expires_at` → `verification_expires_at`/`activation_expires_at` 컬럼 분리와 5-status CHECK constraint 갱신
+- [x] `TenantRegistrationEntity` 필드/매핑을 새 `TenantRegistrationState` signature에 맞춰 갱신
+- [x] `TenantRegistrationExpirationScheduler`에 lapsed `DOMAIN_VERIFIED` → `REVERIFICATION_REQUIRED` sweep 추가(`reverifyLapsedRegistrations()`, `requireReverification(now)`를 통해서만 전이)
+- [x] verification/activation window `Duration` 상수를 `pabal.tenant.registration.verification-window-ms`/`activation-window-ms` 프로퍼티로 외부화
+- [x] two-phase `VerifyTenantDomainCommandHandler`(DNS 검증 → `DOMAIN_VERIFIED`)와 별도 activation(`ActivateTenantRegistrationCommandHandler`)/reverification(`ReverifyTenantRegistrationCommandHandler`) command handler 도입
+- [x] API 응답에 새 status와 두 timestamp 반영, 새 activation/reverification endpoint 노출
+- [x] `REVERIFICATION_REQUIRED`의 terminal expiry(→ `EXPIRED`) grace-window 정책 결정 및 구현(`pabal.tenant.registration.reverification-grace-ms`)
+- [x] `docs/use-cases/command-query-catalog.md`, `docs/use-cases/http-api-and-error-mapping.md`, `docs/architecture/database-schema-and-constraints.md`의 `Status: Partial` 표기를 `Implemented`로 갱신
+
+이 항목은 domain/contract/infrastructure/application/api 전 계층이 정합해 `Status: Implemented`로 닫혔다.

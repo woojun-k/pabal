@@ -35,5 +35,5 @@ Pabal은 여러 모듈과 도메인 객체에서 전역적으로 충돌 가능�
 
 ### Follow-up
 
-- [ ] Java generator와 DB `uuidv7()`의 version/variant/timestamp 검증 테스트를 유지한다.
+- [ ] DB `uuidv7()` 함수의 version/variant/timestamp 검증 테스트를 추가한다.
 - [ ] 외부 공개 ID와 내부 PK를 분리할 필요가 있는 도메인을 별도 검토한다.

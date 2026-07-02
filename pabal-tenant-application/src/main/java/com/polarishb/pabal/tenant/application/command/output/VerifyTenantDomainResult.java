@@ -5,11 +5,10 @@ import java.util.UUID;
 
 public record VerifyTenantDomainResult(
         UUID registrationId,
-        UUID tenantId,
         String tenantName,
         String domainName,
         String status,
         Instant verifiedAt,
-        Instant activatedAt
+        Instant activationExpiresAt
 ) {
 }

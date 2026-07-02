@@ -30,7 +30,8 @@ public class TenantRegistration {
     private final TenantDomainName domainName;
     private final TenantVerificationToken verificationToken;
     private final TenantRegistrationStatus status;
-    private final Instant expiresAt;
+    private final Instant verificationExpiresAt;
+    private final Instant activationExpiresAt;
     private final Instant verifiedAt;
     private final Instant activatedAt;
     private final UUID tenantId;
@@ -42,12 +43,12 @@ public class TenantRegistration {
             String domainName,
             String verificationToken,
             Instant requestedAt,
-            Instant expiresAt
+            Instant verificationExpiresAt
     ) {
         Objects.requireNonNull(requestedAt, "requestedAt must not be null");
-        Objects.requireNonNull(expiresAt, "expiresAt must not be null");
-        if (!expiresAt.isAfter(requestedAt)) {
-            throw new IllegalArgumentException("expiresAt must be after requestedAt");
+        Objects.requireNonNull(verificationExpiresAt, "verificationExpiresAt must not be null");
+        if (!verificationExpiresAt.isAfter(requestedAt)) {
+            throw new IllegalArgumentException("verificationExpiresAt must be after requestedAt");
         }
 
         return new TenantRegistration(
@@ -56,7 +57,8 @@ public class TenantRegistration {
                 new TenantDomainName(domainName),
                 new TenantVerificationToken(verificationToken),
                 TenantRegistrationStatus.PENDING_VERIFICATION,
-                expiresAt,
+                verificationExpiresAt,
+                null,
                 null,
                 null,
                 null,
@@ -73,7 +75,8 @@ public class TenantRegistration {
                 snapshot.domainName(),
                 snapshot.verificationToken(),
                 snapshot.status(),
-                snapshot.expiresAt(),
+                snapshot.verificationExpiresAt(),
+                snapshot.activationExpiresAt(),
                 snapshot.verifiedAt(),
                 snapshot.activatedAt(),
                 snapshot.tenantId(),
@@ -89,7 +92,8 @@ public class TenantRegistration {
                 domainName,
                 verificationToken,
                 status,
-                expiresAt,
+                verificationExpiresAt,
+                activationExpiresAt,
                 verifiedAt,
                 activatedAt,
                 tenantId,
@@ -114,12 +118,24 @@ public class TenantRegistration {
         ensurePending(now);
     }
 
-    public TenantRegistration renewVerificationToken(String verificationToken, Instant renewedAt, Instant expiresAt) {
+    /**
+     * Read-only guard for the explicit single-registration reverification flow: lets
+     * {@code ReverifyTenantRegistrationCommandHandler} reject a wrong-status registration
+     * before performing any DNS lookup, without mutating state (the actual transition is
+     * still driven exclusively by {@link #reverify(Instant, Instant)}).
+     */
+    public void validateReverificationAllowed() {
+        if (status != TenantRegistrationStatus.REVERIFICATION_REQUIRED) {
+            throw new TenantRegistrationNotPendingException(id, status);
+        }
+    }
+
+    public TenantRegistration renewVerificationToken(String verificationToken, Instant renewedAt, Instant verificationExpiresAt) {
         Objects.requireNonNull(renewedAt, "renewedAt must not be null");
-        Objects.requireNonNull(expiresAt, "expiresAt must not be null");
+        Objects.requireNonNull(verificationExpiresAt, "verificationExpiresAt must not be null");
         ensurePending(renewedAt);
-        if (!expiresAt.isAfter(renewedAt)) {
-            throw new IllegalArgumentException("expiresAt must be after renewedAt");
+        if (!verificationExpiresAt.isAfter(renewedAt)) {
+            throw new IllegalArgumentException("verificationExpiresAt must be after renewedAt");
         }
 
         return new TenantRegistration(
@@ -128,7 +144,8 @@ public class TenantRegistration {
                 domainName,
                 new TenantVerificationToken(verificationToken),
                 status,
-                expiresAt,
+                verificationExpiresAt,
+                activationExpiresAt,
                 verifiedAt,
                 activatedAt,
                 tenantId,
@@ -137,16 +154,22 @@ public class TenantRegistration {
         );
     }
 
-    public TenantRegistration markVerified(Instant verifiedAt) {
+    public TenantRegistration markVerified(Instant verifiedAt, Instant activationExpiresAt) {
         ensurePending(verifiedAt);
         Instant transitionAt = Objects.requireNonNull(verifiedAt, "verifiedAt must not be null");
+        Objects.requireNonNull(activationExpiresAt, "activationExpiresAt must not be null");
+        if (!activationExpiresAt.isAfter(transitionAt)) {
+            throw new IllegalArgumentException("activationExpiresAt must be after verifiedAt");
+        }
+
         return new TenantRegistration(
                 id,
                 tenantName,
                 domainName,
                 verificationToken,
-                TenantRegistrationStatus.VERIFIED,
-                expiresAt,
+                TenantRegistrationStatus.DOMAIN_VERIFIED,
+                verificationExpiresAt,
+                activationExpiresAt,
                 transitionAt,
                 activatedAt,
                 tenantId,
@@ -155,19 +178,78 @@ public class TenantRegistration {
         );
     }
 
+    public TenantRegistration requireReverification(Instant now) {
+        Objects.requireNonNull(now, "now must not be null");
+        if (status != TenantRegistrationStatus.DOMAIN_VERIFIED) {
+            throw new TenantRegistrationNotPendingException(id, status);
+        }
+        // Calling this before the activation window lapses is a caller/scheduler bug
+        // (e.g. sweeping too early), not a domain error tied to a TenantErrorCode -
+        // hence a plain IllegalStateException rather than a TenantException subtype.
+        if (now.isBefore(activationExpiresAt)) {
+            throw new IllegalStateException("activation window is still open; reverification is not required");
+        }
+
+        return new TenantRegistration(
+                id,
+                tenantName,
+                domainName,
+                verificationToken,
+                TenantRegistrationStatus.REVERIFICATION_REQUIRED,
+                verificationExpiresAt,
+                activationExpiresAt,
+                verifiedAt,
+                activatedAt,
+                tenantId,
+                createdAt,
+                now
+        );
+    }
+
+    public TenantRegistration reverify(Instant reverifiedAt, Instant activationExpiresAt) {
+        Objects.requireNonNull(reverifiedAt, "reverifiedAt must not be null");
+        Objects.requireNonNull(activationExpiresAt, "activationExpiresAt must not be null");
+        if (status != TenantRegistrationStatus.REVERIFICATION_REQUIRED) {
+            throw new TenantRegistrationNotPendingException(id, status);
+        }
+        if (!activationExpiresAt.isAfter(reverifiedAt)) {
+            throw new IllegalArgumentException("activationExpiresAt must be after reverifiedAt");
+        }
+
+        return new TenantRegistration(
+                id,
+                tenantName,
+                domainName,
+                verificationToken,
+                TenantRegistrationStatus.DOMAIN_VERIFIED,
+                verificationExpiresAt,
+                activationExpiresAt,
+                reverifiedAt,
+                activatedAt,
+                tenantId,
+                createdAt,
+                reverifiedAt
+        );
+    }
+
     public TenantRegistration activate(UUID tenantId, Instant activatedAt) {
-        if (status != TenantRegistrationStatus.VERIFIED) {
+        if (status != TenantRegistrationStatus.DOMAIN_VERIFIED) {
             throw new TenantRegistrationNotPendingException(id, status);
         }
         UUID activatedTenantId = Objects.requireNonNull(tenantId, "tenantId must not be null");
         Instant transitionAt = Objects.requireNonNull(activatedAt, "activatedAt must not be null");
+        if (!transitionAt.isBefore(activationExpiresAt)) {
+            throw new TenantRegistrationExpiredException(id, activationExpiresAt);
+        }
+
         return new TenantRegistration(
                 id,
                 tenantName,
                 domainName,
                 verificationToken,
                 TenantRegistrationStatus.ACTIVATED,
-                expiresAt,
+                verificationExpiresAt,
+                activationExpiresAt,
                 verifiedAt,
                 transitionAt,
                 activatedTenantId,
@@ -178,7 +260,9 @@ public class TenantRegistration {
 
     public TenantRegistration expire(Instant expiredAt) {
         Objects.requireNonNull(expiredAt, "expiredAt must not be null");
-        if (status != TenantRegistrationStatus.PENDING_VERIFICATION) {
+        if (status != TenantRegistrationStatus.PENDING_VERIFICATION
+                && status != TenantRegistrationStatus.DOMAIN_VERIFIED
+                && status != TenantRegistrationStatus.REVERIFICATION_REQUIRED) {
             throw new TenantRegistrationNotPendingException(id, status);
         }
         return new TenantRegistration(
@@ -187,7 +271,8 @@ public class TenantRegistration {
                 domainName,
                 verificationToken,
                 TenantRegistrationStatus.EXPIRED,
-                expiresAt,
+                verificationExpiresAt,
+                activationExpiresAt,
                 verifiedAt,
                 activatedAt,
                 tenantId,
@@ -198,7 +283,8 @@ public class TenantRegistration {
 
     public boolean isOpen() {
         return status == TenantRegistrationStatus.PENDING_VERIFICATION
-                || status == TenantRegistrationStatus.VERIFIED
+                || status == TenantRegistrationStatus.DOMAIN_VERIFIED
+                || status == TenantRegistrationStatus.REVERIFICATION_REQUIRED
                 || status == TenantRegistrationStatus.ACTIVATED;
     }
 
@@ -207,8 +293,8 @@ public class TenantRegistration {
         if (status != TenantRegistrationStatus.PENDING_VERIFICATION) {
             throw new TenantRegistrationNotPendingException(id, status);
         }
-        if (!now.isBefore(expiresAt)) {
-            throw new TenantRegistrationExpiredException(id, expiresAt);
+        if (!now.isBefore(verificationExpiresAt)) {
+            throw new TenantRegistrationExpiredException(id, verificationExpiresAt);
         }
     }
 

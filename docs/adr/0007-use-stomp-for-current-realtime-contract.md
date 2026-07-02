@@ -36,6 +36,4 @@ Realtime 기능은 HTTP API와 달리 destination, payload envelope, subscriptio
 
 ### Follow-up
 
-- [ ] realtime contract versioning 도입 여부를 검토한다.
-- [ ] STOMP CONNECT/SUBSCRIBE 보안 테스트를 보강한다.
-- [ ] broker relay 전환 조건과 운영 지표를 문서화한다.
+- [ ] broker relay 운영 지표를 문서화한다.

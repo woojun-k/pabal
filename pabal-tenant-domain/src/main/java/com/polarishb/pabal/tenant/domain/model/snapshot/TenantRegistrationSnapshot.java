@@ -15,7 +15,8 @@ public record TenantRegistrationSnapshot(
         TenantDomainName domainName,
         TenantVerificationToken verificationToken,
         TenantRegistrationStatus status,
-        Instant expiresAt,
+        Instant verificationExpiresAt,
+        Instant activationExpiresAt,
         Instant verifiedAt,
         Instant activatedAt,
         UUID tenantId,
@@ -27,7 +28,7 @@ public record TenantRegistrationSnapshot(
         Objects.requireNonNull(domainName, "domainName must not be null");
         Objects.requireNonNull(verificationToken, "verificationToken must not be null");
         Objects.requireNonNull(status, "status must not be null");
-        Objects.requireNonNull(expiresAt, "expiresAt must not be null");
+        Objects.requireNonNull(verificationExpiresAt, "verificationExpiresAt must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
     }

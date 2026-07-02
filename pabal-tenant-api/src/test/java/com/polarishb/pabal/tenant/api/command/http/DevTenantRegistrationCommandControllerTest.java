@@ -40,29 +40,36 @@ class DevTenantRegistrationCommandControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
+    /**
+     * Contract under test (ADR-0013 follow-up, verify-only split): the dev
+     * domain-verification endpoint now surfaces the verify-only result -
+     * status = "DOMAIN_VERIFIED", no tenantId/activatedAt fields (removed from
+     * VerifyTenantDomainResult/VerifyTenantDomainResponse), and activationExpiresAt
+     * instead.
+     */
     @Test
-    void verifyTenantDomain_maps_path_registration_id_to_command() throws Exception {
+    void verifyTenantDomain_maps_path_registration_id_to_command_and_returns_domain_verified_response() throws Exception {
         UUID registrationId = UUID.randomUUID();
-        UUID tenantId = UUID.randomUUID();
         Instant verifiedAt = Instant.parse("2026-06-19T00:05:00Z");
+        Instant activationExpiresAt = verifiedAt.plusSeconds(604_800);
         when(verifyTenantDomainCommandHandler.handle(any(VerifyTenantDomainCommand.class)))
                 .thenReturn(new VerifyTenantDomainResult(
                         registrationId,
-                        tenantId,
                         "Acme",
                         "example.com",
-                        "ACTIVATED",
+                        "DOMAIN_VERIFIED",
                         verifiedAt,
-                        verifiedAt
+                        activationExpiresAt
                 ));
 
         mockMvc.perform(post("/dev/tenant-registrations/{registrationId}/domain-verification", registrationId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.registrationId").value(registrationId.toString()))
-                .andExpect(jsonPath("$.tenantId").value(tenantId.toString()))
-                .andExpect(jsonPath("$.status").value("ACTIVATED"))
+                .andExpect(jsonPath("$.status").value("DOMAIN_VERIFIED"))
                 .andExpect(jsonPath("$.verifiedAt").value(verifiedAt.toString()))
-                .andExpect(jsonPath("$.activatedAt").value(verifiedAt.toString()));
+                .andExpect(jsonPath("$.activationExpiresAt").value(activationExpiresAt.toString()))
+                .andExpect(jsonPath("$.tenantId").doesNotExist())
+                .andExpect(jsonPath("$.activatedAt").doesNotExist());
 
         ArgumentCaptor<VerifyTenantDomainCommand> commandCaptor =
                 ArgumentCaptor.forClass(VerifyTenantDomainCommand.class);

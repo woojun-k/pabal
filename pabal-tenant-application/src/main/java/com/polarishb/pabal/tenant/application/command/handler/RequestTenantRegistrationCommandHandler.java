@@ -12,6 +12,7 @@ import com.polarishb.pabal.tenant.domain.exception.TenantDomainAlreadyRegistered
 import com.polarishb.pabal.tenant.domain.model.TenantRegistration;
 import com.polarishb.pabal.tenant.domain.model.vo.TenantDomainName;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,14 +20,24 @@ import java.time.Duration;
 import java.time.Instant;
 
 @Component
-@RequiredArgsConstructor
 public class RequestTenantRegistrationCommandHandler implements CommandHandler<RequestTenantRegistrationCommand, TenantRegistrationResult> {
-
-    private static final Duration VERIFICATION_TTL = Duration.ofDays(7);
 
     private final TenantRegistrationRepository tenantRegistrationRepository;
     private final TenantVerificationTokenGeneratorPort tokenGeneratorPort;
     private final ClockPort clockPort;
+    private final long verificationWindowMs;
+
+    public RequestTenantRegistrationCommandHandler(
+            TenantRegistrationRepository tenantRegistrationRepository,
+            TenantVerificationTokenGeneratorPort tokenGeneratorPort,
+            ClockPort clockPort,
+            @Value("${pabal.tenant.registration.verification-window-ms:604800000}") long verificationWindowMs
+    ) {
+        this.tenantRegistrationRepository = tenantRegistrationRepository;
+        this.tokenGeneratorPort = tokenGeneratorPort;
+        this.clockPort = clockPort;
+        this.verificationWindowMs = verificationWindowMs;
+    }
 
     @Override
     @Transactional
@@ -43,7 +54,7 @@ public class RequestTenantRegistrationCommandHandler implements CommandHandler<R
                 domainName.value(),
                 tokenGeneratorPort.generate(),
                 now,
-                now.plus(VERIFICATION_TTL)
+                now.plus(Duration.ofMillis(verificationWindowMs))
         );
         PersistedTenantRegistration saved = tenantRegistrationRepository.append(
                 new PersistedTenantRegistration(
@@ -63,7 +74,8 @@ public class RequestTenantRegistrationCommandHandler implements CommandHandler<R
                 registration.getStatus().name(),
                 registration.verificationDnsName(),
                 registration.verificationTxtValue(),
-                registration.getExpiresAt(),
+                registration.getVerificationExpiresAt(),
+                registration.getActivationExpiresAt(),
                 registration.getCreatedAt()
         );
     }

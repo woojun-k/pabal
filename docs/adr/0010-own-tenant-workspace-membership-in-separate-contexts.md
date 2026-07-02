@@ -32,12 +32,10 @@ DB FK는 bounded context 내부 정합성에 집중한다. `workspace_member`는
 ### Negative
 
 - 단일 DB 안에서도 cross-context FK를 일부 의도적으로 두지 않으므로 application contract 테스트가 중요해진다.
-- workspace role과 Messenger fine-grained permission은 아직 직접 연결되지 않았다. 현재 channel permission은 `RbacPermissionAdapter`의 JWT authority 해석이 담당한다.
 - tenant/workspace/user 생성 순서가 테스트 fixture와 local seed data에 반영되어야 한다.
 
 ### Follow-up
 
-- workspace member role과 `MessengerPermission` 매핑 정책을 결정한다.
 - module dependency rule을 자동 검증한다.
 - contract 기반 조회를 MSA 전환 시 어떤 외부 계약으로 바꿀지 별도 설계한다.
 

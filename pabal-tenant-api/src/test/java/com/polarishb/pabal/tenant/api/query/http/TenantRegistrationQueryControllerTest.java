@@ -45,6 +45,8 @@ class TenantRegistrationQueryControllerTest {
         UUID tenantId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-06-19T00:00:00Z");
         Instant updatedAt = Instant.parse("2026-06-19T00:05:00Z");
+        Instant verificationExpiresAt = Instant.parse("2026-06-26T00:00:00Z");
+        Instant activationExpiresAt = Instant.parse("2026-07-03T00:00:00Z");
         when(getTenantRegistrationQueryHandler.handle(any(GetTenantRegistrationQuery.class)))
                 .thenReturn(new TenantRegistrationDto(
                         registrationId,
@@ -54,7 +56,8 @@ class TenantRegistrationQueryControllerTest {
                         "ACTIVATED",
                         "_pabal-verification.example.com",
                         "pabal-verification=abcdefghijklmnopqrstuvwxyzABCDEF",
-                        Instant.parse("2026-06-26T00:00:00Z"),
+                        verificationExpiresAt,
+                        activationExpiresAt,
                         updatedAt,
                         updatedAt,
                         createdAt,
@@ -68,6 +71,9 @@ class TenantRegistrationQueryControllerTest {
                 .andExpect(jsonPath("$.tenantName").value("Acme"))
                 .andExpect(jsonPath("$.domainName").value("example.com"))
                 .andExpect(jsonPath("$.status").value("ACTIVATED"))
+                .andExpect(jsonPath("$.verificationExpiresAt").value(verificationExpiresAt.toString()))
+                .andExpect(jsonPath("$.activationExpiresAt").value(activationExpiresAt.toString()))
+                .andExpect(jsonPath("$.expiresAt").doesNotExist())
                 .andExpect(jsonPath("$.createdAt").value(createdAt.toString()))
                 .andExpect(jsonPath("$.updatedAt").value(updatedAt.toString()));
 
@@ -75,5 +81,62 @@ class TenantRegistrationQueryControllerTest {
                 ArgumentCaptor.forClass(GetTenantRegistrationQuery.class);
         verify(getTenantRegistrationQueryHandler).handle(queryCaptor.capture());
         assertThat(queryCaptor.getValue().registrationId()).isEqualTo(registrationId);
+    }
+
+    /**
+     * Contract: GET .../{id} passes all five status strings through verbatim, including
+     * DOMAIN_VERIFIED and REVERIFICATION_REQUIRED (previously-unreachable statuses at
+     * this endpoint boundary before the two-phase split).
+     */
+    @Test
+    void getTenantRegistration_passes_domain_verified_and_reverification_required_statuses_verbatim() throws Exception {
+        UUID registrationId = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-06-19T00:00:00Z");
+        Instant updatedAt = Instant.parse("2026-06-19T00:05:00Z");
+        Instant verificationExpiresAt = Instant.parse("2026-06-26T00:00:00Z");
+        Instant activationExpiresAt = Instant.parse("2026-07-03T00:00:00Z");
+
+        when(getTenantRegistrationQueryHandler.handle(any(GetTenantRegistrationQuery.class)))
+                .thenReturn(new TenantRegistrationDto(
+                        registrationId,
+                        null,
+                        "Acme",
+                        "example.com",
+                        "DOMAIN_VERIFIED",
+                        "_pabal-verification.example.com",
+                        "pabal-verification=abcdefghijklmnopqrstuvwxyzABCDEF",
+                        verificationExpiresAt,
+                        activationExpiresAt,
+                        updatedAt,
+                        null,
+                        createdAt,
+                        updatedAt
+                ));
+
+        mockMvc.perform(get("/api/v1/tenant-registrations/{registrationId}", registrationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DOMAIN_VERIFIED"))
+                .andExpect(jsonPath("$.activationExpiresAt").value(activationExpiresAt.toString()));
+
+        when(getTenantRegistrationQueryHandler.handle(any(GetTenantRegistrationQuery.class)))
+                .thenReturn(new TenantRegistrationDto(
+                        registrationId,
+                        null,
+                        "Acme",
+                        "example.com",
+                        "REVERIFICATION_REQUIRED",
+                        "_pabal-verification.example.com",
+                        "pabal-verification=abcdefghijklmnopqrstuvwxyzABCDEF",
+                        verificationExpiresAt,
+                        activationExpiresAt,
+                        updatedAt,
+                        null,
+                        createdAt,
+                        activationExpiresAt
+                ));
+
+        mockMvc.perform(get("/api/v1/tenant-registrations/{registrationId}", registrationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REVERIFICATION_REQUIRED"));
     }
 }

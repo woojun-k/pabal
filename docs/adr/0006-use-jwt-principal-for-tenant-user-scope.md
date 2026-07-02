@@ -37,5 +37,4 @@ JWT claim을 `PabalPrincipal`로 변환하고, 이 principal의 `tenantId`, `use
 ### Follow-up
 
 - [ ] repository tenant predicate 누락을 검증하는 테스트 또는 정적 검사를 검토한다.
-- [ ] WebSocket subscription authorization test를 보강한다.
 - [ ] RLS 또는 infrastructure-level tenant guard 도입 여부를 별도 ADR로 검토한다.

@@ -24,11 +24,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Contract under test (property-driven verification window; ADR-0013 follow-up field
+ * shape): the renew handler's verification-window value comes from
+ * {@code pabal.tenant.registration.verification-window-ms} (default {@code 604800000}
+ * = 7 days), injected via constructor, not a hardcoded {@code Duration} constant.
+ *
+ * <p>{@code TenantRegistrationResult} exposes {@code verificationExpiresAt} +
+ * {@code activationExpiresAt} (null for a PENDING_VERIFICATION registration) - the
+ * removed single {@code expiresAt} field must no longer appear on this record.
+ */
 class RenewTenantRegistrationTokenCommandHandlerTest {
 
     private static final Instant REQUESTED_AT = Instant.parse("2026-06-19T00:00:00Z");
     private static final Instant RENEWED_AT = Instant.parse("2026-06-19T00:05:00Z");
     private static final Duration VERIFICATION_TTL = Duration.ofDays(7);
+    private static final long DEFAULT_VERIFICATION_WINDOW_MS = 604_800_000L;
     private static final String TOKEN_ONE = "abcdefghijklmnopqrstuvwxyzABCDEF";
     private static final String TOKEN_TWO = "ABCDEFabcdefghijklmnopqrstuvwxyz";
 
@@ -43,7 +54,8 @@ class RenewTenantRegistrationTokenCommandHandlerTest {
         handler = new RenewTenantRegistrationTokenCommandHandler(
                 tenantRegistrationRepository,
                 tokenGeneratorPort,
-                clockPort
+                clockPort,
+                DEFAULT_VERIFICATION_WINDOW_MS
         );
     }
 
@@ -68,7 +80,8 @@ class RenewTenantRegistrationTokenCommandHandlerTest {
 
         assertThat(result.registrationId()).isEqualTo(registrationId);
         assertThat(result.verificationTxtValue()).isEqualTo("pabal-verification=" + TOKEN_TWO);
-        assertThat(result.expiresAt()).isEqualTo(RENEWED_AT.plus(VERIFICATION_TTL));
+        assertThat(result.verificationExpiresAt()).isEqualTo(RENEWED_AT.plus(VERIFICATION_TTL));
+        assertThat(result.activationExpiresAt()).isNull();
         assertThat(result.status()).isEqualTo("PENDING_VERIFICATION");
 
         ArgumentCaptor<PersistedTenantRegistration> registrationCaptor =
@@ -76,8 +89,42 @@ class RenewTenantRegistrationTokenCommandHandlerTest {
         verify(tenantRegistrationRepository).update(registrationCaptor.capture());
         assertThat(registrationCaptor.getValue().state().version()).isEqualTo(5L);
         assertThat(registrationCaptor.getValue().registration().getVerificationToken().value()).isEqualTo(TOKEN_TWO);
-        assertThat(registrationCaptor.getValue().registration().getExpiresAt())
+        assertThat(registrationCaptor.getValue().registration().getVerificationExpiresAt())
                 .isEqualTo(RENEWED_AT.plus(VERIFICATION_TTL));
+    }
+
+    /**
+     * Contract: {@code verification-window-ms} is a configuration property, not a
+     * hardcoded {@code Duration} constant - a handler constructed with a different
+     * window value must use that value, not the 7-day default.
+     */
+    @Test
+    void handle_uses_the_injected_verification_window_rather_than_a_hardcoded_default() {
+        long customWindowMs = Duration.ofDays(2).toMillis();
+        RenewTenantRegistrationTokenCommandHandler customHandler = new RenewTenantRegistrationTokenCommandHandler(
+                tenantRegistrationRepository,
+                tokenGeneratorPort,
+                clockPort,
+                customWindowMs
+        );
+        UUID registrationId = UUID.randomUUID();
+        when(clockPort.now()).thenReturn(RENEWED_AT);
+        when(tenantRegistrationRepository.findByIdForUpdate(registrationId))
+                .thenReturn(Optional.of(pendingRegistration(
+                        registrationId,
+                        TOKEN_ONE,
+                        REQUESTED_AT.plus(Duration.ofDays(1)),
+                        5L
+                )));
+        when(tokenGeneratorPort.generate()).thenReturn(TOKEN_TWO);
+        when(tenantRegistrationRepository.update(any(PersistedTenantRegistration.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        TenantRegistrationResult result = customHandler.handle(
+                new RenewTenantRegistrationTokenCommand(registrationId)
+        );
+
+        assertThat(result.verificationExpiresAt()).isEqualTo(RENEWED_AT.plus(Duration.ofDays(2)));
     }
 
     @Test
@@ -115,6 +162,7 @@ class RenewTenantRegistrationTokenCommandHandlerTest {
                 token,
                 TenantRegistrationStatus.PENDING_VERIFICATION,
                 expiresAt,
+                null,
                 null,
                 null,
                 null,

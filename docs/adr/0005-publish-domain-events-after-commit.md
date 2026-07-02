@@ -37,5 +37,3 @@ Realtime outbound event는 transaction commit 이후 발행한다.
 ### Follow-up
 
 - [ ] event delivery 실패 관측 지표를 추가한다.
-- [ ] outbox 도입 조건을 MSA 전환 체크리스트와 연결한다.
-- [ ] listener mapping test를 보강한다.

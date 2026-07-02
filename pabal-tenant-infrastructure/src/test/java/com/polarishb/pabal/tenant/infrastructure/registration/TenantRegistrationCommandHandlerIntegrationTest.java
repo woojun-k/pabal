@@ -3,7 +3,9 @@ package com.polarishb.pabal.tenant.infrastructure.registration;
 import com.polarishb.pabal.support.AbstractTenantPostgresDataJpaTest;
 import com.polarishb.pabal.tenant.application.command.handler.*;
 import com.polarishb.pabal.tenant.application.command.input.*;
+import com.polarishb.pabal.tenant.application.command.output.ActivateTenantRegistrationResult;
 import com.polarishb.pabal.tenant.application.command.output.PollTenantDomainVerificationsResult;
+import com.polarishb.pabal.tenant.application.command.output.ReverifyTenantRegistrationResult;
 import com.polarishb.pabal.tenant.application.command.output.TenantRegistrationResult;
 import com.polarishb.pabal.tenant.application.command.output.VerifyTenantDomainResult;
 import com.polarishb.pabal.tenant.application.port.out.dns.DnsTxtLookupPort;
@@ -17,6 +19,7 @@ import com.polarishb.pabal.tenant.contract.persistence.TenantRegistrationPersist
 import com.polarishb.pabal.tenant.domain.exception.TenantDomainAlreadyRegisteredException;
 import com.polarishb.pabal.tenant.domain.exception.TenantDomainVerificationFailedException;
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationExpiredException;
+import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationNotPendingException;
 import com.polarishb.pabal.tenant.domain.model.TenantRegistration;
 import com.polarishb.pabal.tenant.domain.model.type.TenantRegistrationStatus;
 import com.polarishb.pabal.tenant.domain.model.type.TenantStatus;
@@ -27,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,11 +44,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         RequestTenantRegistrationCommandHandler.class,
         RenewTenantRegistrationTokenCommandHandler.class,
         VerifyTenantDomainCommandHandler.class,
+        ActivateTenantRegistrationCommandHandler.class,
+        ReverifyTenantRegistrationCommandHandler.class,
         ExpireTenantRegistrationsCommandHandler.class,
         PollTenantDomainVerificationsCommandHandler.class,
+        ReverifyLapsedTenantRegistrationsCommandHandler.class,
         TenantDomainVerificationPollScheduler.class,
         TenantRegistrationExpirationScheduler.class,
         TenantRegistrationCommandHandlerIntegrationTest.TestPorts.class
+})
+@TestPropertySource(properties = {
+        "pabal.tenant.registration.verification-window-ms=604800000",
+        "pabal.tenant.registration.activation-window-ms=604800000",
+        "pabal.tenant.registration.reverification-sweep-delay-ms=600000",
+        "pabal.tenant.registration.reverification-grace-ms=604800000"
 })
 class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPostgresDataJpaTest {
 
@@ -65,10 +78,19 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
     private VerifyTenantDomainCommandHandler verifyHandler;
 
     @Autowired
+    private ActivateTenantRegistrationCommandHandler activateHandler;
+
+    @Autowired
+    private ReverifyTenantRegistrationCommandHandler reverifyRegistrationHandler;
+
+    @Autowired
     private ExpireTenantRegistrationsCommandHandler expireHandler;
 
     @Autowired
     private PollTenantDomainVerificationsCommandHandler pollHandler;
+
+    @Autowired
+    private ReverifyLapsedTenantRegistrationsCommandHandler reverifyHandler;
 
     @Autowired
     private TenantDomainVerificationPollScheduler verificationPollScheduler;
@@ -136,7 +158,8 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         assertThat(result.domainName()).isEqualTo("example.com");
         assertThat(result.verificationDnsName()).isEqualTo("_pabal-verification.example.com");
         assertThat(result.verificationTxtValue()).isEqualTo("pabal-verification=" + TOKEN_ONE);
-        assertThat(result.expiresAt()).isEqualTo(requestedAt.plus(VERIFICATION_TTL));
+        assertThat(result.verificationExpiresAt()).isEqualTo(requestedAt.plus(VERIFICATION_TTL));
+        assertThat(result.activationExpiresAt()).isNull();
         assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
         assertThat(found.state().verificationToken()).isEqualTo(TOKEN_ONE);
         assertThat(found.state().version()).isEqualTo(0L);
@@ -205,10 +228,10 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         PersistedTenantRegistration found = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
 
         assertThat(renewed.verificationTxtValue()).isEqualTo("pabal-verification=" + TOKEN_TWO);
-        assertThat(renewed.expiresAt()).isEqualTo(renewedAt.plus(VERIFICATION_TTL));
+        assertThat(renewed.verificationExpiresAt()).isEqualTo(renewedAt.plus(VERIFICATION_TTL));
         assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
         assertThat(found.state().verificationToken()).isEqualTo(TOKEN_TWO);
-        assertThat(found.state().expiresAt()).isEqualTo(renewedAt.plus(VERIFICATION_TTL));
+        assertThat(found.state().verificationExpiresAt()).isEqualTo(renewedAt.plus(VERIFICATION_TTL));
     }
 
     @Test
@@ -233,8 +256,12 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         assertThat(found.state().verificationToken()).isEqualTo(TOKEN_ONE);
     }
 
+    /**
+     * Contract: verify is verify-only. It transitions PENDING_VERIFICATION ->
+     * DOMAIN_VERIFIED and creates no Tenant row.
+     */
     @Test
-    void verify_checks_dns_txt_and_activates_tenant_through_repository_ports() {
+    void verify_checks_dns_txt_and_marks_domain_verified_without_creating_a_tenant() {
         Instant requestedAt = Instant.parse("2026-06-19T00:00:00Z");
         clockPort.setNow(requestedAt);
         tokenGeneratorPort.enqueue(TOKEN_ONE);
@@ -256,12 +283,11 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         flushAndClear();
         PersistedTenantRegistration found = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
 
-        assertThat(verified.status()).isEqualTo("ACTIVATED");
+        assertThat(verified.status()).isEqualTo("DOMAIN_VERIFIED");
         assertThat(verified.verifiedAt()).isEqualTo(verifiedAt);
-        assertThat(verified.activatedAt()).isEqualTo(verifiedAt);
-        assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
-        assertThat(found.state().tenantId()).isEqualTo(verified.tenantId());
-        assertThat(tenantRepository.existsActiveById(verified.tenantId())).isTrue();
+        assertThat(verified.activationExpiresAt()).isEqualTo(verifiedAt.plus(Duration.ofDays(7)));
+        assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.DOMAIN_VERIFIED);
+        assertThat(found.state().tenantId()).isNull();
     }
 
     @Test
@@ -286,8 +312,171 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         assertThat(found.state().tenantId()).isNull();
     }
 
+    /**
+     * Contract: activation on an open-window DOMAIN_VERIFIED registration returns
+     * ACTIVATED with a non-null tenantId, and persists exactly one Tenant plus the
+     * ACTIVATED registration linked to it.
+     */
     @Test
-    void poll_reads_pending_rows_from_database_and_updates_each_result() {
+    void activate_creates_tenant_and_links_registration_after_domain_verified() {
+        Instant requestedAt = Instant.parse("2026-06-19T00:00:00Z");
+        clockPort.setNow(requestedAt);
+        tokenGeneratorPort.enqueue(TOKEN_ONE);
+        TenantRegistrationResult requested = requestHandler.handle(
+                new RequestTenantRegistrationCommand("Acme", "activate.example.com")
+        );
+        flushAndClear();
+
+        Instant verifiedAt = requestedAt.plus(Duration.ofMinutes(1));
+        clockPort.setNow(verifiedAt);
+        dnsTxtLookupPort.setRecords(requested.verificationDnsName(), Set.of(requested.verificationTxtValue()));
+        verifyHandler.handle(new VerifyTenantDomainCommand(requested.registrationId()));
+        flushAndClear();
+
+        Instant activatedAt = verifiedAt.plus(Duration.ofMinutes(1));
+        clockPort.setNow(activatedAt);
+        ActivateTenantRegistrationResult activated = activateHandler.handle(
+                new ActivateTenantRegistrationCommand(requested.registrationId())
+        );
+
+        flushAndClear();
+        PersistedTenantRegistration found = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
+
+        assertThat(activated.status()).isEqualTo("ACTIVATED");
+        assertThat(activated.tenantId()).isNotNull();
+        assertThat(activated.verifiedAt()).isEqualTo(verifiedAt);
+        assertThat(activated.activatedAt()).isEqualTo(activatedAt);
+        assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
+        assertThat(found.state().tenantId()).isEqualTo(activated.tenantId());
+        assertThat(tenantRepository.existsActiveById(activated.tenantId())).isTrue();
+    }
+
+    /**
+     * Contract: activation past the activation window -> TenantRegistrationExpiredException,
+     * and no Tenant row is persisted.
+     */
+    @Test
+    void activate_rejects_registration_past_the_activation_window_and_creates_no_tenant() {
+        Instant requestedAt = Instant.parse("2026-06-01T00:00:00Z");
+        clockPort.setNow(requestedAt);
+        tokenGeneratorPort.enqueue(TOKEN_ONE);
+        TenantRegistrationResult requested = requestHandler.handle(
+                new RequestTenantRegistrationCommand("Acme", "activate-expired.example.com")
+        );
+        flushAndClear();
+
+        Instant verifiedAt = requestedAt.plus(Duration.ofMinutes(1));
+        clockPort.setNow(verifiedAt);
+        dnsTxtLookupPort.setRecords(requested.verificationDnsName(), Set.of(requested.verificationTxtValue()));
+        verifyHandler.handle(new VerifyTenantDomainCommand(requested.registrationId()));
+        flushAndClear();
+
+        clockPort.setNow(verifiedAt.plus(Duration.ofDays(8)));
+
+        assertThatThrownBy(() -> activateHandler.handle(
+                new ActivateTenantRegistrationCommand(requested.registrationId())
+        )).isInstanceOf(TenantRegistrationExpiredException.class);
+
+        flushAndClear();
+        PersistedTenantRegistration found = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
+        assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.DOMAIN_VERIFIED);
+        assertThat(found.state().tenantId()).isNull();
+    }
+
+    /**
+     * Contract: activation when status is not DOMAIN_VERIFIED (e.g. still
+     * PENDING_VERIFICATION) -> TenantRegistrationNotPendingException, no Tenant created.
+     */
+    @Test
+    void activate_rejects_registration_still_pending_verification_and_creates_no_tenant() {
+        Instant requestedAt = Instant.parse("2026-06-19T00:00:00Z");
+        clockPort.setNow(requestedAt);
+        tokenGeneratorPort.enqueue(TOKEN_ONE);
+        TenantRegistrationResult requested = requestHandler.handle(
+                new RequestTenantRegistrationCommand("Acme", "activate-pending.example.com")
+        );
+        flushAndClear();
+
+        assertThatThrownBy(() -> activateHandler.handle(
+                new ActivateTenantRegistrationCommand(requested.registrationId())
+        )).isInstanceOf(TenantRegistrationNotPendingException.class);
+
+        flushAndClear();
+        PersistedTenantRegistration found = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
+        assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
+        assertThat(found.state().tenantId()).isNull();
+    }
+
+    /**
+     * Contract: reverification on REVERIFICATION_REQUIRED with matching DNS TXT returns
+     * DOMAIN_VERIFIED with a new activationExpiresAt, transitioned via
+     * TenantRegistration.reverify.
+     */
+    @Test
+    void reverifyRegistration_transitions_lapsed_registration_back_to_domain_verified_with_matching_dns() {
+        Instant requestedAt = Instant.parse("2026-06-01T00:00:00Z");
+        clockPort.setNow(requestedAt);
+        tokenGeneratorPort.enqueue(TOKEN_ONE);
+        TenantRegistrationResult requested = requestHandler.handle(
+                new RequestTenantRegistrationCommand("Acme", "reverify-endpoint.example.com")
+        );
+        flushAndClear();
+
+        Instant verifiedAt = requestedAt.plus(Duration.ofMinutes(1));
+        clockPort.setNow(verifiedAt);
+        dnsTxtLookupPort.setRecords(requested.verificationDnsName(), Set.of(requested.verificationTxtValue()));
+        verifyHandler.handle(new VerifyTenantDomainCommand(requested.registrationId()));
+        flushAndClear();
+
+        // Lapse the activation window via the existing reverify sweep.
+        Instant lapsedAt = verifiedAt.plus(Duration.ofDays(8));
+        clockPort.setNow(lapsedAt);
+        reverifyHandler.handle(new ReverifyLapsedTenantRegistrationsCommand());
+        flushAndClear();
+        PersistedTenantRegistration lapsed = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
+        assertThat(lapsed.state().status()).isEqualTo(TenantRegistrationStatus.REVERIFICATION_REQUIRED);
+
+        Instant reverifiedAt = lapsedAt.plus(Duration.ofMinutes(1));
+        clockPort.setNow(reverifiedAt);
+        ReverifyTenantRegistrationResult reverified = reverifyRegistrationHandler.handle(
+                new ReverifyTenantRegistrationCommand(requested.registrationId())
+        );
+
+        flushAndClear();
+        PersistedTenantRegistration found = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
+
+        assertThat(reverified.status()).isEqualTo("DOMAIN_VERIFIED");
+        assertThat(reverified.verifiedAt()).isEqualTo(reverifiedAt);
+        assertThat(reverified.activationExpiresAt()).isEqualTo(reverifiedAt.plus(Duration.ofDays(7)));
+        assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.DOMAIN_VERIFIED);
+        assertThat(found.state().activationExpiresAt()).isEqualTo(reverifiedAt.plus(Duration.ofDays(7)));
+    }
+
+    /**
+     * Contract: reverification when status is not REVERIFICATION_REQUIRED ->
+     * TenantRegistrationNotPendingException, with zero DNS lookups performed.
+     */
+    @Test
+    void reverifyRegistration_rejects_registration_not_in_reverification_required_status() {
+        Instant requestedAt = Instant.parse("2026-06-19T00:00:00Z");
+        clockPort.setNow(requestedAt);
+        tokenGeneratorPort.enqueue(TOKEN_ONE);
+        TenantRegistrationResult requested = requestHandler.handle(
+                new RequestTenantRegistrationCommand("Acme", "reverify-endpoint-guard.example.com")
+        );
+        flushAndClear();
+
+        assertThatThrownBy(() -> reverifyRegistrationHandler.handle(
+                new ReverifyTenantRegistrationCommand(requested.registrationId())
+        )).isInstanceOf(TenantRegistrationNotPendingException.class);
+
+        flushAndClear();
+        PersistedTenantRegistration found = tenantRegistrationRepository.findById(requested.registrationId()).orElseThrow();
+        assertThat(found.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
+    }
+
+    @Test
+    void poll_reads_pending_rows_from_database_and_updates_each_result_to_domain_verified_never_activated() {
         Instant requestedAt = Instant.parse("2026-06-19T00:00:00Z");
         clockPort.setNow(requestedAt);
         tokenGeneratorPort.enqueue(TOKEN_ONE, TOKEN_TWO);
@@ -322,9 +511,11 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         assertThat(result.failedCount()).isEqualTo(1);
         assertThat(result.expiredCount()).isZero();
         assertThat(result.skippedCount()).isZero();
-        assertThat(verified.state().status()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
+        // Contract: poll never activates - the matching-DNS candidate lands on
+        // DOMAIN_VERIFIED, not ACTIVATED, and no Tenant is created.
+        assertThat(verified.state().status()).isEqualTo(TenantRegistrationStatus.DOMAIN_VERIFIED);
         assertThat(pending.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
-        assertThat(verified.state().tenantId()).isNotNull();
+        assertThat(verified.state().tenantId()).isNull();
         assertThat(pending.state().tenantId()).isNull();
     }
 
@@ -363,8 +554,69 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         assertThat(open.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
     }
 
+    /**
+     * Contract: the reverification sweep transitions exactly the lapsed DOMAIN_VERIFIED
+     * rows to REVERIFICATION_REQUIRED through the domain, leaves a non-lapsed
+     * DOMAIN_VERIFIED row and a PENDING_VERIFICATION row untouched, and returns the
+     * transitioned count.
+     */
     @Test
-    void schedulers_drive_registration_domain_verification_and_pending_expiration_lifecycle() {
+    void reverify_transitions_only_lapsed_domain_verified_rows_in_database() {
+        Instant now = Instant.parse("2026-06-19T00:00:00Z");
+        PersistedTenantRegistration lapsedCandidate = saveDomainVerifiedRegistration(
+                "Acme",
+                "reverify-sweep-lapsed.example.com",
+                TOKEN_ONE,
+                now.minus(Duration.ofDays(10)),
+                now.minus(Duration.ofDays(9)),
+                now.minus(Duration.ofDays(1))
+        );
+        PersistedTenantRegistration openDomainVerifiedCandidate = saveDomainVerifiedRegistration(
+                "Beta",
+                "reverify-sweep-open.example.com",
+                TOKEN_TWO,
+                now.minus(Duration.ofDays(1)),
+                now,
+                now.plus(Duration.ofDays(7))
+        );
+        PersistedTenantRegistration pendingCandidate = savePendingRegistration(
+                "Gamma",
+                "reverify-sweep-pending.example.com",
+                "ABCDEFabcdefghijklmnopqrstuvwxyz",
+                now,
+                now.plus(VERIFICATION_TTL)
+        );
+        flushAndClear();
+
+        clockPort.setNow(now);
+        Integer transitionedCount = reverifyHandler.handle(new ReverifyLapsedTenantRegistrationsCommand());
+
+        flushAndClear();
+        PersistedTenantRegistration lapsed = tenantRegistrationRepository.findById(
+                lapsedCandidate.state().id()
+        ).orElseThrow();
+        PersistedTenantRegistration open = tenantRegistrationRepository.findById(
+                openDomainVerifiedCandidate.state().id()
+        ).orElseThrow();
+        PersistedTenantRegistration pending = tenantRegistrationRepository.findById(
+                pendingCandidate.state().id()
+        ).orElseThrow();
+
+        assertThat(transitionedCount).isEqualTo(1);
+        assertThat(lapsed.state().status()).isEqualTo(TenantRegistrationStatus.REVERIFICATION_REQUIRED);
+        assertThat(lapsed.state().updatedAt()).isEqualTo(now);
+        assertThat(open.state().status()).isEqualTo(TenantRegistrationStatus.DOMAIN_VERIFIED);
+        assertThat(pending.state().status()).isEqualTo(TenantRegistrationStatus.PENDING_VERIFICATION);
+    }
+
+    /**
+     * Contract: the poll scheduler drives the verify-only handler to DOMAIN_VERIFIED
+     * (never ACTIVATED); a subsequent explicit activation call is required to reach
+     * ACTIVATED. The pending-expiry scheduler continues to leave a DOMAIN_VERIFIED/
+     * ACTIVATED row untouched.
+     */
+    @Test
+    void schedulers_drive_registration_domain_verification_lifecycle_without_activating() {
         Instant requestedAt = Instant.parse("2026-06-19T00:00:00Z");
         clockPort.setNow(requestedAt);
         tokenGeneratorPort.enqueue(TOKEN_ONE);
@@ -382,12 +634,18 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         verificationPollScheduler.pollPendingVerifications();
 
         flushAndClear();
-        PersistedTenantRegistration activated = tenantRegistrationRepository.findById(
+        PersistedTenantRegistration domainVerified = tenantRegistrationRepository.findById(
                 requested.registrationId()
         ).orElseThrow();
-        assertThat(activated.state().status()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
-        assertThat(activated.state().tenantId()).isNotNull();
-        assertThat(tenantRepository.existsActiveById(activated.state().tenantId())).isTrue();
+        assertThat(domainVerified.state().status()).isEqualTo(TenantRegistrationStatus.DOMAIN_VERIFIED);
+        assertThat(domainVerified.state().tenantId()).isNull();
+
+        ActivateTenantRegistrationResult activated = activateHandler.handle(
+                new ActivateTenantRegistrationCommand(requested.registrationId())
+        );
+        flushAndClear();
+        assertThat(activated.status()).isEqualTo("ACTIVATED");
+        assertThat(tenantRepository.existsActiveById(activated.tenantId())).isTrue();
 
         Instant sweepAt = requestedAt.plus(Duration.ofDays(10));
         PersistedTenantRegistration expiredCandidate = savePendingRegistration(
@@ -411,6 +669,29 @@ class TenantRegistrationCommandHandlerIntegrationTest extends AbstractTenantPost
         ).orElseThrow();
         assertThat(expired.state().status()).isEqualTo(TenantRegistrationStatus.EXPIRED);
         assertThat(stillActivated.state().status()).isEqualTo(TenantRegistrationStatus.ACTIVATED);
+    }
+
+    private PersistedTenantRegistration saveDomainVerifiedRegistration(
+            String tenantName,
+            String domainName,
+            String token,
+            Instant requestedAt,
+            Instant verifiedAt,
+            Instant activationExpiresAt
+    ) {
+        TenantRegistration registration = TenantRegistration.request(
+                tenantName,
+                domainName,
+                token,
+                requestedAt,
+                verifiedAt.plusSeconds(1)
+        ).markVerified(verifiedAt, activationExpiresAt);
+        return tenantRegistrationRepository.append(
+                new PersistedTenantRegistration(
+                        registration,
+                        TenantRegistrationPersistenceMapper.toState(registration, null)
+                )
+        );
     }
 
     private PersistedTenantRegistration savePendingRegistration(

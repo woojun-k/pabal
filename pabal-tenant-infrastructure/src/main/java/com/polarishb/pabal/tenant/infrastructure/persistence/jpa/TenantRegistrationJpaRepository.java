@@ -28,7 +28,7 @@ public interface TenantRegistrationJpaRepository extends JpaRepository<TenantReg
             SELECT r.id
               FROM TenantRegistrationEntity r
              WHERE r.status = :pendingStatus
-               AND r.expiresAt > :now
+               AND r.verificationExpiresAt > :now
              ORDER BY r.createdAt ASC
             """)
     List<UUID> findPendingVerificationIds(
@@ -43,11 +43,39 @@ public interface TenantRegistrationJpaRepository extends JpaRepository<TenantReg
                SET r.status = :expiredStatus,
                    r.updatedAt = :now
              WHERE r.status = :pendingStatus
-               AND r.expiresAt <= :now
+               AND r.verificationExpiresAt <= :now
             """)
     int expirePendingRegistrations(
             @Param("pendingStatus") TenantRegistrationStatus pendingStatus,
             @Param("expiredStatus") TenantRegistrationStatus expiredStatus,
             @Param("now") Instant now
+    );
+
+    @Query("""
+            SELECT r.id
+              FROM TenantRegistrationEntity r
+             WHERE r.status = :domainVerifiedStatus
+               AND r.activationExpiresAt <= :now
+             ORDER BY r.createdAt ASC
+            """)
+    List<UUID> findLapsedDomainVerifiedIds(
+            @Param("domainVerifiedStatus") TenantRegistrationStatus domainVerifiedStatus,
+            @Param("now") Instant now,
+            Pageable pageable
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE TenantRegistrationEntity r
+               SET r.status = :expiredStatus,
+                   r.updatedAt = :now
+             WHERE r.status = :reverificationRequiredStatus
+               AND r.activationExpiresAt <= :graceCutoff
+            """)
+    int expireLapsedReverificationRegistrations(
+            @Param("reverificationRequiredStatus") TenantRegistrationStatus reverificationRequiredStatus,
+            @Param("expiredStatus") TenantRegistrationStatus expiredStatus,
+            @Param("now") Instant now,
+            @Param("graceCutoff") Instant graceCutoff
     );
 }

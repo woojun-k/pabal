@@ -42,5 +42,3 @@ Messenger API/Application/Domain, Realtime Gateway 등은 장기적으로 분리
 ### Follow-up
 
 - [ ] 모듈 의존 규칙 자동 검증을 추가한다.
-- [ ] MSA 전환 후보별 데이터 소유권과 외부 계약을 문서화한다.
-- [ ] Realtime Gateway 분리 조건을 별도 체크리스트로 관리한다.

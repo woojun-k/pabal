@@ -10,7 +10,8 @@ public record TenantRegistrationResponse(
         String status,
         String verificationDnsName,
         String verificationTxtValue,
-        Instant expiresAt,
+        Instant verificationExpiresAt,
+        Instant activationExpiresAt,
         Instant createdAt
 ) {
 }

@@ -28,7 +28,8 @@ public class TenantRegistrationRepositoryImpl implements TenantRegistrationRepos
 
     private static final List<TenantRegistrationStatus> OPEN_STATUSES = List.of(
             TenantRegistrationStatus.PENDING_VERIFICATION,
-            TenantRegistrationStatus.VERIFIED,
+            TenantRegistrationStatus.DOMAIN_VERIFIED,
+            TenantRegistrationStatus.REVERIFICATION_REQUIRED,
             TenantRegistrationStatus.ACTIVATED
     );
 
@@ -110,6 +111,25 @@ public class TenantRegistrationRepositoryImpl implements TenantRegistrationRepos
                 TenantRegistrationStatus.PENDING_VERIFICATION,
                 TenantRegistrationStatus.EXPIRED,
                 now
+        );
+    }
+
+    @Override
+    public List<UUID> findLapsedDomainVerifiedIds(Instant now, int limit) {
+        return jpaRepository.findLapsedDomainVerifiedIds(
+                TenantRegistrationStatus.DOMAIN_VERIFIED,
+                now,
+                PageRequest.of(0, limit)
+        );
+    }
+
+    @Override
+    public int expireLapsedReverificationRegistrations(Instant now, long graceMs) {
+        return jpaRepository.expireLapsedReverificationRegistrations(
+                TenantRegistrationStatus.REVERIFICATION_REQUIRED,
+                TenantRegistrationStatus.EXPIRED,
+                now,
+                now.minusMillis(graceMs)
         );
     }
 

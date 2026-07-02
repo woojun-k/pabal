@@ -86,6 +86,8 @@ Response: `204 No Content`
 
 ## Tenant endpoints
 
+Status: Implemented — 아래 endpoint 응답은 단일 `expiresAt` 대신 `verificationExpiresAt`/`activationExpiresAt` 두 필드를 노출한다. `status` 필드는 `TenantRegistrationStatus.name()`을 그대로 echo하며 domain의 5-status(`PENDING_VERIFICATION`, `DOMAIN_VERIFIED`, `REVERIFICATION_REQUIRED`, `ACTIVATED`, `EXPIRED`) 전체가 그대로 나타난다. Activation과 reverification은 각각 별도 엔드포인트(`POST .../activation`, `POST .../reverification`)로 노출된다. 자세한 배경은 [ADR-0013](../adr/0013-split-overloaded-expiry-timestamp-into-verification-and-activation-windows.md)과 [Pabal Command-Query 유스케이스 카탈로그](command-query-catalog.md#tenantregistration-domain-전이-모델)를 참고한다.
+
 ### RequestTenantRegistration
 
 `POST /api/v1/tenant-registrations`
@@ -109,7 +111,8 @@ Response:
   "status": "PENDING_VERIFICATION",
   "verificationDnsName": "_pabal-verification.example.com",
   "verificationTxtValue": "pabal-verification=...",
-  "expiresAt": "2026-05-06T00:00:00Z",
+  "verificationExpiresAt": "2026-05-06T00:00:00Z",
+  "activationExpiresAt": null,
   "createdAt": "2026-04-29T00:00:00Z"
 }
 ```
@@ -117,9 +120,9 @@ Response:
 정책:
 
 - domain은 canonical lower-case form으로 정규화한다.
-- 같은 domain에 대해 `PENDING_VERIFICATION`, `VERIFIED`, `ACTIVATED` registration이 있으면 새 요청을 거부한다.
+- 같은 domain에 대해 `PENDING_VERIFICATION`, `DOMAIN_VERIFIED`, `REVERIFICATION_REQUIRED`, `ACTIVATED` registration이 있으면 새 요청을 거부한다(`TenantRegistrationRepositoryImpl.OPEN_STATUSES`, domain `isOpen()`과 동일한 4개 open status).
 - client는 `verificationDnsName`에 `verificationTxtValue`를 TXT record로 등록해야 한다.
-- verification token은 registration마다 발급되며 현재 TTL은 7일이다.
+- verification token은 registration마다 발급되며 TTL은 `pabal.tenant.registration.verification-window-ms`(기본 604800000ms = 7일)이다.
 - 만료된 pending registration은 scheduled expiration sweep과 새 요청 진입 시점의 expiration sweep에서 `EXPIRED`로 닫힌다.
 - DNS TXT 검증은 pending registration을 queue item처럼 사용해 기본 600초 간격으로 자동 polling한다.
 - 즉시 recheck endpoint는 운영 public API로 공개하지 않고 local/test dev endpoint로만 유지한다.
@@ -137,7 +140,7 @@ Response:
 정책:
 
 - `PENDING_VERIFICATION` 상태에서만 허용한다.
-- 새 verification token을 발급하고 `expiresAt`을 현재 시각 기준 7일 뒤로 연장한다.
+- 새 verification token을 발급하고 `verificationExpiresAt`을 현재 시각 기준 `pabal.tenant.registration.verification-window-ms`(기본 604800000ms = 7일) 뒤로 연장한다.
 - 기존 DNS TXT 값을 새 값으로 교체해야 한다.
 
 주요 오류:
@@ -149,9 +152,75 @@ Response:
 
 `GET /api/v1/tenant-registrations/{registrationId}` → `TenantRegistrationDetailResponse`
 
+`status`는 5-status(`PENDING_VERIFICATION`, `DOMAIN_VERIFIED`, `REVERIFICATION_REQUIRED`, `ACTIVATED`, `EXPIRED`)를 그대로 반환한다.
+
 주요 오류:
 
 - `TNT404002 TENANT_REGISTRATION_NOT_FOUND`
+
+### ActivateTenantRegistration
+
+`POST /api/v1/tenant-registrations/{registrationId}/activation`
+
+Request: path의 `registrationId`만 사용하며 body는 없다.
+
+Response:
+
+```json
+{
+  "registrationId": "018f0000-0000-7000-8000-000000000201",
+  "tenantId": "018f0000-0000-7000-8000-000000000101",
+  "tenantName": "Acme",
+  "domainName": "example.com",
+  "status": "ACTIVATED",
+  "verifiedAt": "2026-04-30T00:00:00Z",
+  "activatedAt": "2026-05-01T00:00:00Z"
+}
+```
+
+정책:
+
+- `DOMAIN_VERIFIED` 상태이면서 `activationExpiresAt`이 아직 지나지 않은 registration만 활성화할 수 있다.
+- 활성화에 성공하면 `Tenant`를 정확히 1건 생성하고 registration을 그 tenant에 연결한 뒤 `ACTIVATED`로 전환한다.
+- 인증이 필요 없는 public 엔드포인트다(다른 `/api/v1/tenant-registrations/**` endpoint와 동일한 posture).
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND` — 알 수 없는 `registrationId`
+- `TNT409003 TENANT_REGISTRATION_NOT_PENDING` — 상태가 `DOMAIN_VERIFIED`가 아님(`REVERIFICATION_REQUIRED`/`ACTIVATED`/`EXPIRED`/`PENDING_VERIFICATION` 포함)
+- `TNT410001 TENANT_REGISTRATION_EXPIRED` — 상태는 `DOMAIN_VERIFIED`이지만 `now >= activationExpiresAt`
+
+### ReverifyTenantRegistration
+
+`POST /api/v1/tenant-registrations/{registrationId}/reverification`
+
+Request: path의 `registrationId`만 사용하며 body는 없다.
+
+Response:
+
+```json
+{
+  "registrationId": "018f0000-0000-7000-8000-000000000201",
+  "tenantName": "Acme",
+  "domainName": "example.com",
+  "status": "DOMAIN_VERIFIED",
+  "verifiedAt": "2026-05-08T00:00:00Z",
+  "activationExpiresAt": "2026-05-15T00:00:00Z"
+}
+```
+
+정책:
+
+- `REVERIFICATION_REQUIRED` 상태에서만 허용한다. DNS 조회 전에 상태를 먼저 검증하므로, 상태가 맞지 않으면 DNS 조회 없이 실패한다.
+- 기존 verification token으로 `_pabal-verification.{domain}` TXT record를 다시 확인한다.
+- 성공하면 새 `activationExpiresAt`(= 현재 시각 + `pabal.tenant.registration.activation-window-ms`, 기본 604800000ms)을 설정하고 `DOMAIN_VERIFIED`로 복귀시킨다.
+- 인증이 필요 없는 public 엔드포인트다.
+
+주요 오류:
+
+- `TNT404002 TENANT_REGISTRATION_NOT_FOUND` — 알 수 없는 `registrationId`
+- `TNT409003 TENANT_REGISTRATION_NOT_PENDING` — 상태가 `REVERIFICATION_REQUIRED`가 아님(DNS 조회 0회)
+- `TNT409002 TENANT_DOMAIN_VERIFICATION_FAILED` — TXT 값 불일치/부재(registration 상태는 변경되지 않는다)
 
 ### DevVerifyTenantDomain
 
@@ -162,9 +231,9 @@ Response:
 - 운영 public API로는 직접 verification 요청을 노출하지 않는다. 운영 기본 흐름은 registration 생성 후 scheduler polling이다.
 - 이 endpoint는 local/test profile에서 즉시 검증 테스트와 seed/debug 목적으로만 사용한다.
 - 서버가 `_pabal-verification.{domain}` TXT record를 조회한다.
-- expected TXT value와 일치하면 tenant를 `ACTIVE`로 생성하고 registration을 `ACTIVATED`로 전환한다.
-- verification은 registration 만료 전에만 가능하다.
-- 자동 polling도 같은 handler를 사용하며, 불일치는 정상적인 pending 상태로 보고 다음 600초 polling까지 대기한다.
+- expected TXT value와 일치하면 registration을 `markVerified`로 `DOMAIN_VERIFIED`로 전환한다(verify-only). `Tenant`는 이 단계에서 생성되지 않는다 — 활성화는 별도의 `ActivateTenantRegistration` endpoint가 담당한다. `activationExpiresAt`(= 검증 시각 + `pabal.tenant.registration.activation-window-ms`, 기본 604800000ms)이 응답에 함께 노출된다.
+- verification은 registration의 `verificationExpiresAt` 이전에만 가능하다.
+- 자동 polling(`PollTenantDomainVerificationsCommandHandler`)도 같은 verify-only handler를 사용하며, 불일치는 정상적인 pending 상태로 보고 다음 600초 polling까지 대기한다. polling은 activation을 절대 수행하지 않는다.
 - DNS TXT lookup timeout/retry는 현재 JNDI DNS provider 기본 동작을 따른다. 운영 DNS resolver timeout 정책은 별도 adapter 설정으로 분리할 수 있다.
 
 주요 오류:

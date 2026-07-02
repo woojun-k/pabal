@@ -40,6 +40,46 @@ When: mark read 처리
 Then: member update와 `MessageReadEvent` 발행 없음
 Related: [Pabal 엔드포인트 시퀀스 다이어그램](../use-cases/endpoint-sequence-diagrams.md)
 
+## TenantRegistration verify-only handler stops at DOMAIN_VERIFIED
+
+Layer: Application / Infrastructure
+Target: `VerifyTenantDomainCommandHandler`, `TenantRegistrationCommandHandlerIntegrationTest.verify_checks_dns_txt_and_marks_domain_verified_without_creating_a_tenant`
+Purpose: DNS TXT 검증 성공이 `Tenant` 생성 없이 `DOMAIN_VERIFIED`에서 멈추도록 보장(two-phase verify/activate 분리)
+Given: `PENDING_VERIFICATION` registration과 일치하는 DNS TXT record
+When: `VerifyTenantDomainCommandHandler.handle`
+Then: registration이 `DOMAIN_VERIFIED`로 전이하고 `activationExpiresAt`이 설정되지만 `Tenant` row는 생성되지 않음
+Related: [ADR-0013](../adr/0013-split-overloaded-expiry-timestamp-into-verification-and-activation-windows.md), [Pabal Command-Query 유스케이스 카탈로그](../use-cases/command-query-catalog.md)
+
+## TenantRegistration activation window/status guard
+
+Layer: Application
+Target: `ActivateTenantRegistrationCommandHandler`, `ActivateTenantRegistrationCommandHandlerTest`
+Purpose: `DOMAIN_VERIFIED` + window-open 상태에서만 activation이 `Tenant`를 생성하도록 보장
+Given: `PENDING_VERIFICATION`/`REVERIFICATION_REQUIRED`/`ACTIVATED`/`EXPIRED` 상태이거나 `activationExpiresAt`이 지난 `DOMAIN_VERIFIED` registration
+When: `ActivateTenantRegistrationCommandHandler.handle`
+Then: `TenantRegistrationNotPendingException`(`TNT409003`) 또는 `TenantRegistrationExpiredException`(`TNT410001`)을 던지고 `Tenant`는 생성되지 않음
+Related: [Pabal HTTP API 예시와 오류 매핑](../use-cases/http-api-and-error-mapping.md)
+
+## TenantRegistration reverification DNS-lookup-before-status-guard
+
+Layer: Application
+Target: `ReverifyTenantRegistrationCommandHandler`, `ReverifyTenantRegistrationCommandHandlerTest`
+Purpose: 상태가 `REVERIFICATION_REQUIRED`가 아니면 DNS 조회를 전혀 수행하지 않도록 보장
+Given: `REVERIFICATION_REQUIRED`가 아닌 상태의 registration
+When: `ReverifyTenantRegistrationCommandHandler.handle`
+Then: `TenantRegistrationNotPendingException`(`TNT409003`)을 던지고 `DnsTxtLookupPort` 호출 0회
+Related: [Pabal Command-Query 유스케이스 카탈로그](../use-cases/command-query-catalog.md)
+
+## TenantRegistration REVERIFICATION_REQUIRED grace-window terminal expiry
+
+Layer: Infrastructure
+Target: `TenantRegistrationRepositoryImpl.expireLapsedReverificationRegistrations`, `TenantRegistrationRepositoryImplTest.expireLapsedReverificationRegistrations_includes_row_at_exact_grace_boundary`
+Purpose: grace window가 지난 `REVERIFICATION_REQUIRED` row만 `EXPIRED`로 닫히도록 보장
+Given: `activationExpiresAt + graceMs <= now`인 row와 grace window 안에 있는 row
+When: `expireLapsedReverificationRegistrations(now, graceMs)` bulk UPDATE 실행
+Then: grace 경과 row(경계값 포함)만 `EXPIRED`로 전이하고, window 안의 row와 `DOMAIN_VERIFIED` row는 건드리지 않음
+Related: [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)
+
 ## DirectRoom concurrent create
 
 Layer: Application / Infrastructure

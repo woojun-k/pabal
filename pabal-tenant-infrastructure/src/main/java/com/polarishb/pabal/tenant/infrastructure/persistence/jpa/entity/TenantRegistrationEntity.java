@@ -36,7 +36,9 @@ public class TenantRegistrationEntity extends UpdatableEntity {
     private TenantRegistrationStatus status;
 
     @Column(nullable = false)
-    private Instant expiresAt;
+    private Instant verificationExpiresAt;
+
+    private Instant activationExpiresAt;
 
     private Instant verifiedAt;
 
@@ -55,7 +57,8 @@ public class TenantRegistrationEntity extends UpdatableEntity {
         entity.domainName = state.domainName();
         entity.verificationToken = state.verificationToken();
         entity.status = state.status();
-        entity.expiresAt = state.expiresAt();
+        entity.verificationExpiresAt = state.verificationExpiresAt();
+        entity.activationExpiresAt = state.activationExpiresAt();
         entity.verifiedAt = state.verifiedAt();
         entity.activatedAt = state.activatedAt();
         entity.tenantId = state.tenantId();
@@ -71,7 +74,8 @@ public class TenantRegistrationEntity extends UpdatableEntity {
                 this.domainName,
                 this.verificationToken,
                 this.status,
-                this.expiresAt,
+                this.verificationExpiresAt,
+                this.activationExpiresAt,
                 this.verifiedAt,
                 this.activatedAt,
                 this.tenantId,
@@ -86,7 +90,8 @@ public class TenantRegistrationEntity extends UpdatableEntity {
         this.domainName = state.domainName();
         this.verificationToken = state.verificationToken();
         this.status = state.status();
-        this.expiresAt = state.expiresAt();
+        this.verificationExpiresAt = state.verificationExpiresAt();
+        this.activationExpiresAt = state.activationExpiresAt();
         this.verifiedAt = state.verifiedAt();
         this.activatedAt = state.activatedAt();
         this.tenantId = state.tenantId();

@@ -30,6 +30,7 @@ Pabal DB schema source of truth는 Flyway migration이다. Hibernate는 schema �
 - `V7__tenant_registration_tables.sql`
 - `V8__authorization_rbac_tables.sql`
 - `V9__security_refresh_tokens.sql`
+- `V10__tenant_registration_split_expiry_and_reverification_status.sql`
 
 ## Schema 관리 원칙
 
@@ -79,6 +80,7 @@ flowchart LR
 | `workspace` | `WorkspaceEntity` | tenant 안의 workspace 존재/상태/name/creator 저장 |
 | `workspace_member` | `WorkspaceMemberEntity` | workspace membership, role, active/left 상태 저장 |
 | `tenant_user` | `TenantUserEntity` | tenant 안의 사용자 존재/상태/name 저장, user module source of truth |
+| `tenant_registration` | `TenantRegistrationEntity` | tenant onboarding 등록 요청/DNS 검증/활성화/재검증 상태 저장 (Status: Implemented) |
 | `rbac_permission` | n/a | cross-cutting fine-grained permission catalog |
 | `rbac_role` | n/a | tenant-scoped RBAC role bundle |
 | `rbac_role_permission` | n/a | role과 permission catalog row 연결 |
@@ -135,6 +137,34 @@ Layer: Infrastructure / Domain
 - `idx_tenant_user_tenant_status`: tenant별 active user 조회
 
 `chat_room_member.user_id`, `message.sender_id`, `direct_chat_mapping.user_id_min/user_id_max`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Messenger와 User bounded context의 결합은 DB FK가 아니라 application contract인 `UserContract`와 `RoomParticipantPolicy`에서 검증한다. User 생성은 `TenantContract`로 active tenant 여부를 먼저 검증한다.
+
+### tenant_registration
+
+Layer: Infrastructure / Domain
+Status: Implemented
+
+`V7__tenant_registration_tables.sql` + `V10__tenant_registration_split_expiry_and_reverification_status.sql` 적용 후 현재 schema:
+
+- `chk_tenant_registration_status`: `PENDING_VERIFICATION`, `DOMAIN_VERIFIED`, `REVERIFICATION_REQUIRED`, `ACTIVATED`, `EXPIRED` (5-status)
+- `verification_expires_at timestamptz NOT NULL`: `PENDING_VERIFICATION`의 검증 마감 시각 (V10에서 `expires_at`을 rename)
+- `activation_expires_at timestamptz` (nullable): `DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`/`ACTIVATED`의 활성화 마감 시각
+- `chk_tenant_registration_verification_expires_after_created`: `verification_expires_at > created_at`
+- `chk_tenant_registration_status_timestamps`: status별 `activation_expires_at`/`verified_at`/`activated_at`/`tenant_id` 정합성
+  - `PENDING_VERIFICATION`: `activation_expires_at IS NULL AND verified_at IS NULL AND activated_at IS NULL AND tenant_id IS NULL`
+  - `DOMAIN_VERIFIED` / `REVERIFICATION_REQUIRED`: `activation_expires_at IS NOT NULL AND verified_at IS NOT NULL AND activated_at IS NULL AND tenant_id IS NULL`
+  - `ACTIVATED`: `activation_expires_at IS NOT NULL AND verified_at IS NOT NULL AND activated_at IS NOT NULL AND tenant_id IS NOT NULL`
+  - `EXPIRED`: `activated_at IS NULL AND tenant_id IS NULL`
+- `uq_tenant_registration_domain_open`: `PENDING_VERIFICATION`/`DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`/`ACTIVATED`(= domain `isOpen()`과 동일한 4개 open status) 상태의 domain 중복 방지
+- `idx_tenant_registration_status_verification_expires`: status + `verification_expires_at` 조회 (`expirePendingRegistrations`/`findPendingVerificationIds`가 사용)
+- `idx_tenant_registration_status_activation_expires` (partial, `WHERE activation_expires_at IS NOT NULL`): status + `activation_expires_at` 조회 (reverification sweep의 `findLapsedDomainVerifiedIds`가 사용)
+
+`V10`은 no-backfill 마이그레이션이다 — `tenant_registration`이 비어 있다는 전제로 컬럼 rename과 CHECK 갱신만 수행하며, 기존 데이터 변환은 하지 않는다.
+
+**persistence 계층은 domain/contract와 정합한다**: `TenantRegistrationEntity`는 새 `TenantRegistrationState` 13-arg 생성자 순서에 맞춰 `verificationExpiresAt`/`activationExpiresAt` 두 필드를 모두 매핑하고, `TenantRegistrationRepositoryImpl.OPEN_STATUSES`는 `DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`를 포함한 4개 open status를 사용한다. `TenantRegistrationExpirationScheduler.reverifyLapsedRegistrations()`가 lapsed `DOMAIN_VERIFIED` registration을 도메인 메서드 `requireReverification(now)`를 통해서만 `REVERIFICATION_REQUIRED`로 전이하는 sweep을 실행한다(bulk `UPDATE`가 아니다). `expirePendingRegistrations`는 `verification_expires_at` 기준으로 `PENDING_VERIFICATION`만 `EXPIRED`로 닫으며 `DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`는 건드리지 않는다.
+
+**grace-window terminal expiry**: `TenantRegistrationRepository.expireLapsedReverificationRegistrations(Instant now, long graceMs)`는 `activation_expires_at <= now - graceMs`인 `REVERIFICATION_REQUIRED` row를 bulk `UPDATE`로 `EXPIRED`로 닫는다(`expirePendingRegistrations`와 동일한 bulk-UPDATE 패턴). 이 경로로 `EXPIRED`가 된 row는 `verified_at`/`activation_expires_at`을 그대로 유지하고 `activated_at`/`tenant_id`만 null인 채 남는데, 이는 위 `chk_tenant_registration_status_timestamps`의 `EXPIRED` 분기(`activated_at IS NULL AND tenant_id IS NULL`)가 이미 허용하는 형태라 스키마 변경 없이 수행된다. grace window 길이는 `pabal.tenant.registration.reverification-grace-ms`(기본 604800000ms = 7일)이며, `TenantRegistrationExpirationScheduler.expirePendingRegistrations()`가 기존 pending expiry sweep과 함께 호출한다. `DOMAIN_VERIFIED` row는 이 sweep이 건드리지 않는다 — 먼저 `reverifyLapsedRegistrations()`로 `REVERIFICATION_REQUIRED`를 거쳐야 한다.
+
+**application/api 계층도 domain/contract와 정합한다**: `pabal-tenant-application`의 `VerifyTenantDomainCommandHandler`는 verify-only handler로 재작성되어 DNS 검증 후 `DOMAIN_VERIFIED`에서 멈추고 `Tenant`를 생성하지 않는다. 별도 `ActivateTenantRegistrationCommandHandler`/`ReverifyTenantRegistrationCommandHandler`가 각각 activation과 단일-registration reverification을 담당한다. `pabal-tenant-api`는 `POST /api/v1/tenant-registrations/{registrationId}/activation`, `POST /api/v1/tenant-registrations/{registrationId}/reverification` endpoint를 노출하며, 모든 응답 DTO가 단일 `expiresAt` 대신 `verificationExpiresAt`/`activationExpiresAt`을 노출한다. 배경은 [ADR-0013](../adr/0013-split-overloaded-expiry-timestamp-into-verification-and-activation-windows.md)과 [Pabal 기술 부채와 보강 목록](technical-debt.md#10-tenantregistration-domain-verificationactivation-분리와-persistenceapplicationapi-반영-해소됨)을 참고한다.
 
 ### rbac_permission
 

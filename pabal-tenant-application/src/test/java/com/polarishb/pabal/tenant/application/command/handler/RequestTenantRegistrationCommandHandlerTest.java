@@ -25,10 +25,24 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Contract under test (property-driven verification window; ADR-0013 follow-up field
+ * shape): {@code pabal.tenant.registration.verification-window-ms} (default
+ * {@code 604800000} = 7 days) is injected into the handler rather than hardcoded as a
+ * {@code Duration} constant. This test exercises the handler with an
+ * explicitly-injected window value to assert the window is actually used to compute
+ * {@code verificationExpiresAt}, and a second case asserts the documented 7-day default
+ * when the handler is constructed with the property's default milliseconds value.
+ *
+ * <p>{@code TenantRegistrationResult} exposes {@code verificationExpiresAt} +
+ * {@code activationExpiresAt} (activation null until DOMAIN_VERIFIED) - the removed
+ * single {@code expiresAt} field must no longer appear on this record.
+ */
 class RequestTenantRegistrationCommandHandlerTest {
 
     private static final Instant NOW = Instant.parse("2026-06-19T00:00:00Z");
     private static final Duration VERIFICATION_TTL = Duration.ofDays(7);
+    private static final long DEFAULT_VERIFICATION_WINDOW_MS = 604_800_000L;
     private static final String TOKEN = "abcdefghijklmnopqrstuvwxyzABCDEF";
 
     private final TenantRegistrationRepository tenantRegistrationRepository = mock(TenantRegistrationRepository.class);
@@ -42,7 +56,8 @@ class RequestTenantRegistrationCommandHandlerTest {
         handler = new RequestTenantRegistrationCommandHandler(
                 tenantRegistrationRepository,
                 tokenGeneratorPort,
-                clockPort
+                clockPort,
+                DEFAULT_VERIFICATION_WINDOW_MS
         );
     }
 
@@ -66,7 +81,8 @@ class RequestTenantRegistrationCommandHandlerTest {
         assertThat(result.status()).isEqualTo("PENDING_VERIFICATION");
         assertThat(result.verificationDnsName()).isEqualTo("_pabal-verification.example.com");
         assertThat(result.verificationTxtValue()).isEqualTo("pabal-verification=" + TOKEN);
-        assertThat(result.expiresAt()).isEqualTo(NOW.plus(VERIFICATION_TTL));
+        assertThat(result.verificationExpiresAt()).isEqualTo(NOW.plus(VERIFICATION_TTL));
+        assertThat(result.activationExpiresAt()).isNull();
         assertThat(result.createdAt()).isEqualTo(NOW);
 
         verify(tenantRegistrationRepository).expirePendingRegistrations(NOW);
@@ -81,8 +97,37 @@ class RequestTenantRegistrationCommandHandlerTest {
         assertThat(appended.getTenantName().value()).isEqualTo("Acme");
         assertThat(appended.getDomainName().value()).isEqualTo("example.com");
         assertThat(appended.verificationTxtValue()).isEqualTo("pabal-verification=" + TOKEN);
-        assertThat(appended.getExpiresAt()).isEqualTo(NOW.plus(VERIFICATION_TTL));
+        assertThat(appended.getVerificationExpiresAt()).isEqualTo(NOW.plus(VERIFICATION_TTL));
         assertThat(registrationCaptor.getValue().state().version()).isNull();
+    }
+
+    /**
+     * Contract: {@code verification-window-ms} is a configuration property, not a
+     * hardcoded {@code Duration} constant - a handler constructed with a different
+     * window value must use that value, not the 7-day default.
+     */
+    @Test
+    void handle_uses_the_injected_verification_window_rather_than_a_hardcoded_default() {
+        long customWindowMs = Duration.ofDays(3).toMillis();
+        RequestTenantRegistrationCommandHandler customHandler = new RequestTenantRegistrationCommandHandler(
+                tenantRegistrationRepository,
+                tokenGeneratorPort,
+                clockPort,
+                customWindowMs
+        );
+        UUID registrationId = UUID.randomUUID();
+        when(clockPort.now()).thenReturn(NOW);
+        when(tenantRegistrationRepository.existsOpenByDomainName(new TenantDomainName("example.com")))
+                .thenReturn(false);
+        when(tokenGeneratorPort.generate()).thenReturn(TOKEN);
+        when(tenantRegistrationRepository.append(any(PersistedTenantRegistration.class)))
+                .thenAnswer(invocation -> savedRegistration(registrationId, invocation.getArgument(0)));
+
+        TenantRegistrationResult result = customHandler.handle(
+                new RequestTenantRegistrationCommand("Acme", "example.com")
+        );
+
+        assertThat(result.verificationExpiresAt()).isEqualTo(NOW.plus(Duration.ofDays(3)));
     }
 
     @Test
@@ -112,7 +157,8 @@ class RequestTenantRegistrationCommandHandlerTest {
                 registration.getDomainName().value(),
                 TOKEN,
                 TenantRegistrationStatus.PENDING_VERIFICATION,
-                registration.getExpiresAt(),
+                registration.getVerificationExpiresAt(),
+                null,
                 null,
                 null,
                 null,

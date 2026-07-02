@@ -5,30 +5,46 @@ import com.polarishb.pabal.tenant.application.command.input.VerifyTenantDomainCo
 import com.polarishb.pabal.tenant.application.command.output.VerifyTenantDomainResult;
 import com.polarishb.pabal.tenant.application.port.out.dns.DnsTxtLookupPort;
 import com.polarishb.pabal.tenant.application.port.out.persistence.TenantRegistrationRepository;
-import com.polarishb.pabal.tenant.application.port.out.persistence.TenantRepository;
 import com.polarishb.pabal.tenant.application.port.out.time.ClockPort;
-import com.polarishb.pabal.tenant.contract.persistence.PersistedTenant;
 import com.polarishb.pabal.tenant.contract.persistence.PersistedTenantRegistration;
-import com.polarishb.pabal.tenant.contract.persistence.TenantPersistenceMapper;
 import com.polarishb.pabal.tenant.domain.exception.TenantDomainVerificationFailedException;
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationNotFoundException;
-import com.polarishb.pabal.tenant.domain.model.Tenant;
 import com.polarishb.pabal.tenant.domain.model.TenantRegistration;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
 
+/**
+ * ADR-0013 follow-up: verify-only phase of the two-phase verify/activate split. Performs
+ * the DNS TXT lookup and transitions PENDING_VERIFICATION -> DOMAIN_VERIFIED via
+ * {@link TenantRegistration#markVerified(Instant, Instant)}, persisting exactly one
+ * registration update. It stops there - no {@code Tenant} is created and this handler has
+ * no {@code TenantRepository} dependency. Activation is a separate, explicit step handled
+ * by {@link ActivateTenantRegistrationCommandHandler}.
+ */
 @Component
-@RequiredArgsConstructor
 public class VerifyTenantDomainCommandHandler implements CommandHandler<VerifyTenantDomainCommand, VerifyTenantDomainResult> {
 
     private final TenantRegistrationRepository tenantRegistrationRepository;
-    private final TenantRepository tenantRepository;
     private final DnsTxtLookupPort dnsTxtLookupPort;
     private final ClockPort clockPort;
+    private final long activationWindowMs;
+
+    public VerifyTenantDomainCommandHandler(
+            TenantRegistrationRepository tenantRegistrationRepository,
+            DnsTxtLookupPort dnsTxtLookupPort,
+            ClockPort clockPort,
+            @Value("${pabal.tenant.registration.activation-window-ms:604800000}") long activationWindowMs
+    ) {
+        this.tenantRegistrationRepository = tenantRegistrationRepository;
+        this.dnsTxtLookupPort = dnsTxtLookupPort;
+        this.clockPort = clockPort;
+        this.activationWindowMs = activationWindowMs;
+    }
 
     @Override
     @Transactional
@@ -48,26 +64,18 @@ public class VerifyTenantDomainCommandHandler implements CommandHandler<VerifyTe
             );
         }
 
-        TenantRegistration verifiedRegistration = registration.markVerified(now);
-
-        Tenant tenant = Tenant.create(verifiedRegistration.getTenantName().value(), now);
-        PersistedTenant savedTenant = tenantRepository.append(
-                new PersistedTenant(tenant, TenantPersistenceMapper.toState(tenant, null))
-        );
-
-        TenantRegistration activatedRegistration = verifiedRegistration.activate(savedTenant.state().id(), now);
+        TenantRegistration verifiedRegistration = registration.markVerified(now, now.plus(Duration.ofMillis(activationWindowMs)));
         TenantRegistration savedRegistration = tenantRegistrationRepository.update(
-                persistedRegistration.withRegistration(activatedRegistration)
+                persistedRegistration.withRegistration(verifiedRegistration)
         ).registration();
 
         return new VerifyTenantDomainResult(
                 savedRegistration.getId(),
-                savedRegistration.getTenantId(),
                 savedRegistration.getTenantName().value(),
                 savedRegistration.getDomainName().value(),
                 savedRegistration.getStatus().name(),
                 savedRegistration.getVerifiedAt(),
-                savedRegistration.getActivatedAt()
+                savedRegistration.getActivationExpiresAt()
         );
     }
 }

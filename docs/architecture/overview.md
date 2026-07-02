@@ -12,7 +12,7 @@ tags:
 
 ## 한 문장 요약
 
-Pabal은 `tenant`, `workspace`, `user`, `messenger` bounded context를 모듈로 분리하고, Messenger는 **DDD + Hexagonal + CQRS + Realtime(STOMP)**를 결합한 Java 25 / Spring Boot 4.0.2 기반 멀티모듈 모놀리스다.
+Pabal은 `tenant`, `workspace`, `user`, `messenger` bounded context를 모듈로 분리하고, Messenger는 **DDD + Hexagonal + CQRS + Realtime(STOMP)**를 결합한 Java 25 / Spring Boot 4.1.0 기반 멀티모듈 모놀리스다.
 
 ## 현재 상태
 

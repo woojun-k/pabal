@@ -10,7 +10,7 @@ import com.polarishb.pabal.tenant.contract.persistence.PersistedTenantRegistrati
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationExpiredException;
 import com.polarishb.pabal.tenant.domain.exception.TenantRegistrationNotFoundException;
 import com.polarishb.pabal.tenant.domain.model.TenantRegistration;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,14 +18,24 @@ import java.time.Duration;
 import java.time.Instant;
 
 @Component
-@RequiredArgsConstructor
 public class RenewTenantRegistrationTokenCommandHandler implements CommandHandler<RenewTenantRegistrationTokenCommand, TenantRegistrationResult> {
-
-    private static final Duration VERIFICATION_TTL = Duration.ofDays(7);
 
     private final TenantRegistrationRepository tenantRegistrationRepository;
     private final TenantVerificationTokenGeneratorPort tokenGeneratorPort;
     private final ClockPort clockPort;
+    private final long verificationWindowMs;
+
+    public RenewTenantRegistrationTokenCommandHandler(
+            TenantRegistrationRepository tenantRegistrationRepository,
+            TenantVerificationTokenGeneratorPort tokenGeneratorPort,
+            ClockPort clockPort,
+            @Value("${pabal.tenant.registration.verification-window-ms:604800000}") long verificationWindowMs
+    ) {
+        this.tenantRegistrationRepository = tenantRegistrationRepository;
+        this.tokenGeneratorPort = tokenGeneratorPort;
+        this.clockPort = clockPort;
+        this.verificationWindowMs = verificationWindowMs;
+    }
 
     @Override
     @Transactional(noRollbackFor = TenantRegistrationExpiredException.class)
@@ -35,8 +45,8 @@ public class RenewTenantRegistrationTokenCommandHandler implements CommandHandle
                 .orElseThrow(() -> new TenantRegistrationNotFoundException(command.registrationId()));
 
         TenantRegistration registration = persistedRegistration.registration();
-        if (!now.isBefore(registration.getExpiresAt())) {
-            Instant expiredAt = registration.getExpiresAt();
+        if (!now.isBefore(registration.getVerificationExpiresAt())) {
+            Instant expiredAt = registration.getVerificationExpiresAt();
             TenantRegistration expiredRegistration = registration.expire(now);
             tenantRegistrationRepository.update(
                     persistedRegistration.withRegistration(expiredRegistration)
@@ -47,7 +57,7 @@ public class RenewTenantRegistrationTokenCommandHandler implements CommandHandle
         TenantRegistration renewedRegistration = registration.renewVerificationToken(
                 tokenGeneratorPort.generate(),
                 now,
-                now.plus(VERIFICATION_TTL)
+                now.plus(Duration.ofMillis(verificationWindowMs))
         );
 
         TenantRegistration saved = tenantRegistrationRepository.update(
@@ -61,7 +71,8 @@ public class RenewTenantRegistrationTokenCommandHandler implements CommandHandle
                 saved.getStatus().name(),
                 saved.verificationDnsName(),
                 saved.verificationTxtValue(),
-                saved.getExpiresAt(),
+                saved.getVerificationExpiresAt(),
+                saved.getActivationExpiresAt(),
                 saved.getCreatedAt()
         );
     }
