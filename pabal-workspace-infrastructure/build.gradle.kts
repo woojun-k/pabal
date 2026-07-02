@@ -18,7 +18,6 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.data.jpa.test)
     testImplementation(libs.spring.boot.testcontainers)
-    testImplementation(platform(libs.testcontainers.bom))
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers)

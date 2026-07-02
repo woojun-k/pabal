@@ -1,6 +1,6 @@
 # Pabal Messenger
 
-Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시징 백엔드입니다. 현재 코드는 DDD, 헥사고날 아키텍처, CQRS 스타일의 command/query 분리, JWT 인증, WebSocket/STOMP realtime 전달, PostgreSQL 기반 영속성 경계를 중심으로 구성되어 있습니다.
+Pabal Messenger는 Java 25와 Spring Boot 4.1.0 기반의 멀티테넌트 메시징 백엔드입니다. 현재 코드는 DDD, 헥사고날 아키텍처, CQRS 스타일의 command/query 분리, JWT 인증, WebSocket/STOMP realtime 전달, PostgreSQL 기반 영속성 경계를 중심으로 구성되어 있습니다.
 
 핵심 설계 방향은 도메인 모델을 HTTP, WebSocket, JPA 같은 기술 구현에서 분리하고, 계층 경계는 request/response DTO, command/query, domain snapshot, persistence `State`, `Persisted*` wrapper, realtime payload/envelope로 명시적으로 넘기는 것입니다.
 
@@ -27,7 +27,7 @@ Pabal Messenger는 Java 25와 Spring Boot 4.0.2 기반의 멀티테넌트 메시
 ## 기술 스택
 
 - Java 25
-- Spring Boot 4.0.2
+- Spring Boot 4.1.0
 - Gradle Wrapper 9.3.0
 - Spring Web MVC
 - Spring WebSocket / STOMP

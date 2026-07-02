@@ -1,8 +1,7 @@
 package com.polarishb.pabal.user.integration;
 
-import com.polarishb.pabal.PabalApplication;
 import com.polarishb.pabal.messenger.application.port.out.identity.RoomParticipantDirectoryPort;
-import com.polarishb.pabal.support.AbstractPostgresIntegrationTest;
+import com.polarishb.pabal.support.PabalSpringBootIntegrationTest;
 import com.polarishb.pabal.tenant.application.command.handler.CreateTenantCommandHandler;
 import com.polarishb.pabal.tenant.application.command.input.CreateTenantCommand;
 import com.polarishb.pabal.tenant.application.command.output.CreateTenantResult;
@@ -13,24 +12,16 @@ import com.polarishb.pabal.workspace.application.command.input.CreateWorkspaceCo
 import com.polarishb.pabal.workspace.application.command.output.CreateWorkspaceResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.annotation.DirtiesContext;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(
-        classes = PabalApplication.class,
-        properties = "pabal.test.context=user-messenger"
-)
-@ActiveProfiles("test")
-@Testcontainers
+@PabalSpringBootIntegrationTest(properties = "pabal.test.context=user-messenger")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class UserMessengerIntegrationTest extends AbstractPostgresIntegrationTest {
+class UserMessengerIntegrationTest {
 
     @Autowired
     private CreateTenantCommandHandler createTenantCommandHandler;

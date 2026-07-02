@@ -3,17 +3,12 @@
 # Core Platform & Spring Ecosystem
 # =============================================================================
 java = "25"
-spring-boot = "4.0.2"
+spring-boot = "4.1.0"
 
 # =============================================================================
 # Native / Platform
 # =============================================================================
 netty = "4.2.7.Final"
-
-# =============================================================================
-# Test
-# =============================================================================
-testcontainers = "1.21.3"
 
 # =============================================================================
 # Libraries
@@ -88,10 +83,9 @@ spring-boot-starter-validation-test = { module = "org.springframework.boot:sprin
 spring-boot-starter-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test" }
 spring-boot-starter-websocket-test = { module = "org.springframework.boot:spring-boot-starter-websocket-test" }
 spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
-testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
-testcontainers-junit = { module = "org.testcontainers:junit-jupiter" }
-testcontainers-postgresql = { module = "org.testcontainers:postgresql" }
 testcontainers = { module = "org.testcontainers:testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 assertj-core = { module = "org.assertj:assertj-core" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

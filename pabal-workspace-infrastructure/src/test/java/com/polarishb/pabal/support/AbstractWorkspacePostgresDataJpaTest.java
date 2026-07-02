@@ -15,7 +15,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,7 +32,7 @@ import java.nio.file.Path;
 @ContextConfiguration(classes = AbstractWorkspacePostgresDataJpaTest.PersistenceTestApplication.class)
 public abstract class AbstractWorkspacePostgresDataJpaTest {
 
-    private static final PostgreSQLContainer<?> POSTGRES = startPostgres();
+    private static final PostgreSQLContainer POSTGRES = startPostgres();
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
@@ -51,8 +51,8 @@ public abstract class AbstractWorkspacePostgresDataJpaTest {
         return "filesystem:" + migrationPath;
     }
 
-    private static PostgreSQLContainer<?> startPostgres() {
-        PostgreSQLContainer<?> container = new PostgreSQLContainer<>("postgres:18.3")
+    private static PostgreSQLContainer startPostgres() {
+        PostgreSQLContainer container = new PostgreSQLContainer("postgres:18.3")
                 .withDatabaseName("pabal_test")
                 .withUsername("test")
                 .withPassword("test");

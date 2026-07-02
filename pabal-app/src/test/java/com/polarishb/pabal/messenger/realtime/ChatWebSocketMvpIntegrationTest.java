@@ -1,7 +1,6 @@
 package com.polarishb.pabal.messenger.realtime;
 
-import com.polarishb.pabal.PabalApplication;
-import com.polarishb.pabal.support.AbstractPostgresIntegrationTest;
+import com.polarishb.pabal.support.PabalSpringBootIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,13 +13,11 @@ import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Type;
@@ -43,13 +40,8 @@ import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(
-        classes = PabalApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
-)
-@ActiveProfiles("test")
-@Testcontainers
-class ChatWebSocketMvpIntegrationTest extends AbstractPostgresIntegrationTest {
+@PabalSpringBootIntegrationTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class ChatWebSocketMvpIntegrationTest {
 
     private static final String MESSAGE_SEND_DESTINATION = "/app/chat.message.send";
     private static final String MESSAGE_EDIT_DESTINATION = "/app/chat.message.edit";

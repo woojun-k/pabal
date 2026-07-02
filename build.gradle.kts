@@ -22,7 +22,6 @@ subprojects {
         val mockitoAgent = configurations.create("mockitoAgent") {
             isCanBeConsumed = false
             isCanBeResolved = true
-            isVisible = false
             description = "Mockito Java agent for inline mock maker"
         }
 

@@ -28,7 +28,6 @@ dependencies {
     testImplementation(libs.spring.boot.starter.websocket.test)
     testImplementation(libs.spring.boot.starter.security.test)
     testImplementation(libs.spring.boot.testcontainers)
-    testImplementation(platform(libs.testcontainers.bom))
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers)
