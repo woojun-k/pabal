@@ -61,6 +61,11 @@ Layer: Testing / App
 
 ### Workspace
 
+- `pabal-workspace-domain/src/test/java/.../WorkspaceTest.java`
+- `pabal-workspace-domain/src/test/java/.../WorkspaceMemberTest.java`
+- `pabal-workspace-domain/src/test/java/.../WorkspaceMemberChangeRoleTest.java`
+- `pabal-workspace-domain/src/test/java/.../WorkspaceMemberSnapshotTest.java`
+- `pabal-workspace-domain/src/test/java/.../WorkspaceDomainArchitectureTest.java`
 - `pabal-workspace-application/src/test/java/.../CreateWorkspaceCommandHandlerTest.java`
 - `pabal-workspace-infrastructure/src/test/java/.../WorkspaceRepositoryImplTest.java`
 
@@ -124,6 +129,8 @@ Layer: Domain
 - 상태 전이
 - 예외 발생 조건
 - persistence 또는 Spring 없이 테스트
+- workspace member leave/changeRole처럼 application이 evidence를 제공하고 domain이 상태 전이만 판단하는 규칙을 repository 없이 테스트
+- domain model은 transition time을 caller parameter로 받고 `Instant.now()`를 직접 호출하지 않는지 보호
 
 ### Application Test
 

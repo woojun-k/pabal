@@ -1,5 +1,7 @@
 package com.polarishb.pabal.workspace.domain.model;
 
+import com.polarishb.pabal.workspace.domain.exception.WorkspaceMemberLeaveNotAllowedException;
+import com.polarishb.pabal.workspace.domain.exception.WorkspaceMemberRoleChangeNotAllowedException;
 import com.polarishb.pabal.workspace.domain.model.snapshot.WorkspaceMemberSnapshot;
 import com.polarishb.pabal.workspace.domain.model.type.WorkspaceMemberStatus;
 import com.polarishb.pabal.workspace.domain.model.type.WorkspaceRole;
@@ -87,5 +89,63 @@ public class WorkspaceMember {
 
     public boolean isActive() {
         return status == WorkspaceMemberStatus.ACTIVE;
+    }
+
+    public void changeRole(WorkspaceRole newRole, Instant changedAt, boolean hasAnotherActiveOwner) {
+        WorkspaceRole requestedRole = Objects.requireNonNull(newRole, "newRole must not be null");
+        Instant transitionAt = Objects.requireNonNull(changedAt, "changedAt must not be null");
+
+        if (status != WorkspaceMemberStatus.ACTIVE) {
+            throw new WorkspaceMemberRoleChangeNotAllowedException(
+                    id,
+                    role,
+                    requestedRole,
+                    status,
+                    "workspace member must be ACTIVE to change role"
+            );
+        }
+
+        if (role == requestedRole) {
+            return;
+        }
+
+        if (role == WorkspaceRole.OWNER && !hasAnotherActiveOwner) {
+            throw new WorkspaceMemberRoleChangeNotAllowedException(
+                    id,
+                    role,
+                    requestedRole,
+                    status,
+                    "last active OWNER cannot be demoted"
+            );
+        }
+
+        role = requestedRole;
+        updatedAt = transitionAt;
+    }
+
+    public void leave(Instant leftAt, boolean hasAnotherActiveOwner) {
+        Instant transitionAt = Objects.requireNonNull(leftAt, "leftAt must not be null");
+
+        if (status != WorkspaceMemberStatus.ACTIVE) {
+            throw new WorkspaceMemberLeaveNotAllowedException(
+                    id,
+                    role,
+                    status,
+                    "workspace member must be ACTIVE to leave"
+            );
+        }
+
+        if (role == WorkspaceRole.OWNER && !hasAnotherActiveOwner) {
+            throw new WorkspaceMemberLeaveNotAllowedException(
+                    id,
+                    role,
+                    status,
+                    "last active OWNER cannot leave"
+            );
+        }
+
+        status = WorkspaceMemberStatus.LEFT;
+        this.leftAt = transitionAt;
+        updatedAt = transitionAt;
     }
 }

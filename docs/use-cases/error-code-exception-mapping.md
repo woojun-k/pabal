@@ -85,6 +85,8 @@ Layer: Domain / Application
 | Code | Name | HTTP | 대표 예외 |
 | --- | --- | --- | --- |
 | `WSP404001` | `WORKSPACE_NOT_FOUND` | 404 | `WorkspaceNotFoundException` |
+| `WSP409001` | `WORKSPACE_MEMBER_LEAVE_NOT_ALLOWED` | 409 | `WorkspaceMemberLeaveNotAllowedException` |
+| `WSP409002` | `WORKSPACE_MEMBER_ROLE_CHANGE_NOT_ALLOWED` | 409 | `WorkspaceMemberRoleChangeNotAllowedException` |
 
 ## 기술 예외 정규화
 

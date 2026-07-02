@@ -170,6 +170,56 @@ When: `CreateWorkspaceCommand` 처리
 Then: `workspace`가 `ACTIVE`로 저장되고 `workspace_member`에 owner가 `OWNER`, `ACTIVE`로 저장됨
 Related: [Pabal HTTP API 예시와 오류 매핑](../use-cases/http-api-and-error-mapping.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)
 
+## Workspace create/isActive domain invariant
+
+Layer: Domain
+Target: `Workspace`, `WorkspaceTest`
+Purpose: `Workspace.create`가 active workspace를 만들고 `isActive()`가 snapshot status를 기준으로 판정하도록 보장
+Given: 새 workspace 생성 입력 또는 `ARCHIVED` status의 `WorkspaceSnapshot`
+When: `Workspace.create(...)` 또는 `Workspace.reconstitute(snapshot).isActive()` 호출
+Then: 생성된 workspace는 `ACTIVE`이고, reconstituted non-active workspace는 `isActive()` false를 반환함
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 테스트 전략](testing-strategy.md)
+
+## WorkspaceMember leave transition
+
+Layer: Domain
+Target: `WorkspaceMember`, `WorkspaceMemberSnapshot`, `WorkspaceMemberLeaveNotAllowedException`
+Purpose: workspace member `ACTIVE` -> `LEFT` 전이와 마지막 active `OWNER` 보호 invariant 보장
+Given: active `MEMBER`/`ADMIN`/`OWNER`, already-left member, null `leftAt`, 다른 active owner evidence
+When: `WorkspaceMember.leave(leftAt, hasAnotherActiveOwner)` 호출
+Then: 성공 시 같은 instance가 `LEFT`가 되고 `leftAt`/`updatedAt`은 caller-supplied `leftAt`이 되며 identity/role/join/create 값은 유지됨. 이미 `LEFT`인 member와 마지막 active `OWNER` leave는 `WSP409001`로 거부되고, null `leftAt`도 상태 변경 전에 거부됨.
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal 테스트 전략](testing-strategy.md)
+
+## WorkspaceMember role change transition
+
+Layer: Domain
+Target: `WorkspaceMember`, `WorkspaceMemberChangeRoleTest`, `WorkspaceMemberRoleChangeNotAllowedException`
+Purpose: workspace member role 변경과 마지막 active `OWNER` demotion 보호 invariant 보장
+Given: active `MEMBER`/`ADMIN`/`OWNER`, already-left member, null `newRole`, null `changedAt`, 다른 active owner evidence
+When: `WorkspaceMember.changeRole(newRole, changedAt, hasAnotherActiveOwner)` 호출
+Then: 실제 변경은 같은 instance의 `role`과 `updatedAt`만 갱신하고, same-role 호출은 no-op으로 `updatedAt`을 유지함. 이미 `LEFT`인 member와 마지막 active `OWNER` demotion은 `WSP409002`로 거부되며, 거부된 호출과 null 입력은 상태를 부분 변경하지 않음.
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal 테스트 전략](testing-strategy.md)
+
+## WorkspaceMemberSnapshot status invariant
+
+Layer: Domain
+Target: `WorkspaceMemberSnapshot`, `WorkspaceMemberSnapshotTest`
+Purpose: snapshot hydration boundary에서 `ACTIVE`/`LEFT`와 `leftAt` 정합성 보장
+Given: `ACTIVE` snapshot with `leftAt` 또는 `LEFT` snapshot without `leftAt`
+When: `WorkspaceMemberSnapshot` 생성
+Then: 잘못된 status/leftAt 조합은 거부되고, persistence hydration이 domain invariant를 우회하지 못함
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal Persistence 경계와 데이터 변환](../architecture/persistence-boundary-and-mapping.md)
+
+## Workspace domain time boundary
+
+Layer: Domain
+Target: `WorkspaceDomainArchitectureTest`
+Purpose: workspace domain model이 domain time을 직접 계산하지 않고 caller-supplied time을 사용하도록 보장
+Given: `pabal-workspace-domain/src/main/java` source tree
+When: workspace domain Java source에서 `Instant.now(` 사용 여부를 검사
+Then: domain source는 `Instant.now()`를 직접 호출하지 않음
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 테스트 전략](testing-strategy.md)
+
 ## User contract participant validation
 
 Layer: App / Application / Infrastructure
