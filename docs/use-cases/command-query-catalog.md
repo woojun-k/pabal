@@ -52,7 +52,7 @@ Layer: Domain / Contract / Infrastructure / Application / API
 
 **모든 계층이 이 모델을 반영한다.**
 
-Persistence: `pabal-tenant-infrastructure`의 `TenantRegistrationEntity`는 `V10__tenant_registration_split_expiry_and_reverification_status.sql` 이후 `verificationExpiresAt`/`activationExpiresAt` 두 컬럼과 5-status를 그대로 매핑한다. `TenantRegistrationExpirationScheduler`가 세 개의 독립된 sweep을 실행한다.
+Persistence: `pabal-tenant-infrastructure`의 `TenantRegistrationEntity`는 `V7__tenant_registration_tables.sql`의 `verificationExpiresAt`/`activationExpiresAt` 두 컬럼과 5-status를 그대로 매핑한다. `TenantRegistrationExpirationScheduler`가 세 개의 독립된 sweep을 실행한다.
 
 | Command | Handler | 설명 | 주기 |
 | --- | --- | --- | --- |

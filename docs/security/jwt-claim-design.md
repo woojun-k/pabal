@@ -38,7 +38,7 @@ Prefix: `pabal.security.jwt`
 | `refresh-token-ttl` | `7d` | 내부 issuer/local refresh token TTL |
 | `refresh-token.reuse-grace-period` | `3s` | used refresh token replay 허용 시간 |
 | `refresh-token.request-idempotency-ttl` | `30s` | `X-Request-ID` refresh 응답 Redis cache TTL |
-| `local-secret` | env | local/test HS256 token secret |
+| `local-secret` | env 또는 process 내 random | local/test HS256 token secret |
 
 ## principal mapping
 
@@ -170,6 +170,8 @@ Code:
 - `LocalDevTokenController`
 
 `GET /dev/token?userId={uuid}&tenantId={uuid}`는 local/test profile에서 access token만 발급한다. 이 개발 편의 endpoint는 refresh token row를 DB에 저장하지 않으며, claim은 설정된 claim name에 맞춰 들어간다.
+
+`local-secret` 값이 비어 있거나 기존 문서 예시 placeholder이면 `LocalJwtConfig`가 process 내 random key를 생성해 `JwtEncoder`와 `JwtDecoder`가 공유한다. `scripts/run-local.sh`, `scripts/run-test.sh`는 가능한 경우 `openssl rand -hex 32`로 같은 값을 환경 변수에 먼저 주입한다. 고정 local/test token이 필요한 경우에만 고유 secret을 `.env.local` 또는 `.env.test`에 저장한다.
 
 권한 테스트가 필요하면 query parameter를 추가한다.
 

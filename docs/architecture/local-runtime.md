@@ -81,7 +81,7 @@ PostgreSQL과 Redis는 volume을 사용한다.
 | Hibernate DDL | `validate` | `validate` | `validate` |
 | Open Session in View | `false` | `false` | 설정 파일 기준 미지정, 기본값 확인 필요 |
 | JWT issuer | `${ISSUER_URI}` | `local-dev` | `PABAL_TEST_JWT_ISSUER_URI` 기본값 |
-| JWT local secret | 없음 | `${PABAL_JWT_LOCAL_SECRET}` | `${PABAL_TEST_JWT_LOCAL_SECRET:...}` |
+| JWT local secret | 없음 | `${PABAL_JWT_LOCAL_SECRET:}` 또는 process 내 random | `${PABAL_TEST_JWT_LOCAL_SECRET:}` 또는 process 내 random |
 | WebSocket endpoint | `/websocket` | `/websocket` | `/ws` |
 | WebSocket origin | localhost 기반 | localhost 기반 | `*` |
 | STOMP broker | simple broker, relay disabled | simple broker, relay disabled | simple broker, relay disabled |
@@ -98,6 +98,8 @@ GET /dev/token?userId={uuid}&tenantId={uuid}&role=workspace_admin&scope=messenge
 ```
 
 발급된 token은 `PabalJwtAuthenticationConverter`를 거쳐 `PabalPrincipal(userId, tenantId, subject)`로 변환된다. `role`, `scope`, `permission` parameter는 JWT authority로 들어가 RBAC 테스트에 사용할 수 있다. HTTP command/query와 STOMP CONNECT는 모두 이 principal을 기준으로 tenant/user를 얻는다.
+
+`PABAL_JWT_LOCAL_SECRET`과 `PABAL_TEST_JWT_LOCAL_SECRET`은 예시 파일에서 비워 둔다. `scripts/run-local.sh`, `scripts/run-test.sh`는 값이 없거나 기존 문서 예시 placeholder이면 `openssl rand -hex 32`로 process용 값을 생성한다. script를 거치지 않아도 `LocalJwtConfig`는 비어 있는 값 또는 placeholder를 process 내 random key로 대체한다. 재시작 후에도 기존 local/test token을 유지해야 할 때만 고유 값을 `.env.local` 또는 `.env.test`에 저장한다.
 
 관련 설계는 [Pabal 보안과 JWT Claim 설계](../security/jwt-claim-design.md)와 [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md)을 기준으로 본다.
 
@@ -124,7 +126,7 @@ Layer: App
 
 - [ ] `.env.local`이 존재하는가?
 - [ ] `PABAL_POSTGRES_DB`, `PABAL_POSTGRES_USER`, `PABAL_POSTGRES_PASSWORD`가 설정됐는가?
-- [ ] `PABAL_JWT_LOCAL_SECRET`이 HS256에 충분한 길이로 설정됐는가?
+- [ ] `PABAL_JWT_LOCAL_SECRET`이 비어 있어 자동 생성되거나, 고정 예시값이 아닌 고유한 HS256 secret으로 설정됐는가?
 - [ ] `/actuator/health`가 열리는가?
 - [ ] `/dev/token`으로 local access token을 받을 수 있는가?
 - [ ] `/websocket` STOMP CONNECT에서 bearer token이 통과하는가?

@@ -17,7 +17,7 @@ Accepted
 - `VERIFIED` 상태로 전이된 뒤 activation이 무기한 허용되는 사실상의 unbounded window였다. `activate()` 자체는 상태만 확인하고 시간 제약 없이 통과할 수 있었다.
 - activation window가 지나 활성화가 더는 허용되지 않아야 하는 상황을 별도 status로 관측할 방법이 없었다. registration이 "복구 가능한 지연 상태"인지 "완전히 닫힌 상태"인지 구분되지 않았다.
 
-이 경계를 closing하기 위해 `pabal-tenant-domain`/`pabal-tenant-contract` 범위에서 `TenantRegistration`, `TenantRegistrationStatus`, `TenantRegistrationSnapshot`, `TenantRegistrationState`를 수정했다. `pabal-tenant-infrastructure`(JPA entity, Flyway V10 migration, scheduler)와 `pabal-tenant-application`/`pabal-tenant-api`(two-phase 검증 handler, TTL 설정)는 이번 변경 범위 밖의 후속 작업으로 명시적으로 남겨두었고, 이후 완료되어 현재는 domain/contract/persistence/application/api 전 계층이 분리된 시간/상태 모델로 정합한다.
+이 경계를 closing하기 위해 `pabal-tenant-domain`/`pabal-tenant-contract` 범위에서 `TenantRegistration`, `TenantRegistrationStatus`, `TenantRegistrationSnapshot`, `TenantRegistrationState`를 수정했다. `pabal-tenant-infrastructure`(JPA entity, Flyway schema, scheduler)와 `pabal-tenant-application`/`pabal-tenant-api`(two-phase 검증 handler, TTL 설정)는 이번 변경 범위 밖의 후속 작업으로 명시적으로 남겨두었고, 이후 완료되어 현재는 domain/contract/persistence/application/api 전 계층이 분리된 시간/상태 모델로 정합한다.
 
 ## Decision
 

@@ -30,7 +30,6 @@ Pabal DB schema source of truth는 Flyway migration이다. Hibernate는 schema �
 - `V7__tenant_registration_tables.sql`
 - `V8__authorization_rbac_tables.sql`
 - `V9__security_refresh_tokens.sql`
-- `V10__tenant_registration_split_expiry_and_reverification_status.sql`
 
 ## Schema 관리 원칙
 
@@ -143,10 +142,10 @@ Layer: Infrastructure / Domain
 Layer: Infrastructure / Domain
 Status: Implemented
 
-`V7__tenant_registration_tables.sql` + `V10__tenant_registration_split_expiry_and_reverification_status.sql` 적용 후 현재 schema:
+`V7__tenant_registration_tables.sql`이 현재 tenant registration schema를 테이블 단위로 정의한다:
 
 - `chk_tenant_registration_status`: `PENDING_VERIFICATION`, `DOMAIN_VERIFIED`, `REVERIFICATION_REQUIRED`, `ACTIVATED`, `EXPIRED` (5-status)
-- `verification_expires_at timestamptz NOT NULL`: `PENDING_VERIFICATION`의 검증 마감 시각 (V10에서 `expires_at`을 rename)
+- `verification_expires_at timestamptz NOT NULL`: `PENDING_VERIFICATION`의 검증 마감 시각
 - `activation_expires_at timestamptz` (nullable): `DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`/`ACTIVATED`의 활성화 마감 시각
 - `chk_tenant_registration_verification_expires_after_created`: `verification_expires_at > created_at`
 - `chk_tenant_registration_status_timestamps`: status별 `activation_expires_at`/`verified_at`/`activated_at`/`tenant_id` 정합성
@@ -157,8 +156,6 @@ Status: Implemented
 - `uq_tenant_registration_domain_open`: `PENDING_VERIFICATION`/`DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`/`ACTIVATED`(= domain `isOpen()`과 동일한 4개 open status) 상태의 domain 중복 방지
 - `idx_tenant_registration_status_verification_expires`: status + `verification_expires_at` 조회 (`expirePendingRegistrations`/`findPendingVerificationIds`가 사용)
 - `idx_tenant_registration_status_activation_expires` (partial, `WHERE activation_expires_at IS NOT NULL`): status + `activation_expires_at` 조회 (reverification sweep의 `findLapsedDomainVerifiedIds`가 사용)
-
-`V10`은 no-backfill 마이그레이션이다 — `tenant_registration`이 비어 있다는 전제로 컬럼 rename과 CHECK 갱신만 수행하며, 기존 데이터 변환은 하지 않는다.
 
 **persistence 계층은 domain/contract와 정합한다**: `TenantRegistrationEntity`는 새 `TenantRegistrationState` 13-arg 생성자 순서에 맞춰 `verificationExpiresAt`/`activationExpiresAt` 두 필드를 모두 매핑하고, `TenantRegistrationRepositoryImpl.OPEN_STATUSES`는 `DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`를 포함한 4개 open status를 사용한다. `TenantRegistrationExpirationScheduler.reverifyLapsedRegistrations()`가 lapsed `DOMAIN_VERIFIED` registration을 도메인 메서드 `requireReverification(now)`를 통해서만 `REVERIFICATION_REQUIRED`로 전이하는 sweep을 실행한다(bulk `UPDATE`가 아니다). `expirePendingRegistrations`는 `verification_expires_at` 기준으로 `PENDING_VERIFICATION`만 `EXPIRED`로 닫으며 `DOMAIN_VERIFIED`/`REVERIFICATION_REQUIRED`는 건드리지 않는다.
 

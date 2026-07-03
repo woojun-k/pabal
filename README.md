@@ -28,7 +28,7 @@ Pabal Messenger는 Java 25와 Spring Boot 4.1.0 기반의 멀티테넌트 메시
 
 - Java 25
 - Spring Boot 4.1.0
-- Gradle Wrapper 9.3.0
+- Gradle Wrapper 9.6.1
 - Spring Web MVC
 - Spring WebSocket / STOMP
 - Spring Security, OAuth2 Resource Server, Spring Security Messaging
@@ -44,16 +44,17 @@ Pabal Messenger는 Java 25와 Spring Boot 4.1.0 기반의 멀티테넌트 메시
 
 ## Gradle 멀티모듈 구조
 
-루트 프로젝트명은 `pabal`이며, 애플리케이션 실행 모듈과 기능 모듈을 분리합니다.
+루트 프로젝트명은 `pabal`이며, Gradle 멀티모듈 구조로 애플리케이션 실행 모듈, 공통/지원 모듈, bounded context별 레이어 모듈을 분리합니다.
 
 | Module | 역할 |
 | --- | --- |
 | `pabal-app` | Spring Boot executable application, runtime 설정, Flyway migration, local/test profile 리소스 |
-| `pabal-common` | 예외 코드, CQRS marker, domain event publisher abstraction, persistence base, UUIDv7 utility |
+| `pabal-common` | 예외 코드, CQRS marker, domain event publisher abstraction, authorization/context contract, UUIDv7 utility |
 | `pabal-web` | 공통 `ApiError`, `GlobalExceptionHandler`, Spring 기반 `SpringDomainEventPublisher` 구현 |
 | `pabal-security` | HTTP JWT Resource Server 설정, JWT principal 변환, access/refresh token lifecycle, local/test token 발급, WebSocket endpoint property |
 | `pabal-authorization` | Authority normalization/matching, RBAC permission 조회/cache, persisted authorization policy access |
 | `pabal-infra-redis` | Redis starter dependency boundary for authorization cache and future module cache layers |
+| `pabal-persistence-support` | JPA entity base field와 UUID v7 Hibernate generator |
 | `pabal-tenant-domain` | Tenant 순수 도메인 모델, value object, domain exception |
 | `pabal-tenant-application` | Tenant command/query handler, repository port, `TenantContract` 구현 |
 | `pabal-tenant-contract` | Tenant persistence contract, state, persisted wrapper, mapper |
@@ -94,11 +95,11 @@ pabal-app
 
 pabal-common
 └── com.polarishb.pabal.common
+    ├── authorization
     ├── contract
     ├── cqrs
     ├── event
     ├── exception
-    ├── persistence
     └── util
 
 pabal-web
@@ -119,6 +120,11 @@ pabal-authorization
 
 pabal-infra-redis
 └── Redis dependency boundary module
+
+pabal-persistence-support
+└── com.polarishb.pabal.persistence
+    ├── entity.base
+    └── jpa
 
 pabal-tenant-domain / pabal-tenant-application / pabal-tenant-contract / pabal-tenant-api / pabal-tenant-infrastructure
 └── com.polarishb.pabal.tenant
@@ -171,9 +177,12 @@ pabal-messenger-api
 
 pabal-messenger-infrastructure
 └── com.polarishb.pabal.messenger.infrastructure
+    ├── application
     ├── config
+    ├── identity
     ├── persistence
     ├── realtime
+    ├── security
     └── time
 ```
 
@@ -206,7 +215,10 @@ flowchart LR
 
     subgraph DOMAIN["Domain Module"]
         E --> G["Domain Model"]
-        G --> H["Repository Port"]
+    end
+
+    subgraph PORT["Application Port"]
+        E --> H["Repository Port"]
     end
 
     subgraph CONTRACT["Contract Module"]
@@ -314,7 +326,7 @@ DB 제약은 Flyway migration에서 관리합니다.
 - `message.reply_to_message_id`, `chat_room.last_message_id`, `chat_room_member.last_read_message_id`는 같은 tenant와 같은 room의 message만 참조할 수 있도록 composite FK를 사용합니다.
 - channel 이름 unique index는 `tenant_id + workspace_id + lower(name)` 기준이며, 살아있는 channel만 대상으로 합니다.
 
-ID는 infrastructure JPA entity에서 `@UuidV7Generated`로 생성합니다. 기본 모드는 monotonic UUIDv7이며, Hibernate generator는 assigned identifier도 허용합니다.
+ID는 infrastructure JPA entity에서 `pabal-persistence-support`의 `@UuidV7Generated`로 생성합니다. 기본 모드는 monotonic UUIDv7이며, Hibernate generator는 assigned identifier도 허용합니다.
 
 ## Domain Rules
 
@@ -347,7 +359,7 @@ ID는 infrastructure JPA entity에서 `@UuidV7Generated`로 생성합니다. 기
 
 ## HTTP API
 
-모든 `/api/**` 요청은 JWT bearer token 인증이 필요합니다. JWT는 `PabalPrincipal`로 변환되며 command/query에는 `tenantId`, `userId`가 명시적으로 들어갑니다.
+대부분의 `/api/**` 요청은 JWT bearer token 인증이 필요합니다. 예외는 tenant onboarding용 `/api/v1/tenant-registrations/**`와 refresh token 자체를 credential로 받는 `/api/v1/auth/tokens/refresh`, `/api/v1/auth/tokens/revoke`입니다. 인증된 요청의 JWT는 `PabalPrincipal`로 변환되며 command/query에는 `tenantId`, `userId`가 명시적으로 들어갑니다.
 
 ### Chat API
 
@@ -489,6 +501,7 @@ HTTP 보안은 stateless JWT Resource Server입니다.
 - `/actuator/health`: permit all
 - WebSocket endpoint: HTTP handshake permit all, STOMP `CONNECT`에서 token 인증
 - `/api/v1/tenant-registrations/**`: permit all, tenant onboarding용
+- `/api/v1/auth/tokens/refresh`, `/api/v1/auth/tokens/revoke`: permit all, refresh token 자체 검증
 - `/dev/**`: local/test profile에서만 permit all, 개발용
 - 그 외 모든 요청: authenticated
 
@@ -503,7 +516,7 @@ JWT 설정은 다음 값을 사용합니다.
 - `pabal.security.jwt.access-token-min-ttl`: 기본 60분
 - `pabal.security.jwt.access-token-max-ttl`: 기본 90분
 - `pabal.security.jwt.refresh-token-ttl`: 기본 7일
-- `pabal.security.jwt.local-secret`: local/test profile 전용
+- `pabal.security.jwt.local-secret`: local/test profile 전용. 값이 비어 있거나 기존 예시 placeholder이면 process 내 random key로 대체
 
 local/test profile에서는 HS256 local secret 기반 `JwtDecoder`/`JwtEncoder`를 사용하고 `/dev/token`으로 개발용 access token을 발급할 수 있습니다. 이 endpoint는 refresh token row를 DB에 저장하지 않습니다. `role`, `scope`, `permission` query parameter로 RBAC 테스트용 authority도 넣을 수 있습니다. 운영 권한 조합은 `rbac_permission`, `rbac_role`, `rbac_role_permission`, `rbac_user_role` 기반 DB RBAC store에서 해석합니다.
 
@@ -562,9 +575,11 @@ JDK 25가 필요합니다.
 
 실행 전 `.env.example`을 참고해서 `.env.local`, `.env.test`를 준비합니다.
 
-- `scripts/run-local.sh`: `.env.local`을 로드한 뒤 `local` profile로 애플리케이션 실행
-- `scripts/run-test.sh`: `.env.test`를 로드한 뒤 테스트 실행
+- `scripts/run-local.sh`: `.env.local`을 로드하고 local JWT secret이 없으면 random 값을 생성한 뒤 `local` profile로 애플리케이션 실행
+- `scripts/run-test.sh`: `.env.test`를 로드하고 test JWT secret이 없으면 random 값을 생성한 뒤 테스트 실행
 - 테스트는 H2를 사용하지 않고 Flyway migration을 그대로 적용한 PostgreSQL Testcontainers 기준으로 검증
+
+`.env.example`의 `PABAL_JWT_LOCAL_SECRET`, `PABAL_TEST_JWT_LOCAL_SECRET`은 의도적으로 비워 둔 예시입니다. 재시작 후에도 기존 local/test token을 유지해야 할 때만 `openssl rand -hex 32`로 생성한 고유 값을 `.env.local` 또는 `.env.test`에 저장합니다.
 
 local/test profile에서는 개발용 JWT를 발급할 수 있습니다.
 
@@ -611,7 +626,7 @@ Authorization: Bearer ${ACCESS_TOKEN}
 - `PABAL_POSTGRES_PASSWORD`
 - `PABAL_POSTGRES_PORT`
 - `PABAL_REDIS_PORT`
-- `PABAL_JWT_LOCAL_SECRET`
+- `PABAL_JWT_LOCAL_SECRET` (없으면 process 내 random key 사용)
 - `PABAL_OTEL_HTTP_PORT`
 - `PABAL_OTEL_GRPC_PORT`
 
