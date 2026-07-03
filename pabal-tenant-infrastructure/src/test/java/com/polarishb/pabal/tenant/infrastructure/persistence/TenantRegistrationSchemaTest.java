@@ -14,19 +14,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Contract under test (ADR-0013 follow-up, "Restore compilation of the tenant context..."):
+ * Contract under test (ADR-0013 tenant registration time/status split):
  *
- * <p>Flyway {@code V10__*.sql} migrates {@code tenant_registration} from a single
- * {@code expires_at} column to {@code verification_expires_at} (NOT NULL) and
- * {@code activation_expires_at} (nullable), and updates the status CHECK to the 5
- * statuses {PENDING_VERIFICATION, DOMAIN_VERIFIED, REVERIFICATION_REQUIRED, ACTIVATED,
- * EXPIRED} with the per-status timestamp invariants specified in the contract.
+ * <p>Flyway defines {@code tenant_registration} with {@code verification_expires_at}
+ * (NOT NULL), {@code activation_expires_at} (nullable), and the 5 statuses
+ * {PENDING_VERIFICATION, DOMAIN_VERIFIED, REVERIFICATION_REQUIRED, ACTIVATED, EXPIRED}
+ * with the per-status timestamp invariants specified in the contract.
  *
- * <p>This test exercises the migrated schema directly via JDBC (bypassing the JPA
- * entity/domain layers) so that the DB-level CHECK constraints are the thing under
- * test, independent of whatever the entity mapping currently allows.
+ * <p>This test exercises the schema directly via JDBC (bypassing the JPA entity/domain
+ * layers) so that the DB-level CHECK constraints are the thing under test, independent
+ * of whatever the entity mapping currently allows.
  */
-class TenantRegistrationSchemaV10Test extends AbstractTenantPostgresDataJpaTest {
+class TenantRegistrationSchemaTest extends AbstractTenantPostgresDataJpaTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -39,7 +38,7 @@ class TenantRegistrationSchemaV10Test extends AbstractTenantPostgresDataJpaTest 
     private static final Instant ACTIVATED_AT = VERIFIED_AT.plusSeconds(30);
 
     @Test
-    void expires_at_column_is_absent_after_v10() {
+    void expires_at_column_is_absent() {
         Long columnCount = jdbcTemplate.queryForObject(
                 """
                 SELECT count(*)

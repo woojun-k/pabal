@@ -98,62 +98,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_room_last_message_at_alive
 
 
 -- =====================================================================
--- Table: chat_room_member
---  - 사용자와 채팅방 membership 관계 저장
---  - left_at이 NULL이면 현재 활성 membership으로 판단한다.
--- =====================================================================
-CREATE TABLE IF NOT EXISTS chat_room_member (
-    id                   UUID          PRIMARY KEY DEFAULT uuidv7(),
-
-    tenant_id            UUID          NOT NULL,
-    chat_room_id         UUID          NOT NULL,
-    user_id              UUID          NOT NULL,
-
-    last_read_message_id UUID,
-    last_read_sequence   BIGINT,
-    last_read_at         TIMESTAMPTZ,
-
-    joined_at            TIMESTAMPTZ   NOT NULL,
-    left_at              TIMESTAMPTZ,
-
-    version              BIGINT        NOT NULL DEFAULT 0,
-    created_at           TIMESTAMPTZ   NOT NULL,
-    updated_at           TIMESTAMPTZ   NOT NULL,
-    deleted_at           TIMESTAMPTZ,
-
-    CONSTRAINT fk_chat_room_member_room
-    FOREIGN KEY (tenant_id, chat_room_id)
-    REFERENCES chat_room (tenant_id, id)
-    ON DELETE RESTRICT,
-
-    CONSTRAINT uq_chat_room_member
-    UNIQUE (tenant_id, chat_room_id, user_id),
-
-    CONSTRAINT uq_chat_room_member_tenant_room_user
-    UNIQUE (tenant_id, chat_room_id, user_id),
-
-    CONSTRAINT chk_chat_room_member_last_read_sequence_non_negative
-    CHECK (last_read_sequence IS NULL OR last_read_sequence >= 0),
-
-    CONSTRAINT chk_chat_room_member_left_after_join
-    CHECK (left_at IS NULL OR left_at >= joined_at)
-);
-
-CREATE INDEX IF NOT EXISTS idx_chat_room_member_user_active
-    ON chat_room_member (tenant_id, user_id, chat_room_id)
-    WHERE left_at IS NULL
-    AND deleted_at IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_chat_room_member_room_active
-    ON chat_room_member (tenant_id, chat_room_id, user_id)
-    WHERE left_at IS NULL
-    AND deleted_at IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_chat_room_member_room_left_at
-    ON chat_room_member (tenant_id, chat_room_id, left_at);
-
-
--- =====================================================================
 -- Table: direct_chat_mapping
 --  - 1:1 direct room의 participant pair -> chat_room_id 매핑
 --  - user_id_min / user_id_max 정렬 저장으로 A-B와 B-A를 동일 pair로 취급
@@ -274,19 +218,70 @@ CREATE INDEX IF NOT EXISTS idx_message_reply_to
 
 
 -- =====================================================================
--- Cross-table FK constraints that require message table to exist first
+-- Table: chat_room_member
+--  - 사용자와 채팅방 membership 관계 저장
+--  - left_at이 NULL이면 현재 활성 membership으로 판단한다.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS chat_room_member (
+    id                   UUID          PRIMARY KEY DEFAULT uuidv7(),
+
+    tenant_id            UUID          NOT NULL,
+    chat_room_id         UUID          NOT NULL,
+    user_id              UUID          NOT NULL,
+
+    last_read_message_id UUID,
+    last_read_sequence   BIGINT,
+    last_read_at         TIMESTAMPTZ,
+
+    joined_at            TIMESTAMPTZ   NOT NULL,
+    left_at              TIMESTAMPTZ,
+
+    version              BIGINT        NOT NULL DEFAULT 0,
+    created_at           TIMESTAMPTZ   NOT NULL,
+    updated_at           TIMESTAMPTZ   NOT NULL,
+    deleted_at           TIMESTAMPTZ,
+
+    CONSTRAINT fk_chat_room_member_room
+    FOREIGN KEY (tenant_id, chat_room_id)
+    REFERENCES chat_room (tenant_id, id)
+    ON DELETE RESTRICT,
+
+    CONSTRAINT fk_chat_room_member_last_read_message
+    FOREIGN KEY (tenant_id, chat_room_id, last_read_message_id)
+    REFERENCES message (tenant_id, chat_room_id, id)
+    ON DELETE RESTRICT,
+
+    CONSTRAINT uq_chat_room_member
+    UNIQUE (tenant_id, chat_room_id, user_id),
+
+    CONSTRAINT chk_chat_room_member_last_read_sequence_non_negative
+    CHECK (last_read_sequence IS NULL OR last_read_sequence >= 0),
+
+    CONSTRAINT chk_chat_room_member_left_after_join
+    CHECK (left_at IS NULL OR left_at >= joined_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_room_member_user_active
+    ON chat_room_member (tenant_id, user_id, chat_room_id)
+    WHERE left_at IS NULL
+    AND deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_chat_room_member_room_active
+    ON chat_room_member (tenant_id, chat_room_id, user_id)
+    WHERE left_at IS NULL
+    AND deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_chat_room_member_room_left_at
+    ON chat_room_member (tenant_id, chat_room_id, left_at);
+
+
+-- =====================================================================
+-- Cross-table FK constraint that closes the chat_room <-> message cycle
 -- =====================================================================
 
 -- chat_room.last_message_id가 같은 tenant + 같은 room의 message만 가리키도록 보장한다.
 ALTER TABLE chat_room
     ADD CONSTRAINT fk_chat_room_last_message
         FOREIGN KEY (tenant_id, id, last_message_id)
-            REFERENCES message (tenant_id, chat_room_id, id)
-            ON DELETE RESTRICT;
-
--- chat_room_member.last_read_message_id가 같은 tenant + 같은 room의 message만 가리키도록 보장한다.
-ALTER TABLE chat_room_member
-    ADD CONSTRAINT fk_chat_room_member_last_read_message
-        FOREIGN KEY (tenant_id, chat_room_id, last_read_message_id)
             REFERENCES message (tenant_id, chat_room_id, id)
             ON DELETE RESTRICT;
