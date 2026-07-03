@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.spring.security.messaging)
     implementation(libs.spring.boot.starter.oauth2.resource.server)
     implementation(libs.spring.boot.starter.kafka)
+    implementation(libs.micrometer.core)
 
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.flyway.database.postgresql)

@@ -2,6 +2,7 @@ package com.polarishb.pabal.messenger.application.command.handler;
 
 import com.polarishb.pabal.messenger.application.command.input.SendMessageCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
+import com.polarishb.pabal.messenger.application.port.out.observability.MessageSendMetrics;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
@@ -32,6 +33,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,6 +50,9 @@ class SendMessageCommandHandlerTest {
 
     @Mock
     private ClockPort clockPort;
+
+    @Mock
+    private MessageSendMetrics messageSendMetrics;
 
     @InjectMocks
     private SendMessageCommandHandler sendMessageCommandHandler;
@@ -156,6 +161,9 @@ class SendMessageCommandHandlerTest {
         assertThat(messageCaptor.getValue().getCreatedAt()).isEqualTo(now);
         assertThat(messageCaptor.getValue().getSequence()).isNull();
         assertThat(result.createdAt()).isEqualTo(now);
+        verify(messageSendMetrics).recordSent();
+        verify(messageSendMetrics, never()).recordDuplicate();
+        verify(messageSendMetrics, never()).recordFailed();
     }
 
     @Test
@@ -263,5 +271,29 @@ class SendMessageCommandHandlerTest {
         assertThat(result).isEqualTo(duplicateResult);
         verify(messageSendSupport).loadDuplicate(command);
         verify(messageSendSupport, never()).toSentResult(any());
+        verify(messageSendMetrics).recordDuplicate();
+        verify(messageSendMetrics, never()).recordSent();
+        verify(messageSendMetrics, never()).recordFailed();
+    }
+
+    @Test
+    void handle_records_failed_metric_when_send_flow_throws() {
+        UUID tenantId = UUID.randomUUID();
+        UUID chatRoomId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID clientMessageId = UUID.randomUUID();
+
+        SendMessageCommand command = new SendMessageCommand(tenantId, senderId, chatRoomId, clientMessageId, "hello");
+
+        when(chatRoomAccessSupport.loadSendableActiveMember(tenantId, chatRoomId, senderId))
+                .thenThrow(new IllegalStateException("room unavailable"));
+
+        assertThatThrownBy(() -> sendMessageCommandHandler.handle(command))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("room unavailable");
+
+        verify(messageSendMetrics).recordFailed();
+        verify(messageSendMetrics, never()).recordSent();
+        verify(messageSendMetrics, never()).recordDuplicate();
     }
 }

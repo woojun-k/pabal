@@ -69,6 +69,7 @@ jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api" 
 # Persistence / Observability / Utilities
 # =============================================================================
 hibernate-core = { module = "org.hibernate.orm:hibernate-core" }
+micrometer-core = { module = "io.micrometer:micrometer-core" }
 opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api" }
 lombok = { module = "org.projectlombok:lombok" }
 netty-resolver-dns-native-macos = { module = "io.netty:netty-resolver-dns-native-macos", version.ref = "netty" }

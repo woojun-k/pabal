@@ -3,10 +3,11 @@ package com.polarishb.pabal.messenger.application.command.handler;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.messenger.application.command.input.SendMessageCommand;
 import com.polarishb.pabal.messenger.application.command.output.SendMessageResult;
+import com.polarishb.pabal.messenger.application.port.out.observability.MessageSendMetrics;
 import com.polarishb.pabal.messenger.application.port.out.time.ClockPort;
 import com.polarishb.pabal.messenger.application.service.ChatRoomAccessSupport;
-import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.application.service.MessageSendSupport;
+import com.polarishb.pabal.messenger.application.service.context.ChatRoomAccess;
 import com.polarishb.pabal.messenger.contract.persistence.message.MessageState;
 import com.polarishb.pabal.messenger.domain.exception.DuplicateMessageException;
 import com.polarishb.pabal.messenger.domain.model.Message;
@@ -23,11 +24,28 @@ public class SendMessageCommandHandler implements CommandHandler<SendMessageComm
     private final MessageSendSupport messageSendSupport;
     private final ChatRoomAccessSupport chatRoomAccessSupport;
     private final ClockPort clockPort;
+    private final MessageSendMetrics messageSendMetrics;
 
     @Override
     @Transactional
     public SendMessageResult handle(SendMessageCommand command) {
+        SendMessageResult result;
+        try {
+            result = sendMessage(command);
+        } catch (RuntimeException ex) {
+            messageSendMetrics.recordFailed();
+            throw ex;
+        }
 
+        if (result.isDuplicated()) {
+            messageSendMetrics.recordDuplicate();
+        } else {
+            messageSendMetrics.recordSent();
+        }
+        return result;
+    }
+
+    private SendMessageResult sendMessage(SendMessageCommand command) {
         ChatRoomAccess access = chatRoomAccessSupport.loadSendableActiveMember(
                 command.tenantId(),
                 command.chatRoomId(),
