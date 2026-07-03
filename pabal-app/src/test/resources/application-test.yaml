@@ -23,11 +23,6 @@ spring:
     redis:
       host: ${PABAL_TEST_REDIS_HOST:localhost}
       port: ${PABAL_TEST_REDIS_PORT:6379}
-  kafka:
-    bootstrap-servers: ${PABAL_TEST_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    consumer:
-      group-id: ${PABAL_TEST_KAFKA_CONSUMER_GROUP_ID:test-group}
-      auto-offset-reset: ${PABAL_TEST_KAFKA_AUTO_OFFSET_RESET:earliest}
 
 pabal:
   security:

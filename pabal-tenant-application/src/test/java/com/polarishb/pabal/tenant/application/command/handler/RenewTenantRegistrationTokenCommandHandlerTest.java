@@ -25,14 +25,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Contract under test (property-driven verification window; ADR-0013 follow-up field
- * shape): the renew handler's verification-window value comes from
+ * Contract under test (property-driven verification window): the renew handler's
+ * verification-window value comes from
  * {@code pabal.tenant.registration.verification-window-ms} (default {@code 604800000}
  * = 7 days), injected via constructor, not a hardcoded {@code Duration} constant.
  *
  * <p>{@code TenantRegistrationResult} exposes {@code verificationExpiresAt} +
- * {@code activationExpiresAt} (null for a PENDING_VERIFICATION registration) - the
- * removed single {@code expiresAt} field must no longer appear on this record.
+ * {@code activationExpiresAt} (null for a PENDING_VERIFICATION registration); there is
+ * no single {@code expiresAt} field on this record.
  */
 class RenewTenantRegistrationTokenCommandHandlerTest {
 

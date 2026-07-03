@@ -36,9 +36,8 @@ Pabal Messenger는 Java 25와 Spring Boot 4.1.0 기반의 멀티테넌트 메시
 - Flyway
 - PostgreSQL runtime driver
 - Redis dependency, Redis local Docker Compose service
-- Kafka dependency
 - Spring Boot Actuator, OpenTelemetry starter
-- JUnit 5, AssertJ, Mockito Java Agent
+- JUnit 5, AssertJ, Mockito Java Agent, ArchUnit
 - Testcontainers: PostgreSQL, generic container 기반 Redis 테스트 지원
 - Lombok
 
@@ -76,13 +75,15 @@ Pabal Messenger는 Java 25와 Spring Boot 4.1.0 기반의 멀티테넌트 메시
 | `pabal-messenger-api` | HTTP controller, STOMP inbound controller, request/response DTO, API mapper |
 | `pabal-messenger-infrastructure` | JPA adapter, read/write repository adapter, STOMP adapter, WebSocket broker/security config, system clock adapter |
 
-루트 `build.gradle.kts`는 Java 플러그인이 적용된 subproject에 공통 설정을 적용합니다.
+공통 빌드 설정은 `buildSrc`의 convention plugin이 담당합니다. 라이브러리 모듈은 `pabal.java-library-conventions`를, `pabal-app`은 `pabal.java-conventions`를 적용합니다.
 
 - Java toolchain은 version catalog의 `java = 25`를 사용합니다.
 - Spring Boot BOM은 `implementation`, `compileOnly`, `annotationProcessor`, test configuration에 공통 적용합니다.
 - Lombok, JUnit Jupiter, AssertJ, JUnit Platform Launcher를 공통 테스트 기반으로 제공합니다.
 - Mockito inline mock maker의 self-attach 경고를 피하기 위해 `mockitoAgent` configuration을 만들고 모든 `Test` task에 `-javaagent:{mockito-core.jar}`를 주입합니다.
 - `JavaCompile`에는 `-parameters`를 추가해 Spring validation, reflection 기반 parameter name 해석을 안정화합니다.
+
+모듈 경계는 두 겹으로 검증합니다. 루트 `build.gradle.kts`의 `checkProjectDependencyBoundaries` task가 Gradle project dependency를 allowlist 기준으로 검사하고(`check`에 포함), `pabal-app`의 ArchUnit test(`PabalArchitectureTest`)가 package 단위 레이어 규칙과 라이브러리 의존 금지(JPA 누출, spring-messaging, `ThreadLocal`)를 검사합니다.
 
 ## 아키텍처
 
@@ -634,7 +635,6 @@ Authorization: Bearer ${ACCESS_TOKEN}
 
 - `PABAL_TEST_OAUTH2_*`
 - `PABAL_TEST_REDIS_*`
-- `PABAL_TEST_KAFKA_*`
 - `PABAL_TEST_JWT_*`
 - `PABAL_TEST_STOMP_*`
 
@@ -670,6 +670,7 @@ STOMP broker relay를 활성화할 경우 다음 환경 변수도 설정해야 �
 - JWT authentication token test
 - global exception handler test
 - Spring domain event publisher integration test
+- architecture 경계 test (ArchUnit package 규칙 + Gradle project dependency boundary check)
 
 테스트 프로필은 Flyway 스키마를 기준으로 PostgreSQL Testcontainers를 사용합니다. Redis가 필요한 테스트는 generic container 기반 Redis 테스트 지원 클래스를 사용합니다.
 
@@ -683,8 +684,7 @@ Mockito inline mock maker는 Gradle test task의 Java agent로 명시 주입합�
 - collection을 포함하는 command/query/result record의 defensive copy 일관화
 - validation/security/JWT 예외의 공통 `ApiError` 매핑 추가 검증
 - WebSocket typing request validation과 rate limiting 강화
-- realtime event 유실 방지를 위한 outbox/retry/DLQ 검토
-- Kafka 의존성을 실제 event streaming 또는 outbox consumer로 연결할지 결정
+- realtime event 유실 방지를 위한 outbox/retry/DLQ 검토 (event streaming 도입 시 Kafka 등 broker 선정 포함, 미사용 Kafka 의존은 제거된 상태)
 - 운영용 security filter에서 dev endpoint 노출 여부 재점검
 - STOMP broker relay 운영 시 RabbitMQ/외부 broker 설정과 장애 복구 전략 검증
 

@@ -1,11 +1,11 @@
 plugins {
-    `java-library`
+    id("pabal.java-library-conventions")
 }
 
 dependencies {
     api(project(":pabal-common"))
 
-    api(libs.spring.context)
+    implementation(libs.spring.context)
     implementation(project(":pabal-infra-redis"))
     implementation(libs.spring.jdbc)
 

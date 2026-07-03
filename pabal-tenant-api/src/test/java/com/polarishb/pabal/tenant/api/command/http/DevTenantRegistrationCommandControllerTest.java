@@ -41,11 +41,9 @@ class DevTenantRegistrationCommandControllerTest {
     }
 
     /**
-     * Contract under test (ADR-0013 follow-up, verify-only split): the dev
-     * domain-verification endpoint now surfaces the verify-only result -
-     * status = "DOMAIN_VERIFIED", no tenantId/activatedAt fields (removed from
-     * VerifyTenantDomainResult/VerifyTenantDomainResponse), and activationExpiresAt
-     * instead.
+     * Contract under test (verify-only split): the dev domain-verification endpoint
+     * surfaces the verify-only result - status = "DOMAIN_VERIFIED", no
+     * tenantId/activatedAt fields, and activationExpiresAt instead.
      */
     @Test
     void verifyTenantDomain_maps_path_registration_id_to_command_and_returns_domain_verified_response() throws Exception {

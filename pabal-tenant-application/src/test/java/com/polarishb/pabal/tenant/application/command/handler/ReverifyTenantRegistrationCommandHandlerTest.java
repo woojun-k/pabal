@@ -27,7 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Contract under test (ADR-0013 follow-up, single-registration explicit reverification):
+ * Contract under test (single-registration explicit reverification):
  * {@code ReverifyTenantRegistrationCommandHandler} loads the registration through
  * {@code findByIdForUpdate}, validates the registration status BEFORE performing any DNS
  * lookup (zero {@code DnsTxtLookupPort} invocations on a status-guard failure), then on a

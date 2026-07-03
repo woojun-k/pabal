@@ -241,20 +241,10 @@ class TenantRegistrationRepositoryImplTest extends AbstractTenantPostgresDataJpa
     }
 
     /**
-     * Contract under test (ADR-0013 follow-up, grace-window terminal expiry):
-     * REVERIFICATION_REQUIRED rows are expired only once
+     * Contract under test (grace-window terminal expiry): REVERIFICATION_REQUIRED rows
+     * are expired only once
      * {@code activationExpiresAt + reverification-grace-ms <= now}; a row still inside
      * the grace window is untouched.
-     *
-     * <p><b>Naming ambiguity (flagged, not guessed):</b> the contract leaves the exact
-     * repository port method name for this bulk grace-expiry open. This test targets
-     * {@code expireLapsedReverificationRegistrations(now, graceMs)}, mechanically derived
-     * from the existing {@code expirePendingRegistrations(now)} verb/shape convention (a
-     * bulk-UPDATE-returning-count method on the same port, mirroring how
-     * {@code findLapsedDomainVerifiedIds} mirrors {@code findPendingVerificationIds}). If
-     * the generator introduces a different method name/signature, this is a contract
-     * defect to resolve, not a silent implementation choice - see the test-writer session
-     * report.
      */
     @Test
     void expireLapsedReverificationRegistrations_expires_only_rows_past_the_grace_cutoff() {

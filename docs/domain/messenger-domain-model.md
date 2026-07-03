@@ -39,6 +39,7 @@ Layer: Domain
 - channel room만 deletion schedule과 immediate deletion 대상이다.
 - `scheduleForDeletion`은 기본 30일 retention을 적용한다.
 - `deleteImmediately`는 `PENDING_DELETION` 상태에서만 가능하며 `DELETED` 전이 시 `deletedAt`을 설정한다.
+- `updateLastMessage`는 기존 `lastMessageSequence`보다 작은 sequence만 거부한다(`>` guard). 즉 같은 sequence로의 호출은 last-message snapshot pointer를 갱신하는 no-op이 아니라 최신 값으로 다시 반영된다. 이는 `Message.assignSequence`의 `>=` guard와 의도적으로 다른 경계이며(아래 Message 참고), 두 경계 모두 `ChatRoomTest`/`MessageTest`의 characterization test로 고정되어 있다.
 
 ### ChatRoomMember
 
@@ -53,7 +54,8 @@ Layer: Domain
 핵심 규칙:
 
 - `leftAt == null`이면 active member다.
-- last-read cursor는 stale sequence로 후퇴하지 않는다.
+- `updateLastRead(messageId, sequence, readAt)`은 `sequence < lastReadSequence`(stale)일 때만 원래 instance를 그대로 반환하고, `sequence == lastReadSequence`를 포함해 그 이상이면 `lastReadAt`/`lastReadMessageId`를 갱신한 새 instance를 반환한다.
+- `wouldAdvanceLastReadCursorTo(sequence)`는 `sequence > lastReadSequence`일 때만 true다. `sequence == lastReadSequence`는 false이며, 이는 `MarkReadCommandHandler`가 "read cursor를 persist할지"와 "read cursor가 실제로 전진해 `MessageReadEvent`를 발행할지"를 서로 다른 질문으로 분리해서 판단하기 위한 의도적인 경계 차이다. 두 메서드는 중복이 아니라 별도 목적을 가지며, `==` 경계는 `ChatRoomMemberTest`의 characterization test로 고정되어 있다.
 - inactive member는 `rejoin`으로 재활성화할 수 있다.
 - active member에게 `rejoin`을 호출하면 `MemberAlreadyActiveException`이 발생한다.
 
@@ -125,7 +127,7 @@ Layer: Domain
 핵심 규칙:
 
 - `create`와 `createReply`는 `MessageType.USER`, `MessageStatus.ACTIVE`로 메시지를 만든다.
-- `assignSequence`는 더 큰 sequence만 반영한다.
+- `assignSequence`는 이미 `sequence`가 있고 그 값이 인자 이상(`>=`)이면 원래 instance를 그대로 반환하는 no-op이다. 한 번 정해진 sequence는 불변이므로 같은 값 재할당도 no-op으로 처리한다. `ChatRoom.updateLastMessage`의 `>` guard(같은 sequence는 pointer를 갱신)와는 의도적으로 다른 경계다.
 - `edit`은 삭제된 메시지에 허용되지 않는다.
 - `delete`는 이미 삭제된 메시지에 허용되지 않는다.
 - `snapshot()`은 persistence contract 변환의 입력으로 사용된다.

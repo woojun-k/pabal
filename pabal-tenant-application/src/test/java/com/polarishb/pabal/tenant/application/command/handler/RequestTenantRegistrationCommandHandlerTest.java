@@ -26,8 +26,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Contract under test (property-driven verification window; ADR-0013 follow-up field
- * shape): {@code pabal.tenant.registration.verification-window-ms} (default
+ * Contract under test (property-driven verification window):
+ * {@code pabal.tenant.registration.verification-window-ms} (default
  * {@code 604800000} = 7 days) is injected into the handler rather than hardcoded as a
  * {@code Duration} constant. This test exercises the handler with an
  * explicitly-injected window value to assert the window is actually used to compute
@@ -35,8 +35,8 @@ import static org.mockito.Mockito.*;
  * when the handler is constructed with the property's default milliseconds value.
  *
  * <p>{@code TenantRegistrationResult} exposes {@code verificationExpiresAt} +
- * {@code activationExpiresAt} (activation null until DOMAIN_VERIFIED) - the removed
- * single {@code expiresAt} field must no longer appear on this record.
+ * {@code activationExpiresAt} (activation null until DOMAIN_VERIFIED); there is no
+ * single {@code expiresAt} field on this record.
  */
 class RequestTenantRegistrationCommandHandlerTest {
 

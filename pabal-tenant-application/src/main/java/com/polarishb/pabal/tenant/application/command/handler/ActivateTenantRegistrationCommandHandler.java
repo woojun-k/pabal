@@ -23,7 +23,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * ADR-0013 follow-up: activation phase of the two-phase verify/activate split. Locks the
+ * Activation phase of the two-phase verify/activate split. Locks the
  * registration via {@code findByIdForUpdate}, transitions DOMAIN_VERIFIED (window open)
  * -> ACTIVATED via {@link TenantRegistration#activate(UUID, Instant)}, creates exactly
  * one {@code Tenant}, and links its id to the registration.

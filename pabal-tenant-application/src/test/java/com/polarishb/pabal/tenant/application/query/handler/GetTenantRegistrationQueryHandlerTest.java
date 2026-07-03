@@ -19,9 +19,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Contract under test (ADR-0013 follow-up field shape): {@code TenantRegistrationDto}
- * exposes {@code verificationExpiresAt} and {@code activationExpiresAt} separately - the
- * single {@code expiresAt} field is removed. {@code verificationExpiresAt} is non-null
+ * Contract under test: {@code TenantRegistrationDto} exposes
+ * {@code verificationExpiresAt} and {@code activationExpiresAt} separately, with no
+ * single {@code expiresAt} field. {@code verificationExpiresAt} is non-null
  * for every registration; {@code activationExpiresAt} is null until DOMAIN_VERIFIED.
  * {@code GET .../{id}} passes all five status strings through verbatim, including
  * DOMAIN_VERIFIED and REVERIFICATION_REQUIRED.

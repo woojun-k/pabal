@@ -21,9 +21,8 @@ public interface TenantRegistrationRepository {
     List<UUID> findLapsedDomainVerifiedIds(Instant now, int limit);
 
     /**
-     * ADR-0013 follow-up, grace-window terminal expiry: bulk-expires REVERIFICATION_REQUIRED
-     * rows whose {@code activationExpiresAt + graceMs <= now}, mirroring the
-     * {@code expirePendingRegistrations} bulk-UPDATE pattern. DOMAIN_VERIFIED rows are
+     * Bulk-expires REVERIFICATION_REQUIRED rows whose
+     * {@code activationExpiresAt + graceMs <= now}. DOMAIN_VERIFIED rows are
      * never touched by this method - they must lapse through
      * {@link #findLapsedDomainVerifiedIds(Instant, int)} first.
      *

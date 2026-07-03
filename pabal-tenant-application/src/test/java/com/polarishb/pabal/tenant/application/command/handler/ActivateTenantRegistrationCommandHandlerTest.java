@@ -31,8 +31,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Contract under test (ADR-0013 follow-up, activation phase of the split verify/activate
- * flow): {@code ActivateTenantRegistrationCommandHandler} locks the registration via
+ * Contract under test (activation phase of the split verify/activate flow):
+ * {@code ActivateTenantRegistrationCommandHandler} locks the registration via
  * {@code findByIdForUpdate}, transitions {@code DOMAIN_VERIFIED} (window open) ->
  * {@code ACTIVATED} via {@code TenantRegistration.activate(tenantId, now)}, creates
  * exactly one {@code Tenant}, and links its id to the registration. On every failure

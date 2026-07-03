@@ -1,11 +1,104 @@
-import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.artifacts.ProjectDependency
 
 plugins {
-    java
+    base
     alias(libs.plugins.spring.boot) apply false
 }
 
-val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+val boundedContexts = listOf("tenant", "workspace", "user", "messenger")
+val productionProjectDependencyConfigurations = setOf(
+    "api",
+    "implementation",
+    "compileOnly",
+    "runtimeOnly",
+)
+
+fun pabalModule(context: String, layer: String): String = ":pabal-$context-$layer"
+
+val allowedProjectDependencies = buildMap {
+    put(":pabal-app", buildSet {
+        add(":pabal-common")
+        add(":pabal-web")
+        add(":pabal-security")
+        add(":pabal-authorization")
+        add(":pabal-infra-redis")
+        boundedContexts.forEach { context ->
+            add(pabalModule(context, "api"))
+            add(pabalModule(context, "application"))
+            add(pabalModule(context, "infrastructure"))
+        }
+    })
+    put(":pabal-common", emptySet())
+    put(":pabal-web", setOf(":pabal-common"))
+    put(":pabal-security", setOf(":pabal-common", ":pabal-authorization", ":pabal-infra-redis"))
+    put(":pabal-authorization", setOf(":pabal-common", ":pabal-infra-redis"))
+    put(":pabal-infra-redis", emptySet())
+    put(":pabal-persistence-support", setOf(":pabal-common"))
+
+    boundedContexts.forEach { context ->
+        put(pabalModule(context, "domain"), setOf(":pabal-common"))
+        put(pabalModule(context, "contract"), setOf(pabalModule(context, "domain")))
+        put(
+            pabalModule(context, "application"),
+            setOf(pabalModule(context, "domain"), pabalModule(context, "contract"), ":pabal-common")
+        )
+        put(
+            pabalModule(context, "api"),
+            setOf(pabalModule(context, "application"), ":pabal-security", ":pabal-common")
+        )
+        put(
+            pabalModule(context, "infrastructure"),
+            setOf(
+                pabalModule(context, "application"),
+                pabalModule(context, "domain"),
+                pabalModule(context, "contract"),
+                ":pabal-persistence-support",
+                ":pabal-common",
+            )
+        )
+    }
+
+    put(
+        ":pabal-messenger-infrastructure",
+        getValue(":pabal-messenger-infrastructure") + setOf(
+            ":pabal-security",
+            ":pabal-authorization",
+        )
+    )
+}
+
+val checkProjectDependencyBoundaries = tasks.register("checkProjectDependencyBoundaries") {
+    group = "verification"
+    description = "Checks production Gradle project dependencies against Pabal module boundaries."
+
+    doLast {
+        val violations = mutableListOf<String>()
+
+        subprojects.forEach { subproject ->
+            val allowedDependencies = allowedProjectDependencies[subproject.path].orEmpty()
+
+            productionProjectDependencyConfigurations.forEach { configurationName ->
+                val configuration = subproject.configurations.findByName(configurationName) ?: return@forEach
+                configuration.dependencies
+                    .withType(ProjectDependency::class.java)
+                    .forEach { dependency ->
+                        val dependencyPath = dependency.path
+                        if (dependencyPath !in allowedDependencies) {
+                            violations += "${subproject.path}:$configurationName -> $dependencyPath"
+                        }
+                    }
+            }
+        }
+
+        check(violations.isEmpty()) {
+            "Project dependency boundary violations:\n" + violations.joinToString(separator = "\n")
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(checkProjectDependencyBoundaries)
+}
 
 allprojects {
     group = "com.polarishb"
@@ -18,58 +111,8 @@ allprojects {
 
 subprojects {
     plugins.withType<JavaPlugin> {
-
-        val mockitoAgent = configurations.create("mockitoAgent") {
-            isCanBeConsumed = false
-            isCanBeResolved = true
-            description = "Mockito Java agent for inline mock maker"
-        }
-
-        java {
-            toolchain {
-                languageVersion = JavaLanguageVersion.of(
-                    versionCatalog.findVersion("java").get().requiredVersion.toInt()
-                )
-            }
-        }
-
-        configurations {
-            compileOnly {
-                extendsFrom(configurations.annotationProcessor.get())
-            }
-        }
-
-        dependencies {
-            add("implementation", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-            add("compileOnly", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-            add("annotationProcessor", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-            add("testImplementation", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-            add("testCompileOnly", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-            add("testAnnotationProcessor", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-            add("testRuntimeOnly", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-
-            add("compileOnly", versionCatalog.findLibrary("lombok").get())
-            add("annotationProcessor", versionCatalog.findLibrary("lombok").get())
-            add("testCompileOnly", versionCatalog.findLibrary("lombok").get())
-            add("testAnnotationProcessor", versionCatalog.findLibrary("lombok").get())
-
-            add("testImplementation", versionCatalog.findLibrary("junit-jupiter").get())
-            add("testImplementation", versionCatalog.findLibrary("assertj-core").get())
-            add("testRuntimeOnly", versionCatalog.findLibrary("junit-platform-launcher").get())
-
-            add("mockitoAgent", platform(versionCatalog.findLibrary("spring-boot-dependencies").get()))
-            add("mockitoAgent", "org.mockito:mockito-core") {
-                isTransitive = false
-            }
-        }
-
-        tasks.withType<Test>().configureEach {
-            useJUnitPlatform()
-            jvmArgs("-javaagent:${mockitoAgent.singleFile.absolutePath}")
-        }
-
-        tasks.withType<JavaCompile>().configureEach {
-            options.compilerArgs.add("-parameters")
+        tasks.named("check") {
+            dependsOn(checkProjectDependencyBoundaries)
         }
     }
 }

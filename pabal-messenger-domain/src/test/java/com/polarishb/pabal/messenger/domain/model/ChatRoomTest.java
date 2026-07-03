@@ -210,6 +210,39 @@ class ChatRoomTest {
     }
 
     @Test
+    void updateLastMessage_boundary_equal_sequence_still_updates_less_is_a_no_op_and_greater_updates() {
+        Instant createdAt = Instant.parse("2026-04-02T00:00:00Z");
+        ChatRoom room = ChatRoom.createGroup("team", UUID.randomUUID(), UUID.randomUUID(), createdAt);
+
+        UUID firstMessageId = UUID.randomUUID();
+        Instant firstMessageAt = createdAt.plusSeconds(10);
+        ChatRoom afterFirst = room.updateLastMessage(firstMessageId, 10L, firstMessageAt);
+        assertThat(afterFirst).isNotSameAs(room);
+        assertThat(afterFirst.getLastMessageSequence()).isEqualTo(10L);
+
+        UUID sameSequenceMessageId = UUID.randomUUID();
+        Instant sameSequenceAt = createdAt.plusSeconds(20);
+        ChatRoom afterSameSequence = afterFirst.updateLastMessage(sameSequenceMessageId, 10L, sameSequenceAt);
+        assertThat(afterSameSequence).isNotSameAs(afterFirst);
+        assertThat(afterSameSequence.getLastMessageSequence()).isEqualTo(10L);
+        assertThat(afterSameSequence.getLastMessageId()).isEqualTo(sameSequenceMessageId);
+        assertThat(afterSameSequence.getLastMessageAt()).isEqualTo(sameSequenceAt);
+        assertThat(afterSameSequence.getUpdatedAt()).isEqualTo(sameSequenceAt);
+
+        UUID olderMessageId = UUID.randomUUID();
+        ChatRoom afterOlder = afterSameSequence.updateLastMessage(olderMessageId, 9L, createdAt.plusSeconds(30));
+        assertThat(afterOlder).isSameAs(afterSameSequence);
+
+        UUID newerMessageId = UUID.randomUUID();
+        Instant newerMessageAt = createdAt.plusSeconds(40);
+        ChatRoom afterNewer = afterSameSequence.updateLastMessage(newerMessageId, 11L, newerMessageAt);
+        assertThat(afterNewer).isNotSameAs(afterSameSequence);
+        assertThat(afterNewer.getLastMessageSequence()).isEqualTo(11L);
+        assertThat(afterNewer.getLastMessageId()).isEqualTo(newerMessageId);
+        assertThat(afterNewer.getLastMessageAt()).isEqualTo(newerMessageAt);
+    }
+
+    @Test
     void scheduleForDeletion_rejects_deleted_room() {
         Instant createdAt = Instant.parse("2026-04-02T00:00:00Z");
         ChatRoom room = ChatRoom.createChannel(

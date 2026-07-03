@@ -1,5 +1,5 @@
 plugins {
-    `java-library`
+    id("pabal.java-library-conventions")
 }
 
 dependencies {
@@ -7,7 +7,6 @@ dependencies {
     implementation(project(":pabal-persistence-support"))
     implementation(project(":pabal-security"))
     implementation(project(":pabal-authorization"))
-    implementation(project(":pabal-infra-redis"))
     implementation(project(":pabal-messenger-application"))
     implementation(project(":pabal-messenger-domain"))
     implementation(project(":pabal-messenger-contract"))
@@ -18,7 +17,6 @@ dependencies {
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.security.messaging)
     implementation(libs.spring.boot.starter.oauth2.resource.server)
-    implementation(libs.spring.boot.starter.kafka)
     implementation(libs.micrometer.core)
 
     runtimeOnly(libs.postgresql)

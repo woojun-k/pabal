@@ -1,8 +1,7 @@
 plugins {
-    `java-library`
+    id("pabal.java-library-conventions")
 }
 
 dependencies {
     api(project(":pabal-messenger-domain"))
-    implementation(project(":pabal-common"))
 }

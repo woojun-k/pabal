@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * ADR-0013 follow-up: sweeps DOMAIN_VERIFIED tenant registrations whose activation
+ * Sweeps DOMAIN_VERIFIED tenant registrations whose activation
  * window has lapsed and transitions each one to REVERIFICATION_REQUIRED strictly through
  * the domain method {@link TenantRegistration#requireReverification(Instant)} - never via
  * a bulk status UPDATE that bypasses domain invariants.

@@ -13,22 +13,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Contract under test (ADR-0013 follow-up, grace-window terminal expiry): the
- * expiration sweep use case is extended so lapsed REVERIFICATION_REQUIRED registrations
- * become EXPIRED after a grace window
- * (activationExpiresAt + reverification-grace-ms &lt;= now). Time is obtained only via
- * ClockPort.
- *
- * <p><b>Naming ambiguity (flagged, not guessed):</b> the contract explicitly leaves the
- * repository port method name for this bulk grace-expiry open ("whatever additional
- * bulk-expiry/query method(s) the grace sweep needs"). This unit test therefore only
- * asserts the handler's aggregate return-value contract (sum of pending-expiry count and
- * grace-expiry count) via the existing, contract-fixed
- * {@code expirePendingRegistrations} port method plus ClockPort usage; it does not
- * assert a specific new port method name or call count, since that name is not fixed by
- * the contract text. See the test-writer session report for the full flag and the
- * infra-level tests that do exercise a concrete (mechanically-named, not
- * contract-guaranteed) method.
+ * Contract under test (grace-window terminal expiry): the expiration sweep also expires
+ * lapsed REVERIFICATION_REQUIRED registrations after a grace window
+ * (activationExpiresAt + reverification-grace-ms &lt;= now) and returns the aggregate
+ * count of pending-expiry plus grace-expiry rows. Time is obtained only via ClockPort.
  */
 class ExpireTenantRegistrationsCommandHandlerTest {
 

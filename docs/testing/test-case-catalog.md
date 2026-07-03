@@ -40,6 +40,26 @@ When: mark read 처리
 Then: member update와 `MessageReadEvent` 발행 없음
 Related: [Pabal 엔드포인트 시퀀스 다이어그램](../use-cases/endpoint-sequence-diagrams.md)
 
+## ChatRoomMember read-cursor equal-sequence boundary
+
+Layer: Domain
+Target: `ChatRoomMember.updateLastRead`, `ChatRoomMember.wouldAdvanceLastReadCursorTo`, `ChatRoomMemberTest`
+Purpose: `sequence == lastReadSequence`에서 "persist 여부"와 "cursor 전진(이벤트 발행) 여부"가 서로 다른 결과를 내도록 의도된 경계를 characterization test로 고정
+Given: `sequence == lastReadSequence`인 입력
+When: `updateLastRead(...)`와 `wouldAdvanceLastReadCursorTo(sequence)`를 각각 호출
+Then: `updateLastRead`는 `lastReadAt`/`lastReadMessageId`를 갱신한 새 instance를 반환하고(persist), `wouldAdvanceLastReadCursorTo`는 false를 반환(이벤트 미발행) — 두 메서드는 중복이 아니라 의도적으로 다른 질문에 답하는 것으로 판단됨
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md)
+
+## ChatRoom/Message equal-sequence guard boundary
+
+Layer: Domain
+Target: `ChatRoom.updateLastMessage`, `Message.assignSequence`, `ChatRoomTest`, `MessageTest`
+Purpose: 두 aggregate의 sequence guard가 서로 다른 경계(`>` vs `>=`)를 갖는 것이 의도된 설계임을 characterization test로 고정
+Given: 기존 `lastMessageSequence`/`sequence`와 같은 값의 인자
+When: `ChatRoom.updateLastMessage(...)` 또는 `Message.assignSequence(...)` 호출
+Then: `ChatRoom.updateLastMessage`는 같은 sequence에도 last-message snapshot pointer를 갱신하고(`>` guard), `Message.assignSequence`는 같은 sequence면 no-op을 반환(`>=` guard) — sequence는 한 번 정해지면 불변이라는 `Message` invariant와 계속 전진하는 pointer라는 `ChatRoom` 역할 차이에서 기인하며 공유 정책으로 추출하지 않음
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md)
+
 ## TenantRegistration verify-only handler stops at DOMAIN_VERIFIED
 
 Layer: Application / Infrastructure
@@ -119,6 +139,16 @@ Given: active public channel, active private channel, direct room, group room
 When: `canSelfJoin` 또는 join command 처리
 Then: public channel만 허용하고 나머지는 `RoomJoinForbiddenException`
 Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 인가 경계와 멀티테넌시 체크포인트](../security/authorization-and-multitenancy.md)
+
+## RoomMembershipPolicy direct unit coverage
+
+Layer: Domain
+Target: `RoomMembershipPolicy`, `RoomMembershipPolicyTest`
+Purpose: `canSelfJoin`/`validateSelfJoin`을 `ChatRoomTest`를 통한 간접 커버리지가 아니라 policy 자체에 대한 직접 unit test로 보장
+Given: status(active/non-active) × type(channel/direct/group) × channel privacy(public/private/null `ChannelSettings`) 조합
+When: `RoomMembershipPolicy.canSelfJoin(room)` / `validateSelfJoin(room)` 호출
+Then: status가 non-active면 type/privacy와 무관하게 우선 거부되고(status-checked-first), active public channel만 허용되며 나머지 조합은 `RoomJoinForbiddenException`
+Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md)
 
 ## Channel RBAC permission
 

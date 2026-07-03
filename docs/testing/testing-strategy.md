@@ -81,6 +81,7 @@ Layer: Testing / App
 - `OptionalNameTest`
 - `RoomNameTest`
 - `RoomNameFormatterTest`
+- `RoomMembershipPolicyTest`
 
 ### Application
 

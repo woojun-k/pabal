@@ -39,9 +39,9 @@ public class TenantRegistrationExpirationScheduler {
     }
 
     /**
-     * ADR-0013 follow-up, grace-window terminal expiry: in addition to the pre-existing
-     * PENDING_VERIFICATION expiry sweep, also bulk-expires REVERIFICATION_REQUIRED rows
-     * whose {@code activationExpiresAt + reverification-grace-ms <= now} via
+     * Expires lapsed PENDING_VERIFICATION registrations, then bulk-expires
+     * REVERIFICATION_REQUIRED rows whose
+     * {@code activationExpiresAt + reverification-grace-ms <= now} via
      * {@link TenantRegistrationRepository#expireLapsedReverificationRegistrations(Instant, long)}.
      * DOMAIN_VERIFIED rows are untouched here - they must lapse to REVERIFICATION_REQUIRED
      * through {@link #reverifyLapsedRegistrations()} first.

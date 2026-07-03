@@ -19,7 +19,7 @@ import java.time.Instant;
 import java.util.Set;
 
 /**
- * ADR-0013 follow-up: verify-only phase of the two-phase verify/activate split. Performs
+ * Verify-only phase of the two-phase verify/activate split. Performs
  * the DNS TXT lookup and transitions PENDING_VERIFICATION -> DOMAIN_VERIFIED via
  * {@link TenantRegistration#markVerified(Instant, Instant)}, persisting exactly one
  * registration update. It stops there - no {@code Tenant} is created and this handler has

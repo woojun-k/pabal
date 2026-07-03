@@ -24,30 +24,10 @@ import java.util.Objects;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Contract under test: "A scheduled bean invokes the reverification-sweep handler on a
- * configurable fixed delay (pabal.tenant.registration.reverification-sweep-delay-ms,
- * default 600000)".
- *
- * <p><b>Naming ambiguity (flagged, not guessed):</b> the contract text for this session
- * names neither the scheduler bean class nor its scheduled method. Two conventions
- * coexist in this repository:
- * <ul>
- *   <li>ADR-0013's own follow-up list and {@code docs/architecture/technical-debt.md}
- *       both say the sweep is added <em>to the existing</em>
- *       {@code TenantRegistrationExpirationScheduler}.</li>
- *   <li>The mechanical "new sibling class" convention used by
- *       {@code TenantDomainVerificationPollScheduler} alongside
- *       {@code TenantRegistrationExpirationScheduler} would instead suggest a new,
- *       separate scheduler class.</li>
- * </ul>
- * This test targets the ADR/technical-debt-documented shape: a new
- * {@code @Scheduled} method added to the existing
- * {@link TenantRegistrationExpirationScheduler}, named
- * {@code reverifyLapsedRegistrations()} (mirroring the existing
- * {@code expirePendingRegistrations()} method's naming style on the same class). If the
- * generator instead introduces a separate scheduler class, this is a contract
- * defect/ambiguity to resolve, not a silent implementation choice for the test-writer to
- * make - see the test-writer session report.
+ * Contract under test: the {@code reverifyLapsedRegistrations()} method on
+ * {@link TenantRegistrationExpirationScheduler} invokes the reverification-sweep
+ * handler on a configurable fixed delay
+ * ({@code pabal.tenant.registration.reverification-sweep-delay-ms}, default 600000).
  */
 @Import({
         ExpireTenantRegistrationsCommandHandler.class,
@@ -106,27 +86,15 @@ class TenantRegistrationReverificationSweepSchedulerTest extends AbstractTenantP
     }
 
     /**
-     * Contract under test (ADR-0013 follow-up, grace-window terminal expiry): the
-     * pending-expiry sweep method on {@code TenantRegistrationExpirationScheduler} (the
-     * same scheduled bean already responsible for {@code expirePendingRegistrations()})
-     * is extended so that a REVERIFICATION_REQUIRED row whose
-     * {@code activationExpiresAt + reverification-grace-ms <= now} is transitioned to
-     * EXPIRED, while a REVERIFICATION_REQUIRED row still inside the grace window is
-     * untouched. The default grace is {@code 604800000} ms (7 days), wired here via
+     * Contract under test (grace-window terminal expiry): the expiration sweep on
+     * {@code TenantRegistrationExpirationScheduler} transitions a
+     * REVERIFICATION_REQUIRED row whose
+     * {@code activationExpiresAt + reverification-grace-ms <= now} to EXPIRED, while a
+     * REVERIFICATION_REQUIRED row still inside the grace window is untouched. The
+     * default grace is {@code 604800000} ms (7 days), wired here via
      * {@code pabal.tenant.registration.reverification-grace-ms} on the class-level
-     * {@code @TestPropertySource}.
-     *
-     * <p><b>Wiring ambiguity (flagged, not guessed):</b> which existing {@code @Scheduled}
-     * method on {@code TenantRegistrationExpirationScheduler} performs this grace sweep
-     * (extending {@code expirePendingRegistrations()} vs. extending
-     * {@code reverifyLapsedRegistrations()} vs. a new third method) is not fixed by the
-     * contract text beyond "Extend the expiration sweep use case". This test invokes
-     * {@code expirePendingRegistrations()} as the most mechanically consistent target
-     * (the method already named for "expiration", terminal-state transitions), and
-     * additionally re-invokes {@code reverifyLapsedRegistrations()} to guard against the
-     * grace sweep having been attached there instead - the assertion is on the resulting
-     * persisted status after both scheduled methods run, not the specific method that
-     * performs it. See the test-writer session report for this flag.
+     * {@code @TestPropertySource}. The test runs both scheduled methods and asserts on
+     * the resulting persisted status, independent of which method performs the sweep.
      */
     @Test
     void expiration_sweep_terminally_expires_reverification_required_rows_past_the_grace_window_but_not_rows_within_it() {

@@ -6,7 +6,7 @@ tasks.named<BootRun>("bootRun") {
 
 plugins {
     alias(libs.plugins.spring.boot)
-    java
+    id("pabal.java-conventions")
 }
 
 dependencies {
@@ -52,4 +52,5 @@ dependencies {
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.archunit.junit5)
 }

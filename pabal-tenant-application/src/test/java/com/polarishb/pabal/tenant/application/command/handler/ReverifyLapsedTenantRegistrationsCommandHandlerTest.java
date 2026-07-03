@@ -22,8 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * Contract under test ("Restore compilation of the tenant context after the ADR-0013
- * domain/contract split..." - reverification sweep):
+ * Contract under test (reverification sweep):
  *
  * <ul>
  *   <li>{@code now} is obtained from {@code ClockPort.now()}, never from
@@ -39,13 +38,6 @@ import static org.mockito.Mockito.*;
  *       DOMAIN_VERIFIED, throwing {@code TenantRegistrationNotPendingException}), that row
  *       is skipped, not counted, and does not abort the remaining sweep.</li>
  * </ul>
- *
- * <p>The exact handler/command class names ({@code ReverifyLapsedTenantRegistrationsCommand}
- * / {@code ReverifyLapsedTenantRegistrationsCommandHandler}) and the port method name
- * ({@code findLapsedDomainVerifiedIds}) are not fixed by the contract text; they were
- * derived mechanically from the existing {@code ExpireTenantRegistrationsCommand} /
- * {@code ExpireTenantRegistrationsCommandHandler} / {@code findPendingVerificationIds}
- * naming convention. See the test-writer session report for this flagged ambiguity.
  */
 class ReverifyLapsedTenantRegistrationsCommandHandlerTest {
 

@@ -1,8 +1,7 @@
 plugins {
-    `java-library`
+    id("pabal.java-library-conventions")
 }
 
 dependencies {
     api(libs.spring.boot.starter.data.redis)
-    api(libs.spring.boot.starter.data.redis.reactive)
 }

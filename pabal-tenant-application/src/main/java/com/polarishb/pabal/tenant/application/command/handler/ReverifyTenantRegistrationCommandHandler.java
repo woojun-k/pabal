@@ -19,7 +19,7 @@ import java.time.Instant;
 import java.util.Set;
 
 /**
- * ADR-0013 follow-up: single-registration explicit reverification (distinct from the
+ * Single-registration explicit reverification (distinct from the
  * scheduled {@link ReverifyLapsedTenantRegistrationsCommandHandler} sweep). Loads the
  * registration through {@code findByIdForUpdate}, validates the registration status via
  * the read-only {@code TenantRegistration.validateReverificationAllowed()} guard BEFORE

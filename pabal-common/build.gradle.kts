@@ -1,3 +1,3 @@
 plugins {
-    `java-library`
+    id("pabal.java-library-conventions")
 }

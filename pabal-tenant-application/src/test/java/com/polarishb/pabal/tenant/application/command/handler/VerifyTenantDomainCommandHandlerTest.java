@@ -25,13 +25,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Contract under test (ADR-0013 follow-up, two-phase verify/activate split):
- * {@code VerifyTenantDomainCommandHandler} becomes verify-only. It performs the DNS
+ * Contract under test (two-phase verify/activate split):
+ * {@code VerifyTenantDomainCommandHandler} is verify-only. It performs the DNS
  * TXT lookup, transitions {@code PENDING_VERIFICATION} -> {@code DOMAIN_VERIFIED} via
  * {@code TenantRegistration.markVerified(now, now + activation-window)}, persists
  * exactly one registration update, and stops there - it must not create a
  * {@code Tenant} row; the handler has no {@code TenantRepository} dependency at all.
- * {@code VerifyTenantDomainResult} no longer carries {@code tenantId}/{@code activatedAt}.
+ * {@code VerifyTenantDomainResult} carries no {@code tenantId}/{@code activatedAt}.
  */
 class VerifyTenantDomainCommandHandlerTest {
 

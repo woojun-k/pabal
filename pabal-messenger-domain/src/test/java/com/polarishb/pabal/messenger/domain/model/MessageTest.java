@@ -107,6 +107,33 @@ class MessageTest {
     }
 
     @Test
+    void assignSequence_boundary_equal_is_a_no_op_less_is_a_no_op_and_greater_creates_new_instance() {
+        Instant createdAt = Instant.parse("2026-04-02T12:00:00Z");
+        Message message = Message.create(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "hello",
+                createdAt
+        );
+
+        Message sequencedAt10 = message.assignSequence(10L);
+        assertThat(sequencedAt10).isNotSameAs(message);
+        assertThat(sequencedAt10.getSequence()).isEqualTo(10L);
+
+        Message sameSequenceAgain = sequencedAt10.assignSequence(10L);
+        assertThat(sameSequenceAgain).isSameAs(sequencedAt10);
+
+        Message lowerSequence = sequencedAt10.assignSequence(9L);
+        assertThat(lowerSequence).isSameAs(sequencedAt10);
+
+        Message higherSequence = sequencedAt10.assignSequence(11L);
+        assertThat(higherSequence).isNotSameAs(sequencedAt10);
+        assertThat(higherSequence.getSequence()).isEqualTo(11L);
+    }
+
+    @Test
     void edit_updates_content_status_and_updatedAt() {
         Instant createdAt = Instant.parse("2026-04-02T12:00:00Z");
         Instant editedAt = createdAt.plusSeconds(60);

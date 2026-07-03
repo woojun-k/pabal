@@ -4,6 +4,7 @@
 # =============================================================================
 java = "25"
 spring-boot = "4.1.0"
+archunit = "1.4.2"
 
 # =============================================================================
 # Native / Platform
@@ -35,8 +36,6 @@ spring-boot-starter-oauth2-resource-server = { module = "org.springframework.boo
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis" }
-spring-boot-starter-data-redis-reactive = { module = "org.springframework.boot:spring-boot-starter-data-redis-reactive" }
-spring-boot-starter-kafka = { module = "org.springframework.boot:spring-boot-starter-kafka" }
 
 # =============================================================================
 # Spring Framework / Security
@@ -90,6 +89,7 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 assertj-core = { module = "org.assertj:assertj-core" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 
 # =============================================================================
 # Gradle Plugins

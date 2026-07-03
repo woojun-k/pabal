@@ -15,6 +15,7 @@ tags:
 
 ```text
 pabal
+├─ buildSrc            # Gradle convention plugin (모듈 아님): pabal.java-conventions, pabal.java-library-conventions
 ├─ pabal-app
 ├─ pabal-common
 ├─ pabal-web
@@ -46,6 +47,13 @@ pabal
 
 현재 상태: 단일 배포 멀티모듈 모놀리스
 전환 목표: 모듈 경계를 기준으로 책임과 의존 방향을 고정
+
+공유 빌드 관례(Java toolchain, Spring Boot BOM, Lombok, JUnit Platform, Mockito agent,
+`-parameters`)는 root `build.gradle.kts`의 `subprojects` 블록이 아니라 `buildSrc`의
+convention plugin이 담당한다. 라이브러리 모듈은 `pabal.java-library-conventions`를,
+`pabal-app`은 `pabal.java-conventions`를 적용한다. root `build.gradle.kts`에는
+cross-project 검증인 `checkProjectDependencyBoundaries`(Gradle 모듈 경계 allowlist 검사,
+`check`에 wiring)만 남는다.
 장기 가능성: messenger bounded context를 MSA 후보로 분리
 
 ## 모듈별 책임
@@ -108,7 +116,6 @@ flowchart LR
     persistence_support["pabal-persistence-support"] --> common
     tenant_domain["pabal-tenant-domain"] --> common
     tenant_contract["pabal-tenant-contract"] --> tenant_domain
-    tenant_contract --> common
     tenant_application --> tenant_domain
     tenant_application --> tenant_contract
     tenant_application --> common
@@ -122,7 +129,6 @@ flowchart LR
 
     workspace_domain["pabal-workspace-domain"] --> common
     workspace_contract["pabal-workspace-contract"] --> workspace_domain
-    workspace_contract --> common
     workspace_application --> workspace_domain
     workspace_application --> workspace_contract
     workspace_application --> common
@@ -137,7 +143,6 @@ flowchart LR
 
     user_domain["pabal-user-domain"] --> common
     user_contract["pabal-user-contract"] --> user_domain
-    user_contract --> common
     user_application --> user_domain
     user_application --> user_contract
     user_application --> common
@@ -152,7 +157,6 @@ flowchart LR
 
     messenger_domain["pabal-messenger-domain"] --> common
     messenger_contract["pabal-messenger-contract"] --> messenger_domain
-    messenger_contract --> common
     messenger_application --> messenger_domain
     messenger_application --> messenger_contract
     messenger_application --> common
@@ -164,7 +168,6 @@ flowchart LR
     messenger_infrastructure --> messenger_contract
     messenger_infrastructure --> security
     messenger_infrastructure --> authorization
-    messenger_infrastructure --> redis
     messenger_infrastructure --> persistence_support
     messenger_infrastructure --> common
 ```
@@ -176,11 +179,11 @@ flowchart LR
 - `{bounded-context}-application → {bounded-context}-domain`
 - `{bounded-context}-application → {bounded-context}-contract`
 - `{bounded-context}-application → common`
-- `{bounded-context}-contract → {bounded-context}-domain/common`
+- `{bounded-context}-contract → {bounded-context}-domain` (common은 domain의 `api` 의존으로 전이 노출; contract가 직접 선언하지 않는다)
 - `{bounded-context}-infrastructure → {bounded-context}-application/domain/contract/common`
 - `{bounded-context}-infrastructure → pabal-persistence-support`
 - `pabal-persistence-support → common`
-- `messenger-infrastructure → security/authorization/infra-redis/common`
+- `messenger-infrastructure → security/authorization/common`
 - `user-api → security/common`
 - `security → authorization/common`
 - `authorization → infra-redis/common`
