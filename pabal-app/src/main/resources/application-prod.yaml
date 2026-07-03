@@ -1,0 +1,74 @@
+spring:
+  datasource:
+    url: ${PABAL_DATASOURCE_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${PABAL_DATASOURCE_USERNAME}
+    password: ${PABAL_DATASOURCE_PASSWORD}
+    hikari:
+      initialization-fail-timeout: ${PABAL_DATASOURCE_INITIALIZATION_FAIL_TIMEOUT:60000}
+  docker:
+    compose:
+      enabled: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+
+  sql:
+    init:
+      mode: never
+
+  data:
+    redis:
+      host: ${PABAL_REDIS_HOST}
+      port: ${PABAL_REDIS_PORT:6379}
+      password: ${PABAL_REDIS_PASSWORD:}
+      connect-timeout: ${PABAL_REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${PABAL_REDIS_TIMEOUT:2s}
+      ssl:
+        enabled: ${PABAL_REDIS_SSL_ENABLED:false}
+
+pabal:
+  security:
+    jwt:
+      issuer-uri: ${PABAL_JWT_ISSUER_URI}
+      audience: ${PABAL_JWT_AUDIENCE:pabal-api}
+      user-id-claim: ${PABAL_JWT_USER_ID_CLAIM:uid}
+      tenant-id-claim: ${PABAL_JWT_TENANT_ID_CLAIM:tenant_id}
+      principal-claim: ${PABAL_JWT_PRINCIPAL_CLAIM:sub}
+      clock-skew: ${PABAL_JWT_CLOCK_SKEW:30s}
+      access-token-min-ttl: ${PABAL_JWT_ACCESS_TOKEN_MIN_TTL:60m}
+      access-token-max-ttl: ${PABAL_JWT_ACCESS_TOKEN_MAX_TTL:90m}
+      refresh-token-ttl: ${PABAL_JWT_REFRESH_TOKEN_TTL:7d}
+    refresh-token:
+      reuse-grace-period: ${PABAL_REFRESH_TOKEN_REUSE_GRACE_PERIOD:3s}
+      request-idempotency-ttl: ${PABAL_REFRESH_TOKEN_REQUEST_IDEMPOTENCY_TTL:30s}
+
+  websocket:
+    relay:
+      enabled: true
+      host: ${PABAL_STOMP_RELAY_HOST}
+      port: ${PABAL_STOMP_RELAY_PORT:61613}
+      client-login: ${PABAL_STOMP_CLIENT_LOGIN}
+      client-passcode: ${PABAL_STOMP_CLIENT_PASSCODE}
+      system-login: ${PABAL_STOMP_SYSTEM_LOGIN}
+      system-passcode: ${PABAL_STOMP_SYSTEM_PASSCODE}
+      virtual-host: ${PABAL_STOMP_VIRTUAL_HOST:/}
+      system-heartbeat-send-interval: ${PABAL_STOMP_SYSTEM_HEARTBEAT_SEND_INTERVAL:10000}
+      system-heartbeat-receive-interval: ${PABAL_STOMP_SYSTEM_HEARTBEAT_RECEIVE_INTERVAL:10000}
+    endpoint:
+      path: ${PABAL_WEBSOCKET_ENDPOINT_PATH:/websocket}
+      allowed-origin-patterns: ${PABAL_WEBSOCKET_ALLOWED_ORIGIN_PATTERNS}
+      sock-js-enabled: ${PABAL_WEBSOCKET_SOCK_JS_ENABLED:false}
+
+logging:
+  level:
+    root: INFO
+    com.polarishb.pabal: INFO

@@ -48,3 +48,22 @@ pabal:
         - http://127.0.0.1:5173
         - http://127.0.0.1:3000
       sock-js-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,redis
+  health:
+    redis:
+      enabled: true

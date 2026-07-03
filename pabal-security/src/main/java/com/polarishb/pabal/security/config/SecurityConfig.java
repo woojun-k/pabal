@@ -38,7 +38,7 @@ public class SecurityConfig {
 
         http
                 .authorizeHttpRequests(auth -> {
-                    auth.requestMatchers("/actuator/health").permitAll()
+                    auth.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                             .requestMatchers(wsPath, wsPath + "/**").permitAll()
                             .requestMatchers(
                                     "/api/v1/auth/tokens/refresh",
