@@ -13,4 +13,7 @@ set -a
 source "$ENV_FILE"
 set +a
 
+source scripts/jwt-local-secret-env.sh
+ensure_jwt_local_secret PABAL_TEST_JWT_LOCAL_SECRET "$ENV_FILE"
+
 ./gradlew test

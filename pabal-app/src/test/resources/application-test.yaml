@@ -38,7 +38,7 @@ pabal:
       tenant-id-claim: ${PABAL_TEST_JWT_TENANT_ID_CLAIM:tenant_id}
       principal-claim: ${PABAL_TEST_JWT_PRINCIPAL_CLAIM:preferred_username}
       clock-skew: ${PABAL_TEST_JWT_CLOCK_SKEW:60s}
-      local-secret: ${PABAL_TEST_JWT_LOCAL_SECRET:01234567890123456789012345678901}
+      local-secret: ${PABAL_TEST_JWT_LOCAL_SECRET:}
       access-token-min-ttl: ${PABAL_TEST_JWT_ACCESS_TOKEN_MIN_TTL:60m}
       access-token-max-ttl: ${PABAL_TEST_JWT_ACCESS_TOKEN_MAX_TTL:90m}
       refresh-token-ttl: ${PABAL_TEST_JWT_REFRESH_TOKEN_TTL:7d}

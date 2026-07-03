@@ -36,7 +36,7 @@ pabal:
       user-id-claim: uid
       tenant-id-claim: tenant_id
       principal-claim: sub
-      local-secret: ${PABAL_JWT_LOCAL_SECRET}
+      local-secret: ${PABAL_JWT_LOCAL_SECRET:}
       access-token-min-ttl: 60m
       access-token-max-ttl: 90m
       refresh-token-ttl: 7d
