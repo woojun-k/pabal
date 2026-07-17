@@ -13,6 +13,8 @@ import java.util.UUID;
 
 public interface WorkspaceMemberJpaRepository extends JpaRepository<WorkspaceMemberEntity, UUID> {
 
+    Optional<WorkspaceMemberEntity> findByTenantIdAndId(UUID tenantId, UUID id);
+
     boolean existsByTenantIdAndWorkspaceIdAndUserIdAndStatus(
             UUID tenantId,
             UUID workspaceId,

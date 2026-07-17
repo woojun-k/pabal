@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public interface WorkspaceMemberRepository {
     PersistedWorkspaceMember append(PersistedWorkspaceMember member);
+    PersistedWorkspaceMember update(PersistedWorkspaceMember member);
     boolean existsActiveMember(UUID tenantId, UUID workspaceId, UUID userId);
     Set<UUID> findActiveUserIds(UUID tenantId, UUID workspaceId, Set<UUID> userIds);
     Optional<WorkspaceRole> findActiveRole(UUID tenantId, UUID workspaceId, UUID userId);

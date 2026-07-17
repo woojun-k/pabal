@@ -18,13 +18,13 @@ import java.util.UUID;
 public class Workspace {
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private UUID tenantId;
-    private WorkspaceName name;
-    private WorkspaceStatus status;
-    private UUID createdBy;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final UUID id;
+    private final UUID tenantId;
+    private final WorkspaceName name;
+    private final WorkspaceStatus status;
+    private final UUID createdBy;
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
     public static Workspace create(UUID tenantId, String name, UUID createdBy, Instant createdAt) {
         return new Workspace(

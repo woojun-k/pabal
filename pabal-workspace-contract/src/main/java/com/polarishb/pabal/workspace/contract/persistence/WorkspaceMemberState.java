@@ -8,23 +8,39 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record WorkspaceMemberState(
-        WorkspaceMemberSnapshot snapshot,
+        UUID id,
+        UUID tenantId,
+        UUID workspaceId,
+        UUID userId,
+        WorkspaceRole role,
+        WorkspaceMemberStatus status,
+        Instant joinedAt,
+        Instant leftAt,
+        Instant createdAt,
+        Instant updatedAt,
         Long version
 ) {
     public WorkspaceMemberState(
-            UUID id,
-            UUID tenantId,
-            UUID workspaceId,
-            UUID userId,
-            WorkspaceRole role,
-            WorkspaceMemberStatus status,
-            Instant joinedAt,
-            Instant leftAt,
-            Instant createdAt,
-            Instant updatedAt,
+            WorkspaceMemberSnapshot snapshot,
             Long version
     ) {
-        this(new WorkspaceMemberSnapshot(
+        this(
+                snapshot.id(),
+                snapshot.tenantId(),
+                snapshot.workspaceId(),
+                snapshot.userId(),
+                snapshot.role(),
+                snapshot.status(),
+                snapshot.joinedAt(),
+                snapshot.leftAt(),
+                snapshot.createdAt(),
+                snapshot.updatedAt(),
+                version
+        );
+    }
+
+    public WorkspaceMemberSnapshot snapshot() {
+        return new WorkspaceMemberSnapshot(
                 id,
                 tenantId,
                 workspaceId,
@@ -35,46 +51,6 @@ public record WorkspaceMemberState(
                 leftAt,
                 createdAt,
                 updatedAt
-        ), version);
-    }
-
-    public UUID id() {
-        return snapshot.id();
-    }
-
-    public UUID tenantId() {
-        return snapshot.tenantId();
-    }
-
-    public UUID workspaceId() {
-        return snapshot.workspaceId();
-    }
-
-    public UUID userId() {
-        return snapshot.userId();
-    }
-
-    public WorkspaceRole role() {
-        return snapshot.role();
-    }
-
-    public WorkspaceMemberStatus status() {
-        return snapshot.status();
-    }
-
-    public Instant joinedAt() {
-        return snapshot.joinedAt();
-    }
-
-    public Instant leftAt() {
-        return snapshot.leftAt();
-    }
-
-    public Instant createdAt() {
-        return snapshot.createdAt();
-    }
-
-    public Instant updatedAt() {
-        return snapshot.updatedAt();
+        );
     }
 }

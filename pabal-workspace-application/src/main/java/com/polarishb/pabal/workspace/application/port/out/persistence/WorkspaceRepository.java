@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public interface WorkspaceRepository {
     PersistedWorkspace append(PersistedWorkspace workspace);
+    PersistedWorkspace update(PersistedWorkspace workspace);
     Optional<PersistedWorkspace> findByTenantIdAndId(UUID tenantId, UUID workspaceId);
     Optional<WorkspaceState> findStateByTenantIdAndId(UUID tenantId, UUID workspaceId);
     boolean existsActiveByTenantIdAndId(UUID tenantId, UUID workspaceId);

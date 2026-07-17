@@ -55,25 +55,25 @@ class WorkspaceMemberTest {
             boolean hasAnotherActiveOwner
     ) {
         WorkspaceMember member = activeMember(role);
-        WorkspaceMember sameInstance = member;
         WorkspaceMemberSnapshot before = member.snapshot();
 
-        member.leave(LEFT_AT, hasAnotherActiveOwner);
+        WorkspaceMember left = member.leave(LEFT_AT, hasAnotherActiveOwner);
 
-        assertThat(member).isSameAs(sameInstance);
-        assertSuccessfulLeave(member, before, role, LEFT_AT);
+        assertThat(left).isNotSameAs(member);
+        assertThat(member.snapshot()).isEqualTo(before);
+        assertSuccessfulLeave(left, before, role, LEFT_AT);
     }
 
     @Test
     void active_owner_leaves_when_another_active_owner_exists() {
         WorkspaceMember owner = activeMember(WorkspaceRole.OWNER);
-        WorkspaceMember sameInstance = owner;
         WorkspaceMemberSnapshot before = owner.snapshot();
 
-        owner.leave(LEFT_AT, true);
+        WorkspaceMember left = owner.leave(LEFT_AT, true);
 
-        assertThat(owner).isSameAs(sameInstance);
-        assertSuccessfulLeave(owner, before, WorkspaceRole.OWNER, LEFT_AT);
+        assertThat(left).isNotSameAs(owner);
+        assertThat(owner.snapshot()).isEqualTo(before);
+        assertSuccessfulLeave(left, before, WorkspaceRole.OWNER, LEFT_AT);
     }
 
     @Test
@@ -112,8 +112,8 @@ class WorkspaceMemberTest {
     void successful_leave_snapshot_round_trips_through_reconstitution() {
         WorkspaceMember member = activeMember(WorkspaceRole.ADMIN);
 
-        member.leave(LEFT_AT, false);
-        WorkspaceMemberSnapshot leftSnapshot = member.snapshot();
+        WorkspaceMember left = member.leave(LEFT_AT, false);
+        WorkspaceMemberSnapshot leftSnapshot = left.snapshot();
         WorkspaceMember reconstituted = WorkspaceMember.reconstitute(leftSnapshot);
 
         assertThat(leftSnapshot.status()).isEqualTo(WorkspaceMemberStatus.LEFT);

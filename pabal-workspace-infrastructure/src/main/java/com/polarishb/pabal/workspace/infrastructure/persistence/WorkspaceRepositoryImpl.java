@@ -4,12 +4,16 @@ import com.polarishb.pabal.workspace.application.port.out.persistence.WorkspaceR
 import com.polarishb.pabal.workspace.contract.persistence.PersistedWorkspace;
 import com.polarishb.pabal.workspace.contract.persistence.WorkspacePersistenceMapper;
 import com.polarishb.pabal.workspace.contract.persistence.WorkspaceState;
+import com.polarishb.pabal.workspace.domain.model.Workspace;
 import com.polarishb.pabal.workspace.domain.model.type.WorkspaceStatus;
 import com.polarishb.pabal.workspace.infrastructure.persistence.jpa.WorkspaceJpaRepository;
 import com.polarishb.pabal.workspace.infrastructure.persistence.jpa.entity.WorkspaceEntity;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,6 +26,33 @@ public class WorkspaceRepositoryImpl implements WorkspaceRepository {
     @Override
     public PersistedWorkspace append(PersistedWorkspace workspace) {
         WorkspaceEntity saved = jpaRepository.save(WorkspaceEntity.fromNewState(workspace.state()));
+        return WorkspacePersistenceMapper.toPersisted(saved.toState());
+    }
+
+    @Override
+    public PersistedWorkspace update(PersistedWorkspace workspace) {
+        WorkspaceState currentState = workspace.state();
+        Workspace desiredWorkspace = workspace.workspace();
+
+        WorkspaceEntity entity = jpaRepository.findByTenantIdAndId(
+                currentState.tenantId(),
+                currentState.id()
+        ).orElseThrow(() -> new EntityNotFoundException("Workspace not found"));
+
+        if (!Objects.equals(entity.getVersion(), currentState.version())) {
+            throw new ObjectOptimisticLockingFailureException(
+                    WorkspaceEntity.class,
+                    currentState.id()
+            );
+        }
+
+        WorkspaceState nextState = WorkspacePersistenceMapper.toState(
+                desiredWorkspace,
+                currentState.version()
+        );
+        entity.apply(nextState);
+
+        WorkspaceEntity saved = jpaRepository.saveAndFlush(entity);
         return WorkspacePersistenceMapper.toPersisted(saved.toState());
     }
 

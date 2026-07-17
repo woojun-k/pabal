@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -78,5 +79,13 @@ public class WorkspaceMemberEntity extends UpdatableEntity {
                 this.getUpdatedAt(),
                 this.version
         );
+    }
+
+    public void apply(WorkspaceMemberState state) {
+        Objects.requireNonNull(state);
+        this.role = state.role();
+        this.status = state.status();
+        this.leftAt = state.leftAt();
+        setUpdatedAt(state.updatedAt());
     }
 }

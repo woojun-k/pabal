@@ -20,16 +20,16 @@ import java.util.UUID;
 public class WorkspaceMember {
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private UUID tenantId;
-    private UUID workspaceId;
-    private UUID userId;
-    private WorkspaceRole role;
-    private WorkspaceMemberStatus status;
-    private Instant joinedAt;
-    private Instant leftAt;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final UUID id;
+    private final UUID tenantId;
+    private final UUID workspaceId;
+    private final UUID userId;
+    private final WorkspaceRole role;
+    private final WorkspaceMemberStatus status;
+    private final Instant joinedAt;
+    private final Instant leftAt;
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
     public static WorkspaceMember joinOwner(UUID tenantId, UUID workspaceId, UUID userId, Instant joinedAt) {
         return join(tenantId, workspaceId, userId, WorkspaceRole.OWNER, joinedAt);
@@ -91,7 +91,7 @@ public class WorkspaceMember {
         return status == WorkspaceMemberStatus.ACTIVE;
     }
 
-    public void changeRole(WorkspaceRole newRole, Instant changedAt, boolean hasAnotherActiveOwner) {
+    public WorkspaceMember changeRole(WorkspaceRole newRole, Instant changedAt, boolean hasAnotherActiveOwner) {
         WorkspaceRole requestedRole = Objects.requireNonNull(newRole, "newRole must not be null");
         Instant transitionAt = Objects.requireNonNull(changedAt, "changedAt must not be null");
 
@@ -106,7 +106,7 @@ public class WorkspaceMember {
         }
 
         if (role == requestedRole) {
-            return;
+            return this;
         }
 
         if (role == WorkspaceRole.OWNER && !hasAnotherActiveOwner) {
@@ -119,11 +119,21 @@ public class WorkspaceMember {
             );
         }
 
-        role = requestedRole;
-        updatedAt = transitionAt;
+        return new WorkspaceMember(
+                id,
+                tenantId,
+                workspaceId,
+                userId,
+                requestedRole,
+                status,
+                joinedAt,
+                leftAt,
+                createdAt,
+                transitionAt
+        );
     }
 
-    public void leave(Instant leftAt, boolean hasAnotherActiveOwner) {
+    public WorkspaceMember leave(Instant leftAt, boolean hasAnotherActiveOwner) {
         Instant transitionAt = Objects.requireNonNull(leftAt, "leftAt must not be null");
 
         if (status != WorkspaceMemberStatus.ACTIVE) {
@@ -144,8 +154,17 @@ public class WorkspaceMember {
             );
         }
 
-        status = WorkspaceMemberStatus.LEFT;
-        this.leftAt = transitionAt;
-        updatedAt = transitionAt;
+        return new WorkspaceMember(
+                id,
+                tenantId,
+                workspaceId,
+                userId,
+                role,
+                WorkspaceMemberStatus.LEFT,
+                joinedAt,
+                transitionAt,
+                createdAt,
+                transitionAt
+        );
     }
 }

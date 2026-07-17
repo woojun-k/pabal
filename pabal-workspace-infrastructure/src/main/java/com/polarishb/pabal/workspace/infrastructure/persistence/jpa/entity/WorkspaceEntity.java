@@ -9,6 +9,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -61,5 +62,12 @@ public class WorkspaceEntity extends UpdatableEntity {
                 this.getUpdatedAt(),
                 this.version
         );
+    }
+
+    public void apply(WorkspaceState state) {
+        Objects.requireNonNull(state);
+        this.name = state.name();
+        this.status = state.status();
+        setUpdatedAt(state.updatedAt());
     }
 }

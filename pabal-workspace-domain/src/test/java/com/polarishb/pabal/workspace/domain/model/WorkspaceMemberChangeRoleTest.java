@@ -58,38 +58,37 @@ class WorkspaceMemberChangeRoleTest {
             WorkspaceRole newRole
     ) {
         WorkspaceMember member = activeMember(currentRole);
-        WorkspaceMember sameInstance = member;
         WorkspaceMemberSnapshot before = member.snapshot();
 
-        member.changeRole(newRole, CHANGED_AT, false);
+        WorkspaceMember changed = member.changeRole(newRole, CHANGED_AT, false);
 
-        assertThat(member).isSameAs(sameInstance);
-        assertSuccessfulRoleChange(member, before, newRole, CHANGED_AT);
+        assertThat(changed).isNotSameAs(member);
+        assertThat(member.snapshot()).isEqualTo(before);
+        assertSuccessfulRoleChange(changed, before, newRole, CHANGED_AT);
     }
 
     @ParameterizedTest
     @MethodSource("ownerDemotions")
     void owner_demotion_changes_role_when_another_active_owner_exists(WorkspaceRole newRole) {
         WorkspaceMember owner = activeMember(WorkspaceRole.OWNER);
-        WorkspaceMember sameInstance = owner;
         WorkspaceMemberSnapshot before = owner.snapshot();
 
-        owner.changeRole(newRole, CHANGED_AT, true);
+        WorkspaceMember changed = owner.changeRole(newRole, CHANGED_AT, true);
 
-        assertThat(owner).isSameAs(sameInstance);
-        assertSuccessfulRoleChange(owner, before, newRole, CHANGED_AT);
+        assertThat(changed).isNotSameAs(owner);
+        assertThat(owner.snapshot()).isEqualTo(before);
+        assertSuccessfulRoleChange(changed, before, newRole, CHANGED_AT);
     }
 
     @ParameterizedTest
     @EnumSource(WorkspaceRole.class)
     void same_role_change_is_idempotent_and_does_not_require_owner_evidence(WorkspaceRole currentRole) {
         WorkspaceMember member = activeMember(currentRole);
-        WorkspaceMember sameInstance = member;
         WorkspaceMemberSnapshot before = member.snapshot();
 
-        member.changeRole(currentRole, CHANGED_AT, false);
+        WorkspaceMember unchanged = member.changeRole(currentRole, CHANGED_AT, false);
 
-        assertThat(member).isSameAs(sameInstance);
+        assertThat(unchanged).isSameAs(member);
         assertThat(member.snapshot()).isEqualTo(before);
         assertThat(member.getUpdatedAt()).isEqualTo(UPDATED_AT);
     }
