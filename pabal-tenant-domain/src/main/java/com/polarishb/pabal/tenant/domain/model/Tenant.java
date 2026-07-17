@@ -18,11 +18,11 @@ import java.util.UUID;
 public class Tenant {
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private TenantName name;
-    private TenantStatus status;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final UUID id;
+    private final TenantName name;
+    private final TenantStatus status;
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
     public static Tenant create(String name, Instant createdAt) {
         return new Tenant(

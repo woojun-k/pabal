@@ -90,7 +90,66 @@ Verification DNS name과 TXT value의 production source of truth는 domain model
 
 `PersistedTenant`는 `Tenant` domain object와 `TenantState`가 같은 aggregate row를 가리키는지 생성 시점에 확인한다. `tenant`/`state`가 `null`이면 즉시 실패하고, `tenant.getId()`와 `state.id()` 또는 `tenant.getName().value()`와 `state.name()`이 다르면 `IllegalArgumentException`으로 거부한다. 이 검증은 domain object와 persistence 기준점이 어긋난 wrapper가 repository 경계로 흘러가는 것을 막기 위한 contract layer 방어선이다.
 
+## Persisted Wrapper의 identity guard와 rebind 패턴
+
+Layer: Contract
+Status: Implemented
+
+`PersistedChatRoom`/`PersistedChatRoomMember`(Messenger)와 `PersistedWorkspace`/`PersistedWorkspaceMember`(Workspace)는 같은 모양의 compact constructor 방어선과 `withXxx(next)` rebind 메서드를 가진다.
+
+- compact constructor는 `null` 체크 이후 domain object와 `State`의 identity 필드(예: `id`, `tenantId`, 그리고 member류는 소속 aggregate id/`userId`)가 일치하는지 `Objects.equals`로 비교하고, 어긋나면 `IllegalArgumentException`을 던진다.
+- 검증 대상은 identity 필드로 한정된다. `role`, `status`, `joinedAt`/`leftAt`, `updatedAt`, `version` 같은 가변 필드는 비교하지 않는다. 그래서 `leave()`/`changeRole()`처럼 domain object가 전이된 이후에도, 조회 당시의 `state`와 함께 wrapper를 다시 만드는 동작(rebind)이 막히지 않는다.
+- `withXxx(next)`는 새 domain object(`next`)를 원래 `state`에 다시 묶어 새 `Persisted*` 인스턴스를 반환한다. `state`는 그대로 보존된다 — optimistic lock 검증(`version`)과 row 식별(`id`)의 기준점이기 때문이다. `next`의 identity 필드가 `state`와 어긋나면 같은 방식으로 `IllegalArgumentException`을 던져, 다른 aggregate가 잘못 결합되는 배선 오류를 막는다.
+
+| Persisted Wrapper | Identity 검증 필드 | Rebind 메서드 |
+| --- | --- | --- |
+| `PersistedTenant` | `id`, `name` | - |
+| `PersistedWorkspace` | `id`, `tenantId` | `withWorkspace(Workspace next)` |
+| `PersistedWorkspaceMember` | `id`, `tenantId`, `workspaceId`, `userId` | `withMember(WorkspaceMember next)` |
+| `PersistedChatRoom` | `tenantId`(compact ctor), `id`+`tenantId`(rebind) | `withChatRoom(ChatRoom next)` |
+| `PersistedChatRoomMember` | `tenantId`(compact ctor), `id`+`tenantId`+`chatRoomId`+`userId`(rebind) | `withMember(ChatRoomMember next)` |
+
+`WorkspaceMemberState`는 `ChatRoomMemberState`/`WorkspaceState`와 같은 flatten 규칙을 따른다: snapshot을 감싸는 단일 component 대신 `id`, `tenantId`, `workspaceId`, `userId`, `role`, `status`, `joinedAt`, `leftAt`, `createdAt`, `updatedAt`, `version` 11개의 flat record component를 선언하고, `(WorkspaceMemberSnapshot, Long)` 편의 생성자와 flat component로부터 `WorkspaceMemberSnapshot`을 재구성하는 `snapshot()`을 제공한다. 접근자는 손으로 작성한 delegating 메서드가 아니라 record component accessor 그 자체다.
+
 운영 주의: `TenantRegistrationState.snapshot()`은 `TenantName`, `TenantDomainName`, `TenantVerificationToken` 같은 domain VO를 다시 만든다. 따라서 향후 VO validation rule을 강화하면 기존 persistence row가 read path에서 reconstitution 실패를 일으킬 수 있다. 이런 변경은 배포 전에 migration/backfill을 함께 수행하거나, legacy row를 어떻게 읽을지에 대한 explicit read-path factory 결정을 먼저 문서화하고 구현해야 한다. 이 결정 없이 VO validation만 강화하면 query handler와 repository hydration이 운영 데이터에 의해 실패할 수 있다.
+
+## Workspace update persistence와 optimistic locking
+
+Layer: Application / Contract / Infrastructure
+Status: Implemented
+
+Workspace persistence update는 append/read와 같은 세 표현 경계를 유지한다.
+
+```text
+Workspace / WorkspaceMember
+→ PersistedWorkspace / PersistedWorkspaceMember
+→ WorkspaceState / WorkspaceMemberState
+→ WorkspaceEntity / WorkspaceMemberEntity
+```
+
+Application port는 기존 위치에서 update를 노출한다.
+
+- `WorkspaceRepository.update(PersistedWorkspace workspace)`
+- `WorkspaceMemberRepository.update(PersistedWorkspaceMember member)`
+
+입력 wrapper의 domain object는 저장하려는 post-transition 상태이고, `state()`는 이전 read/append가 돌려준 original persistence baseline이다. 따라서 application은 immutable domain transition 결과를 `withWorkspace(next)` 또는 `withMember(next)`로 원래 baseline에 다시 묶어 repository에 전달한다.
+
+Infrastructure adapter는 baseline identity로 기존 row를 먼저 찾는다.
+
+- `WorkspaceRepositoryImpl.update`는 `WorkspaceJpaRepository.findByTenantIdAndId(state.tenantId(), state.id())`로 조회한다.
+- `WorkspaceMemberRepositoryImpl.update`는 `WorkspaceMemberJpaRepository.findByTenantIdAndId(state.tenantId(), state.id())`로 조회한다.
+- baseline row가 없거나 tenant가 다르면 `EntityNotFoundException` 계열로 실패하고, detached/new entity 저장으로 insert하지 않는다.
+
+Optimistic locking 기준점은 wrapper가 들고 온 original `state.version()`이다. Adapter는 entity의 현재 `@Version` 값과 baseline version을 비교하고, 다르면 `ObjectOptimisticLockingFailureException`을 던진 뒤 entity에 post-transition state를 적용하지 않는다.
+
+Entity apply mapping은 persistence level에서 mutable한 필드만 반영한다.
+
+| Entity | Apply 대상 | Preserve 대상 |
+| --- | --- | --- |
+| `WorkspaceEntity.apply(WorkspaceState)` | `name`, `status`, `updatedAt` | `id`, `tenantId`, `createdBy`, `createdAt` |
+| `WorkspaceMemberEntity.apply(WorkspaceMemberState)` | `role`, `status`, `leftAt`, `updatedAt` | `id`, `tenantId`, `workspaceId`, `userId`, `joinedAt`, `createdAt` |
+
+저장 후 반환값은 `saveAndFlush`가 반영한 현재 JPA `version`을 포함한 fresh `PersistedWorkspace` 또는 `PersistedWorkspaceMember`다. `WorkspaceMember` leave update가 `status = LEFT`와 non-null `leftAt`을 저장하면 active lookup(`existsActiveMember`, `findActiveRole`, `findActiveUserIds`)은 `status = ACTIVE` 조건 때문에 해당 user를 더 이상 active member로 보지 않는다.
 
 ## Repository port와 adapter
 

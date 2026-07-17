@@ -26,3 +26,5 @@ ADR(Architecture Decision Record)은 프로젝트의 주요 설계 결정을 기
 | [0011](0011-manage-authorization-as-cross-cutting-policy.md) | Accepted | 인가는 cross-cutting RBAC permission policy로 관리한다. |
 | [0012](0012-split-jpa-persistence-support-from-common.md) | Accepted | JPA/Hibernate persistence support는 `pabal-common`이 아니라 `pabal-persistence-support`에 둔다. |
 | [0013](0013-split-overloaded-expiry-timestamp-into-verification-and-activation-windows.md) | Accepted | `TenantRegistration`의 단일 `expiresAt`을 `verificationExpiresAt`/`activationExpiresAt`으로 분리하고 `REVERIFICATION_REQUIRED` lapsed 상태를 도입한다. |
+| [0014](0014-domain-aggregates-are-immutable-with-copy-on-transition.md) | Accepted | Domain aggregate는 `final` 필드로 immutable하게 두고 상태 전이는 새 instance를 반환한다(copy-on-transition). |
+| [0015](0015-split-integration-contract-from-common.md) | Accepted | Bounded context 간 조회 contract(`TenantContract`/`WorkspaceContract`/`UserContract`)를 `pabal-common`이 아니라 `pabal-integration-contract`에 둔다. |

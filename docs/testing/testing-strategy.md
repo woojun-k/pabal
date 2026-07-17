@@ -12,7 +12,7 @@ tags:
 
 ## 개요
 
-현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-web`, `pabal-security`, `pabal-authorization`, `pabal-infra-redis`, `pabal-persistence-support`, `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
+현재 테스트는 멀티모듈 구조에 맞춰 `pabal-common`, `pabal-integration-contract`, `pabal-web`, `pabal-security`, `pabal-authorization`, `pabal-infra-redis`, `pabal-persistence-support`, `pabal-tenant-*`, `pabal-workspace-*`, `pabal-user-*`, `pabal-messenger-*`, `pabal-app`로 분산되어 있다.
 
 ## 실행 환경
 
@@ -68,6 +68,7 @@ Layer: Testing / App
 - `pabal-workspace-domain/src/test/java/.../WorkspaceDomainArchitectureTest.java`
 - `pabal-workspace-application/src/test/java/.../CreateWorkspaceCommandHandlerTest.java`
 - `pabal-workspace-infrastructure/src/test/java/.../WorkspaceRepositoryImplTest.java`
+- `pabal-workspace-infrastructure/src/test/java/.../WorkspaceMemberRepositoryImplTest.java`
 
 ### Domain
 
@@ -187,6 +188,8 @@ Layer: Infrastructure / App
 - unique constraint 기반 idempotency는 application 선조회와 DB conflict translation을 모두 검증한다.
 - tenant 조건이 포함된 FK/unique/read query를 우선 검증한다.
 - `workspace_member`는 tenant + workspace 복합 FK와 tenant/workspace/user unique 제약을 실제 PostgreSQL slice test로 검증한다.
+- `WorkspaceRepositoryImpl.update`와 `WorkspaceMemberRepositoryImpl.update`는 tenant-qualified lookup, baseline `state.version()` 기반 optimistic locking, missing/wrong-tenant row no-insert 실패, mutable field apply mapping을 실제 PostgreSQL slice test로 검증한다.
+- `WorkspaceMemberRepositoryImplTest`는 leave update 후 `existsActiveMember`, `findActiveRole`, `findActiveUserIds`가 `LEFT` member를 active로 보지 않는지 함께 검증한다.
 
 관련 schema 설명은 [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)에서 본다.
 

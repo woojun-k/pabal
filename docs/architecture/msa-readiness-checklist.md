@@ -68,7 +68,7 @@ Pabal은 현재 MSA가 아니다. 이 문서는 멀티모듈 모놀리스가 안
 
 분리 전 확인:
 
-- tenant/user/workspace 소유권은 현재 별도 bounded context와 `TenantContract`, `UserContract`, `WorkspaceContract`로 분리되어 있다. MSA 전환 시 이 contract를 동기 API, replicated read model, event 기반 projection 중 무엇으로 바꿀지 결정해야 한다.
+- tenant/user/workspace 소유권은 현재 별도 bounded context와 `pabal-integration-contract`의 `TenantContract`, `UserContract`, `WorkspaceContract`로 분리되어 있다. MSA 전환 시 이 contract를 동기 API, replicated read model, event 기반 projection 중 무엇으로 바꿀지 결정해야 한다.
 - user profile 조회가 필요한 경우 sync API, event replication, cache 중 무엇을 쓸 것인가?
 - workspace membership 조회가 필요한 경우 sync API, event replication, cache 중 무엇을 쓸 것인가?
 - unread count와 last message snapshot을 같은 transaction 안에서 유지할 것인가?

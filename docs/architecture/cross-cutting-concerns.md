@@ -48,7 +48,7 @@ WebSocket/STOMP:
 - role은 coarse-grained RBAC 입력이고, application은 fine-grained permission을 요구한다.
 - access token은 짧게 유지하고 refresh token은 `security_refresh_token` hash store에서 rotate/revoke한다.
 - workspace owner/admin은 `workspace_member.role` source of truth와 JWT authority 양쪽에서 판정한다.
-- module 간 권한 판단은 `TenantContract`, `UserContract`, `WorkspaceContract` 같은 common contract로만 수행한다.
+- module 간 권한 판단은 `pabal-integration-contract`의 `TenantContract`, `UserContract`, `WorkspaceContract`로만 수행한다.
 
 ## 3. 예외 처리
 

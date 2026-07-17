@@ -9,14 +9,14 @@ tags:
 # Pabal 공통 모듈 설계
 
 > 상위 문서: [Pabal Wiki Home](../README.md)
-> 관련 문서: [Pabal 패키지 구조와 레이어](package-structure-and-layers.md), [Pabal 크로스커팅 관심사](cross-cutting-concerns.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md), [Pabal Observability와 운영 설정](observability-and-operations.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [ADR-0012](../adr/0012-split-jpa-persistence-support-from-common.md)
+> 관련 문서: [Pabal 패키지 구조와 레이어](package-structure-and-layers.md), [Pabal 크로스커팅 관심사](cross-cutting-concerns.md), [Pabal Authorization Governance와 RBAC Permission 모델](../security/authorization-governance.md), [Pabal 이벤트 발행과 트랜잭션 경계](event-and-transaction-boundary.md), [Pabal Observability와 운영 설정](observability-and-operations.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [ADR-0012](../adr/0012-split-jpa-persistence-support-from-common.md), [ADR-0015](../adr/0015-split-integration-contract-from-common.md)
 
 ## 개요
 
 Layer: Common
 Status: Implemented
 
-`pabal-common`은 여러 모듈이 공유하는 기술적/계약적 primitive를 둔다. Messenger 비즈니스 규칙, HTTP endpoint 정책, Spring MVC 구현, JPA adapter 구현, JPA/Hibernate support, JWT 인증 정책은 소유하지 않는다.
+`pabal-common`은 여러 모듈이 공유하는 기술적 primitive를 둔다. Messenger 비즈니스 규칙, HTTP endpoint 정책, Spring MVC 구현, JPA adapter 구현, JPA/Hibernate support, JWT 인증 정책, bounded context 간 조회 contract는 소유하지 않는다.
 
 공통 모듈의 기준은 다음이다.
 
@@ -36,7 +36,6 @@ Status: Implemented
 | `common.authorization` | Common / Application Support | `FineGrainedPermission`, `AuthorizationScope` | bounded context별 permission enum과 resource scope를 표현하는 최소 abstraction |
 | `common.event` | Common | `DomainEvent`, `DomainEventPublisher` | in-process domain event 발행 abstraction |
 | `common.util` | Common | `UuidV7` | UUID v7 생성/검증 utility |
-| `common.contract` | Common / Contract | `TenantContract`, `WorkspaceContract`, `UserContract`, `UserInfo`, `WorkspaceMemberRole` | bounded context 간 tenant/user/workspace 조회 contract와 최소 role DTO |
 | `web.api` | Web / API Support | `ApiError`, `ApiErrorDetail`, `GlobalExceptionHandler` | 공통 오류 응답 shape와 Spring MVC exception mapping |
 | `web.event` | Web / Spring Support | `SpringDomainEventPublisher` | `DomainEventPublisher`의 Spring application event 구현 |
 
@@ -53,6 +52,20 @@ JPA/Hibernate 보조 타입은 `pabal-common`이 아니라 `pabal-persistence-su
 | `pabal-persistence-support` | `persistence.jpa` | `UuidV7Generated`, `UuidV7IdGenerator` | UUID v7 Hibernate generator |
 
 `pabal-persistence-support`는 infrastructure module만 의존한다. Domain/application/API/contract 모듈은 이 모듈에 의존하지 않는다. 결정 배경은 [ADR-0012](../adr/0012-split-jpa-persistence-support-from-common.md)를 기준으로 본다.
+
+## Integration contract 분리
+
+Layer: Contract
+Status: Implemented
+
+bounded context 간 조회 contract는 `pabal-common`이 아니라 별도 모듈 `pabal-integration-contract`가 소유한다.
+
+| Module | Package | 주요 타입 | 책임 |
+| --- | --- | --- | --- |
+| `pabal-integration-contract` | `integration.contract` | `TenantContract`, `WorkspaceContract`, `UserContract` | bounded context 간 tenant/user/workspace 조회 interface |
+| `pabal-integration-contract` | `integration.contract.dto` | `UserInfo`, `WorkspaceMemberRole` | 조회 결과로 노출하는 최소 identity/role DTO |
+
+`pabal-integration-contract`는 project 의존이 없는 leaf 모듈이다(`java.util`만 참조). 실제 consumer만 이 모듈에 의존한다: provider인 `pabal-tenant-application`/`pabal-user-application`/`pabal-workspace-application`, consumer인 `pabal-messenger-infrastructure`(production 의존), 그리고 test 소스에서 타입을 참조하는 `pabal-user-infrastructure`/`pabal-workspace-infrastructure`(`testImplementation`). `pabal-messenger-application`과 모든 `-domain`/`-api` 모듈은 이 모듈에 의존하지 않는다. 결정 배경은 [ADR-0015](../adr/0015-split-integration-contract-from-common.md)를 기준으로 본다.
 
 ## 의존 방향
 
@@ -71,6 +84,10 @@ pabal-app → pabal-common
 pabal-app → pabal-web
 pabal-*-infrastructure → pabal-persistence-support
 pabal-persistence-support → pabal-common
+pabal-tenant-application → pabal-integration-contract
+pabal-user-application → pabal-integration-contract
+pabal-workspace-application → pabal-integration-contract
+pabal-messenger-infrastructure → pabal-integration-contract
 ```
 
 피해야 하는 방향:
@@ -85,21 +102,21 @@ pabal-common → pabal-web
 pabal-common → pabal-app
 ```
 
-공통 모듈은 Spring Framework, validation, webmvc, security core, OpenTelemetry API, JPA/Hibernate 같은 구현 dependency를 직접 갖지 않는다. JPA/Hibernate 보조 타입은 `pabal-persistence-support`로 분리한다.
+공통 모듈은 Spring Framework, validation, webmvc, security core, OpenTelemetry API, JPA/Hibernate 같은 구현 dependency를 직접 갖지 않는다. JPA/Hibernate 보조 타입은 `pabal-persistence-support`로, bounded context 간 조회 contract는 `pabal-integration-contract`로 분리한다.
 
 ## bounded context 간 contract
 
-Layer: Common / Contract
+Layer: Contract
 
 `TenantContract`, `WorkspaceContract`, `UserContract`는 bounded context가 다른 context의 내부 repository나 JPA entity에 직접 의존하지 않고 필요한 최소 조회를 수행하기 위한 공통 contract다.
 
 현재 구현:
 
-- interface: `pabal-common`의 `TenantContract`, `WorkspaceContract`, `UserContract`
+- interface: `pabal-integration-contract`의 `TenantContract`, `WorkspaceContract`, `UserContract`
 - provider: `pabal-tenant-application`의 `TenantContractService`, `pabal-workspace-application`의 `WorkspaceContractService`, `pabal-user-application`의 `UserContractService`
 - consumer: user/workspace application handler, messenger infrastructure의 `ContractRoomParticipantDirectoryAdapter`
 
-이 contract는 identity primitive인 `tenantId`, `workspaceId`, `userId`, `UserInfo`, cross-context authorization에 필요한 `WorkspaceMemberRole`만 노출한다. tenant/workspace/user domain model, persistence `State`, JPA entity는 common으로 올리지 않는다.
+이 contract는 identity primitive인 `tenantId`, `workspaceId`, `userId`, `UserInfo`, cross-context authorization에 필요한 `WorkspaceMemberRole`만 노출한다. tenant/workspace/user domain model, persistence `State`, JPA entity는 `pabal-integration-contract`로 올리지 않는다.
 
 ## authorization primitive
 
@@ -200,6 +217,7 @@ DB fallback인 `uuidv7()` 함수는 [Pabal 데이터베이스 스키마와 제�
 - JPA `@MappedSuperclass`, Hibernate generator 같은 persistence support
 - JPA repository adapter 구현
 - 외부 broker, DB, WebSocket 세부 연결 정책
+- bounded context 간 조회 contract interface/DTO(`pabal-integration-contract`가 소유)
 
 ## 변경 체크리스트
 

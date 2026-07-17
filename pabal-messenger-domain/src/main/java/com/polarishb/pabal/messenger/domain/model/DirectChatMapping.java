@@ -18,14 +18,14 @@ import java.util.UUID;
 public class DirectChatMapping {
 
     @EqualsAndHashCode.Include
-    private UUID id;
-    private UUID tenantId;
-    private UUID chatRoomId;
-    private UUID userIdMin;
-    private UUID userIdMax;
-    
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final UUID id;
+    private final UUID tenantId;
+    private final UUID chatRoomId;
+    private final UUID userIdMin;
+    private final UUID userIdMax;
+
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
     public static DirectChatMapping create(
             UUID tenantId,

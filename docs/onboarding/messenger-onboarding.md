@@ -46,7 +46,8 @@ Pabal Messenger는 `pabal-app`이 모든 모듈을 조립해 단일 애플리케
 | 모듈 | Layer | 먼저 볼 패키지 | 역할 |
 | --- | --- | --- | --- |
 | `pabal-app` | App | `com.polarishb.pabal` | Spring Boot 실행, 모듈 조립, resource/migration 보관 |
-| `pabal-common` | Common | `common.event`, `common.cqrs`, `common.contract` | event publisher abstraction, CQRS marker, context contract, UUID v7 |
+| `pabal-common` | Common | `common.event`, `common.cqrs`, `common.util` | event publisher abstraction, CQRS marker, UUID v7 |
+| `pabal-integration-contract` | Contract | `integration.contract`, `integration.contract.dto` | bounded context 간 조회 contract(`TenantContract`, `WorkspaceContract`, `UserContract`)와 최소 DTO |
 | `pabal-web` | Web Support | `web.api`, `web.event` | 공통 API error, Spring MVC exception handler, Spring event publisher 구현 |
 | `pabal-security` | Security | `security.authentication`, `security.context`, `security.token`, `security.config` | JWT decoder/converter, `PabalPrincipal`, refresh token lifecycle, HTTP security |
 | `pabal-authorization` | Authorization | `authorization` | authority normalization/matching, RBAC permission lookup/cache |
@@ -54,17 +55,17 @@ Pabal Messenger는 `pabal-app`이 모든 모듈을 조립해 단일 애플리케
 | `pabal-persistence-support` | Shared Infrastructure Support | `persistence.entity.base`, `persistence.jpa` | JPA entity base와 UUID v7 Hibernate generator |
 | `pabal-tenant-domain` | Domain | `domain.model`, `domain.exception` | tenant aggregate, name/status invariant |
 | `pabal-tenant-contract` | Contract | `contract.persistence` | tenant persistence 경계 shape |
-| `pabal-tenant-application` | Application | `command.handler`, `query.handler`, `service` | tenant 유스케이스, `TenantContract` 구현 |
+| `pabal-tenant-application` | Application | `command.handler`, `query.handler`, `service` | tenant 유스케이스, `pabal-integration-contract`의 `TenantContract` 구현 |
 | `pabal-tenant-api` | API | `api.command`, `api.query` | tenant HTTP controller와 mapper |
 | `pabal-tenant-infrastructure` | Infrastructure | `persistence`, `time` | `pabal_tenant` JPA adapter |
 | `pabal-workspace-domain` | Domain | `domain.model`, `domain.exception` | workspace와 workspace member aggregate, role/status invariant |
 | `pabal-workspace-contract` | Contract | `contract.persistence` | workspace persistence 경계 shape |
-| `pabal-workspace-application` | Application | `command.handler`, `query.handler`, `service` | workspace 유스케이스, `WorkspaceContract` 구현 |
+| `pabal-workspace-application` | Application | `command.handler`, `query.handler`, `service` | workspace 유스케이스, `pabal-integration-contract`의 `WorkspaceContract` 구현 |
 | `pabal-workspace-api` | API | `api.command`, `api.query` | workspace HTTP controller와 mapper |
 | `pabal-workspace-infrastructure` | Infrastructure | `persistence`, `time` | `workspace`, `workspace_member` JPA adapter |
 | `pabal-user-domain` | Domain | `domain.model`, `domain.exception` | user aggregate, name/status invariant |
 | `pabal-user-contract` | Contract | `contract.persistence` | user persistence 경계 shape |
-| `pabal-user-application` | Application | `command.handler`, `query.handler`, `service` | user 유스케이스, `UserContract` 구현 |
+| `pabal-user-application` | Application | `command.handler`, `query.handler`, `service` | user 유스케이스, `pabal-integration-contract`의 `UserContract` 구현 |
 | `pabal-user-api` | API | `api.command`, `api.query` | user HTTP controller와 mapper |
 | `pabal-user-infrastructure` | Infrastructure | `persistence`, `time` | `tenant_user` JPA adapter |
 | `pabal-messenger-domain` | Domain | `domain.model`, `domain.event`, `domain.exception` | 순수 도메인 모델, invariant, 도메인 이벤트 |

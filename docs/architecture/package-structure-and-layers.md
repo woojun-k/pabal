@@ -18,6 +18,7 @@ pabal
 ├─ buildSrc            # Gradle convention plugin (모듈 아님): pabal.java-conventions, pabal.java-library-conventions
 ├─ pabal-app
 ├─ pabal-common
+├─ pabal-integration-contract
 ├─ pabal-web
 ├─ pabal-security
 ├─ pabal-authorization
@@ -61,7 +62,8 @@ cross-project 검증인 `checkProjectDependencyBoundaries`(Gradle 모듈 경계 
 | 모듈 | Layer | 대표 패키지/클래스 | 책임 |
 | --- | --- | --- | --- |
 | `pabal-app` | App | `PabalApplication`, `application.yaml`, Flyway migration | 실행 애플리케이션, auto configuration 조립, resource 소유 |
-| `pabal-common` | Common | `CommandHandler`, `DomainEventPublisher`, `FineGrainedPermission`, `AuthorizationScope`, `TenantContract`, `WorkspaceContract`, `UserContract`, `WorkspaceMemberRole`, `UuidV7` | event/CQRS/UUID v7 primitive, permission abstraction, context 간 최소 contract |
+| `pabal-common` | Common | `CommandHandler`, `DomainEventPublisher`, `FineGrainedPermission`, `AuthorizationScope`, `UuidV7` | event/CQRS/UUID v7 primitive, permission abstraction 같은 zero-dependency shared kernel |
+| `pabal-integration-contract` | Contract | `TenantContract`, `WorkspaceContract`, `UserContract`, `UserInfo`, `WorkspaceMemberRole` | bounded context 간 tenant/user/workspace 조회를 위한 최소 contract, project 의존 없는 leaf 모듈 |
 | `pabal-web` | Web Support | `ApiError`, `GlobalExceptionHandler`, `SpringDomainEventPublisher` | 전역 API error response, Spring MVC exception mapping, Spring event publisher 구현 |
 | `pabal-security` | Security | `PabalJwtAuthenticationConverter`, `PabalPrincipal`, `CurrentAuthenticationProvider`, `RefreshTokenService`, `JdbcRefreshTokenStore`, `SecurityConfig`, `LocalJwtConfig` | JWT 인증, principal/context mapping, access/refresh token lifecycle, HTTP security |
 | `pabal-authorization` | Authorization | `AuthorityNormalizer`, `PermissionAuthorityMatcher`, `RbacPermissionStore`, `JdbcRbacPermissionStore` | authority normalization/matching, RBAC permission 조회/cache, persisted authorization policy access |
@@ -114,11 +116,13 @@ flowchart LR
     authorization --> common
     authorization --> redis
     persistence_support["pabal-persistence-support"] --> common
+    integration_contract["pabal-integration-contract"]
     tenant_domain["pabal-tenant-domain"] --> common
     tenant_contract["pabal-tenant-contract"] --> tenant_domain
     tenant_application --> tenant_domain
     tenant_application --> tenant_contract
     tenant_application --> common
+    tenant_application --> integration_contract
     tenant_api --> tenant_application
     tenant_api --> common
     tenant_infrastructure --> tenant_application
@@ -132,6 +136,7 @@ flowchart LR
     workspace_application --> workspace_domain
     workspace_application --> workspace_contract
     workspace_application --> common
+    workspace_application --> integration_contract
     workspace_api --> workspace_application
     workspace_api --> security
     workspace_api --> common
@@ -146,6 +151,7 @@ flowchart LR
     user_application --> user_domain
     user_application --> user_contract
     user_application --> common
+    user_application --> integration_contract
     user_api --> user_application
     user_api --> security
     user_api --> common
@@ -170,6 +176,7 @@ flowchart LR
     messenger_infrastructure --> authorization
     messenger_infrastructure --> persistence_support
     messenger_infrastructure --> common
+    messenger_infrastructure --> integration_contract
 ```
 
 ## 허용 의존
@@ -184,6 +191,8 @@ flowchart LR
 - `{bounded-context}-infrastructure → pabal-persistence-support`
 - `pabal-persistence-support → common`
 - `messenger-infrastructure → security/authorization/common`
+- `messenger-infrastructure → pabal-integration-contract`
+- `tenant-application/user-application/workspace-application → pabal-integration-contract`
 - `user-api → security/common`
 - `security → authorization/common`
 - `authorization → infra-redis/common`
@@ -200,8 +209,10 @@ flowchart LR
 - `{bounded-context}-contract → {bounded-context}-infrastructure`
 - `{bounded-context}-domain/application/api/contract → pabal-persistence-support`
 - `common → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
+- `common → pabal-integration-contract` (방향은 consumer → integration-contract만 허용)
 - `security → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
 - `authorization → tenant-*` 또는 `workspace-*` 또는 `user-*` 또는 `messenger-*`
+- `messenger-application/{bounded-context}-domain/{bounded-context}-api → pabal-integration-contract`
 - `pabal-security → spring-messaging`
 
 ## 레이어 규칙 요약
@@ -225,9 +236,9 @@ flowchart LR
 - tenant 직접 생성/조회는 local/test profile의 `DevTenantCommandController`/`DevTenantQueryController`에서 시작한다. 운영 onboarding 경로로 사용하지 않는다.
 - workspace 생성/조회는 `WorkspaceCommandController`/`WorkspaceQueryController`에서 시작해 `CreateWorkspaceCommandHandler`/`GetWorkspaceQueryHandler`, `WorkspaceRepository`, `WorkspaceMemberRepository`, `WorkspaceRepositoryImpl`/`WorkspaceMemberRepositoryImpl`로 따라간다.
 - user 생성/조회는 `UserCommandController`/`UserQueryController`에서 시작해 `CreateUserCommandHandler`/`GetUserQueryHandler`, `UserRepository`, `UserRepositoryImpl`로 따라간다.
-- user 생성은 common `TenantContract`와 tenant application의 `TenantContractService`로 active tenant를 확인한다.
+- user 생성은 `pabal-integration-contract`의 `TenantContract`와 tenant application의 `TenantContractService`로 active tenant를 확인한다.
 - workspace 생성은 `TenantContract`와 `UserContract`로 active tenant와 owner tenant user를 확인한다.
-- messenger가 tenant user와 workspace member를 확인하는 경계는 `ContractRoomParticipantDirectoryAdapter`, common `UserContract`/`WorkspaceContract`, user/workspace application contract service다.
+- messenger가 tenant user와 workspace member를 확인하는 경계는 `ContractRoomParticipantDirectoryAdapter`, `pabal-integration-contract`의 `UserContract`/`WorkspaceContract`, user/workspace application contract service다.
 - room/member 접근 검증은 `ChatRoomAccessSupport`, `ChatRoomReadAccessSupport`를 확인한다.
 - repository port는 `pabal-messenger-application/src/main/java/.../port/out/persistence`에 있다.
 - adapter 구현체는 `pabal-messenger-infrastructure/src/main/java/.../persistence` 아래에 있다.

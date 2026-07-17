@@ -135,8 +135,8 @@ Application/API: 진짜 two-phase 흐름이 도입되었다.
 - Edit/delete message: message sender 검증 전에 `chatRoomId` 포함 조회와 `ChatRoomAccessSupport.loadSendableActiveMember`를 다시 통과한다.
 - Channel create/delete: `ChatRoomAuthorizationService`가 `PermissionPort`에 fine-grained permission을 질의한다.
 - Room participant validation: `RoomParticipantPolicy`가 `RoomParticipantDirectoryPort`를 통해 requester와 target user의 tenant/workspace membership을 batch 검증한다.
-- Tenant user existence: messenger infrastructure의 `ContractRoomParticipantDirectoryAdapter`는 common `UserContract`를 통해 user module의 active tenant user를 조회한다.
-- Workspace membership: `ContractRoomParticipantDirectoryAdapter`는 common `WorkspaceContract`를 통해 workspace module의 active workspace member를 조회한다.
+- Tenant user existence: messenger infrastructure의 `ContractRoomParticipantDirectoryAdapter`는 `pabal-integration-contract`의 `UserContract`를 통해 user module의 active tenant user를 조회한다.
+- Workspace membership: `ContractRoomParticipantDirectoryAdapter`는 `pabal-integration-contract`의 `WorkspaceContract`를 통해 workspace module의 active workspace member를 조회한다.
 
 ## 구현상 중요한 세부
 

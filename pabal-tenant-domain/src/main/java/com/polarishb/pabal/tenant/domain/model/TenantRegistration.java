@@ -12,6 +12,8 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -111,7 +113,13 @@ public class TenantRegistration {
     }
 
     public boolean matchesTxtValue(String txtValue) {
-        return verificationTxtValue().equals(normalizeTxtValue(txtValue));
+        byte[] expected = verificationTxtValue()
+                .getBytes(StandardCharsets.UTF_8);
+
+        byte[] actual = normalizeTxtValue(txtValue)
+                .getBytes(StandardCharsets.UTF_8);
+
+        return MessageDigest.isEqual(expected, actual);
     }
 
     public void validateVerificationAllowed(Instant now) {
@@ -155,9 +163,9 @@ public class TenantRegistration {
     }
 
     public TenantRegistration markVerified(Instant verifiedAt, Instant activationExpiresAt) {
-        ensurePending(verifiedAt);
-        Instant transitionAt = Objects.requireNonNull(verifiedAt, "verifiedAt must not be null");
         Objects.requireNonNull(activationExpiresAt, "activationExpiresAt must not be null");
+        Instant transitionAt = Objects.requireNonNull(verifiedAt, "verifiedAt must not be null");
+        ensurePending(verifiedAt);
         if (!activationExpiresAt.isAfter(transitionAt)) {
             throw new IllegalArgumentException("activationExpiresAt must be after verifiedAt");
         }

@@ -210,6 +210,16 @@ When: `CreateWorkspaceCommand` 처리
 Then: `workspace`가 `ACTIVE`로 저장되고 `workspace_member`에 owner가 `OWNER`, `ACTIVE`로 저장됨
 Related: [Pabal HTTP API 예시와 오류 매핑](../use-cases/http-api-and-error-mapping.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)
 
+## Workspace optimistic-locking update persistence
+
+Layer: Infrastructure
+Target: `WorkspaceRepositoryImpl`, `WorkspaceRepository.update(PersistedWorkspace)`, `WorkspaceEntity.apply`
+Purpose: workspace update가 tenant-qualified 기존 row만 갱신하고 baseline version으로 optimistic locking을 검증하도록 보장
+Given: 저장된 active workspace, original `WorkspaceState.version()`, `withWorkspace(...)`로 rebound된 `ARCHIVED` post-transition workspace
+When: `WorkspaceRepository.update` 호출
+Then: 성공 시 같은 `id`/`tenantId` row의 `name`, `status`, `updatedAt`만 갱신되고 JPA `version`이 증가함. 같은 baseline으로 두 번째 update를 시도하면 `ObjectOptimisticLockingFailureException`이 발생하며 첫 번째 성공 상태가 유지되고, wrong-tenant 또는 missing row는 insert/cross-tenant update 없이 not-found 계열 예외로 실패함
+Related: [Pabal Persistence 경계와 데이터 변환](../architecture/persistence-boundary-and-mapping.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md)
+
 ## Workspace create/isActive domain invariant
 
 Layer: Domain
@@ -227,7 +237,7 @@ Target: `WorkspaceMember`, `WorkspaceMemberSnapshot`, `WorkspaceMemberLeaveNotAl
 Purpose: workspace member `ACTIVE` -> `LEFT` 전이와 마지막 active `OWNER` 보호 invariant 보장
 Given: active `MEMBER`/`ADMIN`/`OWNER`, already-left member, null `leftAt`, 다른 active owner evidence
 When: `WorkspaceMember.leave(leftAt, hasAnotherActiveOwner)` 호출
-Then: 성공 시 같은 instance가 `LEFT`가 되고 `leftAt`/`updatedAt`은 caller-supplied `leftAt`이 되며 identity/role/join/create 값은 유지됨. 이미 `LEFT`인 member와 마지막 active `OWNER` leave는 `WSP409001`로 거부되고, null `leftAt`도 상태 변경 전에 거부됨.
+Then: 성공 시 receiver와 다른 새 instance가 반환되고 반환 instance는 `LEFT`가 되며 `leftAt`/`updatedAt`은 caller-supplied `leftAt`이 됨. identity/role/join/create 값은 유지되고 receiver는 관찰 가능한 변경 없이 남음. 이미 `LEFT`인 member와 마지막 active `OWNER` leave는 `WSP409001`로 거부되고, null `leftAt`도 상태 변경 전에 거부됨.
 Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal 테스트 전략](testing-strategy.md)
 
 ## WorkspaceMember role change transition
@@ -237,8 +247,18 @@ Target: `WorkspaceMember`, `WorkspaceMemberChangeRoleTest`, `WorkspaceMemberRole
 Purpose: workspace member role 변경과 마지막 active `OWNER` demotion 보호 invariant 보장
 Given: active `MEMBER`/`ADMIN`/`OWNER`, already-left member, null `newRole`, null `changedAt`, 다른 active owner evidence
 When: `WorkspaceMember.changeRole(newRole, changedAt, hasAnotherActiveOwner)` 호출
-Then: 실제 변경은 같은 instance의 `role`과 `updatedAt`만 갱신하고, same-role 호출은 no-op으로 `updatedAt`을 유지함. 이미 `LEFT`인 member와 마지막 active `OWNER` demotion은 `WSP409002`로 거부되며, 거부된 호출과 null 입력은 상태를 부분 변경하지 않음.
+Then: 실제 변경은 receiver와 다른 새 instance의 `role`과 `updatedAt`만 갱신하고, same-role 호출은 no-op으로 receiver instance를 그대로 반환하며 `updatedAt`을 유지함. 이미 `LEFT`인 member와 마지막 active `OWNER` demotion은 `WSP409002`로 거부되며, 거부된 호출과 null 입력은 상태를 부분 변경하지 않음.
 Related: [Pabal 도메인 모델 상세](../domain/messenger-domain-model.md), [Pabal 에러 코드와 예외 매핑표](../use-cases/error-code-exception-mapping.md), [Pabal 테스트 전략](testing-strategy.md)
+
+## WorkspaceMember optimistic-locking update persistence
+
+Layer: Infrastructure
+Target: `WorkspaceMemberRepositoryImpl`, `WorkspaceMemberRepository.update(PersistedWorkspaceMember)`, `WorkspaceMemberEntity.apply`, `WorkspaceMemberRepositoryImplTest`
+Purpose: workspace member leave/role update가 tenant-qualified 기존 row만 갱신하고 active lookup 결과와 optimistic locking을 함께 보장
+Given: 저장된 active workspace member, original `WorkspaceMemberState.version()`, `withMember(...)`로 rebound된 `leave(...)` 또는 `changeRole(...)` post-transition member
+When: `WorkspaceMemberRepository.update` 호출
+Then: leave update는 같은 membership identity의 `status = LEFT`, non-null `leftAt`, `updatedAt`과 증가한 JPA `version`을 저장하고 active lookup에서 제외됨. role update는 같은 `id`/`tenantId`/`workspaceId`/`userId`를 유지하며 `role`과 `updatedAt`만 갱신함. stale baseline은 `ObjectOptimisticLockingFailureException`으로 실패하고 첫 번째 성공 상태가 유지되며, wrong-tenant 또는 missing row는 insert/cross-tenant update 없이 not-found 계열 예외로 실패함
+Related: [Pabal Persistence 경계와 데이터 변환](../architecture/persistence-boundary-and-mapping.md), [Pabal 데이터베이스 스키마와 제약](../architecture/database-schema-and-constraints.md), [Pabal 테스트 전략](testing-strategy.md)
 
 ## WorkspaceMemberSnapshot status invariant
 
@@ -359,3 +379,13 @@ Given: 256자 이상 5000자 이하 메시지
 When: HTTP validation과 domain 생성, DB 저장
 Then: 현재 기준으로 정책 불일치가 드러나야 함
 Related: [Pabal Persistence 경계와 데이터 변환](../architecture/persistence-boundary-and-mapping.md)
+
+## Integration contract module relocation
+
+Layer: Module Structure
+Target: `IntegrationContractModuleRelocationTest` (`pabal-app` test source)
+Purpose: `TenantContract`/`UserContract`/`WorkspaceContract`와 `UserInfo`/`WorkspaceMemberRole`이 `pabal-integration-contract`의 `com.polarishb.pabal.integration.contract[.dto]`로 이동했고, 이전 `com.polarishb.pabal.common.contract` 패키지가 더 이상 존재하지 않음을 보장
+Given: 전체 module classpath가 조립된 `pabal-app`
+When: 5개 신규 FQN에 대해 reflection으로 `Class.forName`을 호출하고, 구 FQN(`com.polarishb.pabal.common.contract.TenantContract`)에 대해서도 `Class.forName`을 호출
+Then: 신규 FQN은 모두 resolve되고, 구 FQN은 `ClassNotFoundException`을 던짐
+Related: [Pabal 공통 모듈 설계](../architecture/common-module-design.md), [ADR-0015](../adr/0015-split-integration-contract-from-common.md)

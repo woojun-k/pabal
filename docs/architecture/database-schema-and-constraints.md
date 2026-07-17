@@ -113,6 +113,8 @@ Layer: Infrastructure / Domain
 
 `chat_room.workspace_id`는 workspace identity 값을 사용하지만 messenger table에서 `workspace`로 직접 FK를 두지 않는다. Messenger는 workspace membership 검증이 필요한 channel participant validation에서 `WorkspaceContract`를 사용한다.
 
+`workspace.version`은 `WorkspaceEntity`의 `@Version` 필드다. `WorkspaceRepositoryImpl.update`는 `tenant_id + id`로 기존 row를 조회한 뒤 baseline `WorkspaceState.version()`과 현재 entity version을 비교하고, 일치할 때만 `name`, `status`, `updated_at`을 갱신한다. `ARCHIVED` 상태 update는 기존 row를 바꾸는 persistence 동작이며, 새 row를 insert하지 않는다.
+
 ### workspace_member
 
 Layer: Infrastructure / Domain
@@ -125,6 +127,8 @@ Layer: Infrastructure / Domain
 - `idx_workspace_member_active_lookup`: tenant/workspace/user/status 기반 membership 조회
 
 `workspace_member.user_id`는 `tenant_user.id`와 같은 identity 값을 사용하지만 DB FK를 두지 않는다. Workspace 생성과 membership 검증은 `UserContract`와 `WorkspaceContract`로 active tenant user 여부를 확인한다.
+
+`workspace_member.version`은 `WorkspaceMemberEntity`의 `@Version` 필드다. `WorkspaceMemberRepositoryImpl.update`는 `tenant_id + id`로 기존 row를 조회한 뒤 baseline `WorkspaceMemberState.version()`과 현재 entity version을 비교하고, 일치할 때만 `role`, `status`, `left_at`, `updated_at`을 갱신한다. Leave persistence는 `status = LEFT`와 non-null `left_at`을 함께 저장해야 `chk_workspace_member_left_at`을 만족하며, role update는 같은 membership identity(`id`, `tenant_id`, `workspace_id`, `user_id`)를 유지한다.
 
 ### tenant_user
 

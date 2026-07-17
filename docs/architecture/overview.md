@@ -58,8 +58,8 @@ flowchart LR
         commandHandler --> support["Application Support"]
         queryHandler --> readSupport["Read Access Support"]
         commandHandler --> ports["Outbound Ports"]
-        support --> userContract["UserContract"]
-        support --> workspaceContract["WorkspaceContract"]
+        support --> userContract["UserContract (pabal-integration-contract)"]
+        support --> workspaceContract["WorkspaceContract (pabal-integration-contract)"]
     end
 
     subgraph TENANT["pabal-tenant-*"]
@@ -67,7 +67,7 @@ flowchart LR
         tenantDevApi["DevTenantController"] --> tenantDevApp["CreateTenant / GetTenant"]
         tenantApp --> tenantTable["pabal_tenant"]
         tenantDevApp --> tenantTable
-        tenantApp --> tenantContract["TenantContract"]
+        tenantApp --> tenantContract["TenantContract (pabal-integration-contract)"]
     end
 
     subgraph WORKSPACE["pabal-workspace-*"]
@@ -107,23 +107,24 @@ flowchart LR
 
 ## 패키지 수준에서 본 책임 분리
 
-- `pabal-common`: 공통 예외, CQRS marker, event publisher, context contract, UUID v7 utility
+- `pabal-common`: 공통 예외, CQRS marker, event publisher, UUID v7 utility
+- `pabal-integration-contract`: bounded context 간 tenant/user/workspace 조회 contract(`TenantContract`, `WorkspaceContract`, `UserContract`)와 최소 DTO, project 의존 없는 leaf 모듈
 - `pabal-security`: JWT decoder/converter, `PabalPrincipal`, access/refresh token lifecycle, HTTP security, local token
 - `pabal-authorization`: authority normalization/matching, RBAC permission lookup/cache
 - `pabal-infra-redis`: Redis dependency boundary for authorization cache and future module cache layers
 - `pabal-persistence-support`: JPA entity base field와 UUID v7 Hibernate generator
 - `pabal-tenant-api`: tenant HTTP 진입점과 request/response 매핑
-- `pabal-tenant-application`: tenant command/query, repository port, `TenantContract` 구현
+- `pabal-tenant-application`: tenant command/query, repository port, `pabal-integration-contract`의 `TenantContract` 구현
 - `pabal-tenant-domain`: tenant aggregate, name/status invariant, tenant exception
 - `pabal-tenant-contract`: tenant persistence 경계 모델
 - `pabal-tenant-infrastructure`: `pabal_tenant` JPA adapter와 clock adapter
 - `pabal-workspace-api`: workspace HTTP 진입점과 principal 기반 매핑
-- `pabal-workspace-application`: workspace command/query, workspace member repository port, `WorkspaceContract` 구현
+- `pabal-workspace-application`: workspace command/query, workspace member repository port, `pabal-integration-contract`의 `WorkspaceContract` 구현
 - `pabal-workspace-domain`: workspace와 workspace member aggregate, role/status invariant
 - `pabal-workspace-contract`: workspace persistence 경계 모델
 - `pabal-workspace-infrastructure`: `workspace`, `workspace_member` JPA adapter와 clock adapter
 - `pabal-user-api`: user HTTP 진입점과 principal 기반 매핑
-- `pabal-user-application`: user command/query, repository port, `UserContract` 구현
+- `pabal-user-application`: user command/query, repository port, `pabal-integration-contract`의 `UserContract` 구현
 - `pabal-user-domain`: user aggregate, name/status invariant, user exception
 - `pabal-user-contract`: user persistence 경계 모델
 - `pabal-user-infrastructure`: `tenant_user` JPA adapter와 clock adapter

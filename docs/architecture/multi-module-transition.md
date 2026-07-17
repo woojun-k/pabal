@@ -20,6 +20,7 @@ Status: Implemented
 ```text
 pabal-app
 pabal-common
+pabal-integration-contract
 pabal-web
 pabal-security
 pabal-authorization
@@ -59,13 +60,15 @@ pabal-messenger-infrastructure
 {bounded-context}-infrastructure → {bounded-context}-application/{bounded-context}-domain/{bounded-context}-contract
 {bounded-context}-infrastructure → pabal-persistence-support
 pabal-persistence-support → pabal-common
+tenant-application/user-application/workspace-application → pabal-integration-contract
+messenger-infrastructure → pabal-integration-contract
 security → authorization/common
 authorization → infra-redis/common
 web → common
 app → *-api/*-application/*-infrastructure/security/authorization/infra-redis/common/web
 ```
 
-`common`은 모든 모듈이 사용할 수 있지만, 특정 tenant/workspace/user/messenger 구현을 알아서는 안 된다. `TenantContract`, `WorkspaceContract`, `UserContract`처럼 bounded context 간에 필요한 최소 조회 contract만 둘 수 있다.
+`common`은 모든 모듈이 사용할 수 있지만, 특정 tenant/workspace/user/messenger 구현을 알아서는 안 된다. bounded context 간에 필요한 최소 조회 contract인 `TenantContract`, `WorkspaceContract`, `UserContract`는 `pabal-common`이 아니라 별도 leaf 모듈 `pabal-integration-contract`가 소유하며, 실제 provider/consumer(`tenant`/`user`/`workspace`-application, `messenger-infrastructure`)만 의존한다.
 
 ## 금지 의존
 
@@ -81,6 +84,8 @@ security → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 authorization → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 web → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
 common → tenant-* 또는 workspace-* 또는 user-* 또는 messenger-*
+common → pabal-integration-contract
+messenger-application/{bounded-context}-domain/{bounded-context}-api → pabal-integration-contract
 ```
 
 ## 모듈별 안정화 기준
@@ -97,9 +102,20 @@ Layer: App
 
 Layer: Common
 
-- CQRS marker, event publisher abstraction, context contract, UUID v7를 제공한다.
+- CQRS marker, event publisher abstraction, permission abstraction, UUID v7를 제공한다.
 - 도메인 전용 개념을 넣지 않는다.
 - JPA/Hibernate persistence support를 넣지 않는다. 해당 책임은 `pabal-persistence-support`가 가진다.
+- bounded context 간 조회 contract를 넣지 않는다. 해당 책임은 `pabal-integration-contract`가 가진다.
+- project 의존이 없는 leaf 모듈이며, `pabal-integration-contract`에 의존하지 않는다.
+
+### pabal-integration-contract
+
+Layer: Contract
+
+- bounded context 간 조회 contract `TenantContract`, `WorkspaceContract`, `UserContract`와 최소 DTO `UserInfo`, `WorkspaceMemberRole`을 제공한다.
+- project 의존이 없는 leaf 모듈이다.
+- provider(`pabal-tenant-application`, `pabal-user-application`, `pabal-workspace-application`)와 consumer(`pabal-messenger-infrastructure`)만 production 의존을 선언한다.
+- `pabal-messenger-application`, 모든 `-domain`/`-api` 모듈은 의존하지 않는다.
 
 ### pabal-web
 
@@ -163,7 +179,7 @@ Layer: Contract
 Layer: Application
 
 - tenant command/query handler, repository port, `TenantContractService`를 둔다.
-- user/workspace가 tenant infrastructure를 직접 참조하지 않도록 common `TenantContract`를 구현한다.
+- user/workspace가 tenant infrastructure를 직접 참조하지 않도록 `pabal-integration-contract`의 `TenantContract`를 구현한다.
 - infrastructure 구현체를 참조하지 않는다.
 
 ### pabal-tenant-api
@@ -202,7 +218,7 @@ Layer: Application
 
 - workspace command/query handler, workspace/member repository port, `WorkspaceContractService`를 둔다.
 - workspace 생성 시 `TenantContract`와 `UserContract`로 active tenant와 owner user를 검증한다.
-- messenger가 workspace JPA를 직접 참조하지 않도록 common `WorkspaceContract`를 구현한다.
+- messenger가 workspace JPA를 직접 참조하지 않도록 `pabal-integration-contract`의 `WorkspaceContract`를 구현한다.
 
 ### pabal-workspace-api
 
@@ -241,7 +257,7 @@ Layer: Application
 
 - user command/query handler, repository port, `UserContractService`를 둔다.
 - user 생성 시 `TenantContract`로 active tenant를 검증한다.
-- messenger가 user repository를 직접 참조하지 않도록 common `UserContract`를 구현한다.
+- messenger가 user repository를 직접 참조하지 않도록 `pabal-integration-contract`의 `UserContract`를 구현한다.
 - infrastructure 구현체를 참조하지 않는다.
 
 ### pabal-user-api
@@ -323,6 +339,7 @@ Status: Partial
 - [x] authorization/RBAC 조회를 `pabal-authorization`으로 분리
 - [x] Redis dependency boundary를 `pabal-infra-redis`로 분리
 - [x] JPA/Hibernate persistence support를 `pabal-common`에서 `pabal-persistence-support`로 분리
+- [x] bounded context 간 조회 contract(`TenantContract`/`UserContract`/`WorkspaceContract`)를 `pabal-common`에서 `pabal-integration-contract`로 분리
 - [ ] unused realtime security 타입 정리 여부 결정
 - [ ] WebSocket 보안 테스트 보강
 - [ ] realtime contract versioning 도입 여부 결정

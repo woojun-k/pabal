@@ -70,26 +70,27 @@ Status: Implemented
 - `id`, `tenantId`, `workspaceId`, `userId`
 - `role`
 - `status`
-- `joinedAt`, `leftAt`, `createdAt`, `updatedAt`
+- `joinedAt`, `leftAt`, `createdAt`, `updatedAt` — 10개 필드 모두 `private final`이다.
 
 핵심 규칙:
 
+- `WorkspaceMember`는 immutable aggregate다. 생성자 이후 필드 재할당이 없고, in-place mutator(`void` 상태 변경 메서드)가 없다.
 - `joinOwner`와 `join`은 새 workspace member를 `ACTIVE` 상태로 만든다.
-- `leave(Instant leftAt, boolean hasAnotherActiveOwner)`가 workspace member leave를 표현하는 business transition API다.
-- `changeRole(WorkspaceRole newRole, Instant changedAt, boolean hasAnotherActiveOwner)`가 workspace member role 변경을 표현하는 business transition API다.
+- `leave(Instant leftAt, boolean hasAnotherActiveOwner)`가 workspace member leave를 표현하는 business transition API이며, receiver를 바꾸지 않고 새 `WorkspaceMember` instance를 반환한다.
+- `changeRole(WorkspaceRole newRole, Instant changedAt, boolean hasAnotherActiveOwner)`가 workspace member role 변경을 표현하는 business transition API이며, receiver를 바꾸지 않고 새 `WorkspaceMember` instance를 반환한다.
 - `leftAt`과 `changedAt`은 caller-supplied time이다. Domain은 membership 전이 시간 계산을 위해 `Instant.now()`를 호출하지 않는다.
 - active `MEMBER`와 `ADMIN`은 `hasAnotherActiveOwner` 값과 무관하게 leave할 수 있다.
 - active `OWNER`는 다른 active owner가 있다는 evidence인 `hasAnotherActiveOwner=true`일 때만 leave할 수 있다.
 - 마지막 active `OWNER` leave와 이미 `LEFT`인 member의 재 leave는 `WorkspaceMemberLeaveNotAllowedException`, `WSP409001`로 거부된다.
 - `leftAt == null`은 상태 변경 전에 거부된다.
-- 성공하면 같은 `WorkspaceMember` instance가 `LEFT`가 되고 `leftAt`과 `updatedAt`은 인자로 받은 `leftAt`이 된다.
-- 성공 시 `id`, `tenantId`, `workspaceId`, `userId`, `role`, `joinedAt`, `createdAt`은 유지된다.
+- 성공하면 반환된 instance가 `LEFT`가 되고 `leftAt`과 `updatedAt`은 인자로 받은 `leftAt`이 된다. receiver는 그대로 남는다.
+- 성공 시 반환된 instance의 `id`, `tenantId`, `workspaceId`, `userId`, `role`, `joinedAt`, `createdAt`은 유지된다.
 - role 변경은 `ACTIVE` member에게만 허용된다. 이미 `LEFT`인 member의 role 변경은 `WorkspaceMemberRoleChangeNotAllowedException`, `WSP409002`로 거부된다.
-- 같은 role로의 `changeRole` 호출은 idempotent no-op이며 `updatedAt`도 바꾸지 않는다.
+- 같은 role로의 `changeRole` 호출은 idempotent no-op이며 receiver instance를 그대로 반환하고 `updatedAt`도 바꾸지 않는다.
 - `MEMBER`/`ADMIN`에서 `OWNER`로의 승격, `MEMBER`와 `ADMIN` 사이의 변경은 다른 active owner evidence 없이 허용된다.
 - active `OWNER`를 `ADMIN` 또는 `MEMBER`로 내리는 변경은 다른 active owner가 있다는 evidence인 `hasAnotherActiveOwner=true`일 때만 허용된다. 마지막 active `OWNER` demotion은 `WSP409002`로 거부된다.
-- role 변경 성공 시 같은 `WorkspaceMember` instance의 `role`과 `updatedAt`만 바뀌며 identity, status, join/create/left 값은 유지된다.
-- 거부된 leave와 role 변경은 snapshot을 부분 변경하지 않는다.
+- role 변경 성공 시 반환된 instance의 `role`과 `updatedAt`만 바뀌며 identity, status, join/create/left 값은 유지된다.
+- 거부된 leave와 role 변경은 새 instance를 만들지 않고 receiver snapshot을 부분 변경하지도 않는다.
 - `snapshot()`은 `LEFT` 상태와 non-null `leftAt` 정합성을 보존한다. `reconstitute(WorkspaceMemberSnapshot)`는 persistence hydration 용도이며 leave business transition API가 아니다.
 
 ### User
@@ -235,6 +236,7 @@ pabal-messenger-application
 ## 도메인 모델을 수정할 때 체크할 것
 
 - 변경이 domain invariant인지 application orchestration인지 먼저 구분한다.
+- aggregate 필드는 `private final`로 선언하고, 상태 전이는 receiver를 바꾸지 않고 새 instance를 반환한다. `void` in-place mutator는 두지 않는다. 모든 domain aggregate(`ChatRoom`, `ChatRoomMember`, `Message`, `DirectChatMapping`, `WorkspaceMember`, `Workspace`, `User`, `Tenant`, `TenantRegistration`)가 이 규약을 따른다. 근거는 [ADR-0014](../adr/0014-domain-aggregates-are-immutable-with-copy-on-transition.md).
 - `tenantId`는 모든 aggregate에 전파되어야 한다.
 - domain에 `State`, `Persisted*`, JPA Entity import가 들어오면 안 된다.
 - 상태 전이에 필요한 예외는 `MessengerErrorCode`와 함께 public error mapping을 확인한다.

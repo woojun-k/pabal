@@ -227,7 +227,8 @@ role/assignment 변경
 | `pabal-security` | Security | JWT 검증, principal 생성, `CurrentAuthenticationProvider`, `RefreshTokenService`, `JdbcRefreshTokenStore`; refresh token security infrastructure JDBC is intentionally retained here | Implemented |
 | `pabal-authorization` | Authorization | `AuthorityNormalizer`, `PermissionAuthorityMatcher`, `RbacPermissionStore`, `JdbcRbacPermissionStore` | Implemented |
 | `pabal-infra-redis` | Shared Infrastructure | Redis dependency boundary for cache/pub-sub adapters | Implemented |
-| `pabal-common` | Common | `FineGrainedPermission`, `AuthorizationScope`, `TenantContract`, `UserContract`, `WorkspaceContract`, `WorkspaceMemberRole` | Implemented |
+| `pabal-common` | Common | `FineGrainedPermission`, `AuthorizationScope` | Implemented |
+| `pabal-integration-contract` | Contract | `TenantContract`, `UserContract`, `WorkspaceContract`, `WorkspaceMemberRole` | Implemented |
 | `pabal-tenant-*` | Domain/Application/Infrastructure | active tenant source of truth, tenant registration lifecycle, `TenantPermission` catalog | Partial: role administration API pending |
 | `pabal-user-*` | Domain/Application/Infrastructure | active tenant user source of truth, `UserPermission` catalog | Partial: user administration use-case permission enforcement pending |
 | `pabal-workspace-*` | Domain/Application/Infrastructure | `workspace_member.role` source of truth, active role contract, `WorkspacePermission` catalog | Partial: workspace management permission enforcement pending |

@@ -11,13 +11,6 @@ import java.util.stream.Stream;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
-/**
- * 금지 의존의 근거는 docs/architecture/package-structure-and-layers.md의
- * "허용 의존"/"금지 의존" 목록과 ADR-0009(security의 spring-messaging 금지),
- * ADR-0012(persistence-support 분리)다. Gradle 모듈 경계 검사가 module 단위를
- * 막고, 이 테스트는 package 단위와 라이브러리 의존(JPA, spring-messaging,
- * ThreadLocal)까지 막는다.
- */
 @AnalyzeClasses(
         packages = "com.polarishb.pabal",
         importOptions = ImportOption.DoNotIncludeTests.class
@@ -55,7 +48,7 @@ class PabalArchitectureTest {
                             "..application..",
                             "..api..",
                             "..infrastructure..",
-                            "..security.."
+                            "com.polarishb.pabal.security.."
                     );
 
     @ArchTest

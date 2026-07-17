@@ -26,11 +26,6 @@ public final class UuidV7 {
 
     private UuidV7() {}
 
-    // ID 생성 hot path에서는 예측 불가능성(비암호학적)만 있으면 충분하다. 공유 암호학적
-    // 난수 생성기는 내부 synchronized 진입점 때문에 스레드 경합을 유발하므로, 스레드별
-    // 인스턴스인 ThreadLocalRandom.current() 로 대체해 락 프리(lock-free) 경로를 확보한다.
-    // 보안 토큰 등 암호학적 난수가 필요한 곳은 pabal-security 모듈 쪽 구현을 그대로 사용한다.
-
     public static UUID random() {
         long ts = clockMillis.getAsLong() & TS_MASK_48;
         int randA = ThreadLocalRandom.current().nextInt(1 << 12);
