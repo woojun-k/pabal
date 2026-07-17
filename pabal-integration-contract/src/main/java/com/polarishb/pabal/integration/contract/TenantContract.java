@@ -1,4 +1,4 @@
-package com.polarishb.pabal.common.contract;
+package com.polarishb.pabal.integration.contract;
 
 import java.util.UUID;
 

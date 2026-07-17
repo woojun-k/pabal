@@ -1,7 +1,7 @@
 package com.polarishb.pabal.messenger.infrastructure.security;
 
-import com.polarishb.pabal.common.contract.WorkspaceContract;
-import com.polarishb.pabal.common.contract.dto.WorkspaceMemberRole;
+import com.polarishb.pabal.integration.contract.WorkspaceContract;
+import com.polarishb.pabal.integration.contract.dto.WorkspaceMemberRole;
 import com.polarishb.pabal.authorization.AuthorityNormalizer;
 import com.polarishb.pabal.authorization.PermissionAuthorityMatcher;
 import com.polarishb.pabal.authorization.RbacPermissionStore;

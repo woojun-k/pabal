@@ -3,6 +3,7 @@ rootProject.name = "pabal"
 include(
     "pabal-app",
     "pabal-common",
+    "pabal-integration-contract",
     "pabal-web",
     "pabal-security",
     "pabal-authorization",

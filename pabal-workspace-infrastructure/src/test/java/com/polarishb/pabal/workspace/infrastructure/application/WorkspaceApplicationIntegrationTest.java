@@ -1,8 +1,8 @@
 package com.polarishb.pabal.workspace.infrastructure.application;
 
-import com.polarishb.pabal.common.contract.TenantContract;
-import com.polarishb.pabal.common.contract.UserContract;
-import com.polarishb.pabal.common.contract.dto.UserInfo;
+import com.polarishb.pabal.integration.contract.TenantContract;
+import com.polarishb.pabal.integration.contract.UserContract;
+import com.polarishb.pabal.integration.contract.dto.UserInfo;
 import com.polarishb.pabal.common.exception.InvalidInputException;
 import com.polarishb.pabal.support.AbstractWorkspacePostgresDataJpaTest;
 import com.polarishb.pabal.workspace.application.command.handler.CreateWorkspaceCommandHandler;

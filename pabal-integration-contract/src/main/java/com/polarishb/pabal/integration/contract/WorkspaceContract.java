@@ -1,6 +1,6 @@
-package com.polarishb.pabal.common.contract;
+package com.polarishb.pabal.integration.contract;
 
-import com.polarishb.pabal.common.contract.dto.WorkspaceMemberRole;
+import com.polarishb.pabal.integration.contract.dto.WorkspaceMemberRole;
 
 import java.util.Optional;
 import java.util.Set;

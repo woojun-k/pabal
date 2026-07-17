@@ -1,6 +1,6 @@
 package com.polarishb.pabal.tenant.application.service;
 
-import com.polarishb.pabal.common.contract.TenantContract;
+import com.polarishb.pabal.integration.contract.TenantContract;
 import com.polarishb.pabal.tenant.application.port.out.persistence.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

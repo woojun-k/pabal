@@ -29,6 +29,7 @@ val allowedProjectDependencies = buildMap {
         }
     })
     put(":pabal-common", emptySet())
+    put(":pabal-integration-contract", emptySet())
     put(":pabal-web", setOf(":pabal-common"))
     put(":pabal-security", setOf(":pabal-common", ":pabal-authorization", ":pabal-infra-redis"))
     put(":pabal-authorization", setOf(":pabal-common", ":pabal-infra-redis"))
@@ -63,8 +64,14 @@ val allowedProjectDependencies = buildMap {
         getValue(":pabal-messenger-infrastructure") + setOf(
             ":pabal-security",
             ":pabal-authorization",
+            ":pabal-integration-contract",
         )
     )
+
+    setOf("tenant", "user", "workspace").forEach { context ->
+        val applicationModule = pabalModule(context, "application")
+        put(applicationModule, getValue(applicationModule) + setOf(":pabal-integration-contract"))
+    }
 }
 
 val checkProjectDependencyBoundaries = tasks.register("checkProjectDependencyBoundaries") {

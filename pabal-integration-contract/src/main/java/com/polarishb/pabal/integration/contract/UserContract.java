@@ -1,6 +1,6 @@
-package com.polarishb.pabal.common.contract;
+package com.polarishb.pabal.integration.contract;
 
-import com.polarishb.pabal.common.contract.dto.UserInfo;
+import com.polarishb.pabal.integration.contract.dto.UserInfo;
 
 import java.util.Set;
 import java.util.UUID;

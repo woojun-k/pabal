@@ -1,7 +1,7 @@
 package com.polarishb.pabal.workspace.application.command.handler;
 
-import com.polarishb.pabal.common.contract.TenantContract;
-import com.polarishb.pabal.common.contract.UserContract;
+import com.polarishb.pabal.integration.contract.TenantContract;
+import com.polarishb.pabal.integration.contract.UserContract;
 import com.polarishb.pabal.common.cqrs.CommandHandler;
 import com.polarishb.pabal.common.exception.InvalidInputException;
 import com.polarishb.pabal.workspace.application.command.input.CreateWorkspaceCommand;

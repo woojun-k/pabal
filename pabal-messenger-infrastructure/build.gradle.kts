@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":pabal-persistence-support"))
     implementation(project(":pabal-security"))
     implementation(project(":pabal-authorization"))
+    implementation(project(":pabal-integration-contract"))
     implementation(project(":pabal-messenger-application"))
     implementation(project(":pabal-messenger-domain"))
     implementation(project(":pabal-messenger-contract"))

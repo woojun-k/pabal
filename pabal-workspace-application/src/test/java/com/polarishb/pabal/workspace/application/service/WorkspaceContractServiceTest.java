@@ -1,6 +1,6 @@
 package com.polarishb.pabal.workspace.application.service;
 
-import com.polarishb.pabal.common.contract.dto.WorkspaceMemberRole;
+import com.polarishb.pabal.integration.contract.dto.WorkspaceMemberRole;
 import com.polarishb.pabal.workspace.application.port.out.persistence.WorkspaceMemberRepository;
 import com.polarishb.pabal.workspace.domain.model.type.WorkspaceRole;
 import org.junit.jupiter.api.BeforeEach;

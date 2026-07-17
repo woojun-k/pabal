@@ -1,7 +1,7 @@
 package com.polarishb.pabal.messenger.infrastructure.identity;
 
-import com.polarishb.pabal.common.contract.UserContract;
-import com.polarishb.pabal.common.contract.WorkspaceContract;
+import com.polarishb.pabal.integration.contract.UserContract;
+import com.polarishb.pabal.integration.contract.WorkspaceContract;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;

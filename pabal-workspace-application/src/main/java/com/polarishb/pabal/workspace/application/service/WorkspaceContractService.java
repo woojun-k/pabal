@@ -1,7 +1,7 @@
 package com.polarishb.pabal.workspace.application.service;
 
-import com.polarishb.pabal.common.contract.WorkspaceContract;
-import com.polarishb.pabal.common.contract.dto.WorkspaceMemberRole;
+import com.polarishb.pabal.integration.contract.WorkspaceContract;
+import com.polarishb.pabal.integration.contract.dto.WorkspaceMemberRole;
 import com.polarishb.pabal.workspace.application.port.out.persistence.WorkspaceMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

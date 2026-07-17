@@ -1,6 +1,6 @@
 package com.polarishb.pabal.user.application.command.handler;
 
-import com.polarishb.pabal.common.contract.TenantContract;
+import com.polarishb.pabal.integration.contract.TenantContract;
 import com.polarishb.pabal.common.exception.InvalidInputException;
 import com.polarishb.pabal.user.application.command.input.CreateUserCommand;
 import com.polarishb.pabal.user.application.command.output.CreateUserResult;

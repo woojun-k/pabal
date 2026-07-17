@@ -1,4 +1,4 @@
-package com.polarishb.pabal.common.contract.dto;
+package com.polarishb.pabal.integration.contract.dto;
 
 public enum WorkspaceMemberRole {
     OWNER,
