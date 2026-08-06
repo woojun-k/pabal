@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
 
 interface SidebarFrameProps {
-  sessionReady: boolean
+  hasSession: boolean
   onOpenSettings: () => void
   children: ReactNode
 }
 
-export function SidebarFrame({ sessionReady, onOpenSettings, children }: SidebarFrameProps) {
+export function SidebarFrame({ hasSession, onOpenSettings, children }: SidebarFrameProps) {
   return (
     <aside className="sidebar" aria-label="워크스페이스 사이드바">
       <div className="ws-head">
@@ -28,7 +28,7 @@ export function SidebarFrame({ sessionReady, onOpenSettings, children }: Sidebar
         </div>
         <div className="me-text">
           <div className="nm">정우</div>
-          <div className="st">{sessionReady ? '집중 모드' : '오프라인'}</div>
+          <div className="st">{hasSession ? '집중 모드' : '오프라인'}</div>
         </div>
         <button type="button" className="icobtn" onClick={onOpenSettings} title="설정">
           ⚙

@@ -1,4 +1,4 @@
-export type AppTab = 'messages' | 'contacts' | 'etc'
+import type { AppTab } from '../tabs'
 
 const railTabs: Array<{ id: AppTab; label: string; icon: string }> = [
   { id: 'messages', label: '메시지', icon: '#' },
@@ -9,11 +9,11 @@ const railTabs: Array<{ id: AppTab; label: string; icon: string }> = [
 interface WorkspaceRailProps {
   activeTab: AppTab
   unreadTotal: number
-  sessionReady: boolean
+  hasSession: boolean
   onSelectTab: (tab: AppTab) => void
 }
 
-export function WorkspaceRail({ activeTab, unreadTotal, sessionReady, onSelectTab }: WorkspaceRailProps) {
+export function WorkspaceRail({ activeTab, unreadTotal, hasSession, onSelectTab }: WorkspaceRailProps) {
   return (
     <aside className="rail" aria-label="워크스페이스 내비게이션">
       <button type="button" className="rail-ws active" title="아이누리">
@@ -40,8 +40,8 @@ export function WorkspaceRail({ activeTab, unreadTotal, sessionReady, onSelectTa
           {tab.id === 'messages' && unreadTotal > 0 && <span className="rail-pip">{unreadTotal}</span>}
         </button>
       ))}
-      <span className={sessionReady ? 'nav-session is-ready' : 'nav-session'}>
-        {sessionReady ? 'on' : 'off'}
+      <span className={hasSession ? 'nav-session is-ready' : 'nav-session'}>
+        {hasSession ? 'on' : 'off'}
       </span>
     </aside>
   )

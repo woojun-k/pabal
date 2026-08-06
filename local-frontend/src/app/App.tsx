@@ -13,7 +13,8 @@ import { RoomSidebar } from '../features/rooms/components/RoomSidebar'
 import { useRoomStore } from '../features/rooms/roomStore'
 import type { UUID } from '../shared/types/api'
 import { SidebarFrame } from './layout/SidebarFrame'
-import { WorkspaceRail, type AppTab } from './layout/WorkspaceRail'
+import { WorkspaceRail } from './layout/WorkspaceRail'
+import type { AppTab } from './tabs'
 
 function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('messages')
@@ -93,10 +94,10 @@ function App() {
       <WorkspaceRail
         activeTab={activeTab}
         unreadTotal={unreadTotal}
-        sessionReady={Boolean(accessToken)}
+        hasSession={Boolean(accessToken)}
         onSelectTab={setActiveTab}
       />
-      <SidebarFrame sessionReady={Boolean(accessToken)} onOpenSettings={() => setActiveTab('etc')}>
+      <SidebarFrame hasSession={Boolean(accessToken)} onOpenSettings={() => setActiveTab('etc')}>
         {renderSidebar()}
       </SidebarFrame>
       {renderMain()}
