@@ -11,14 +11,8 @@ import { useRoomStore } from '../features/rooms/roomStore'
 import { BackendModeBadge } from '../shared/config/BackendModeBadge'
 import { displayRole } from '../shared/security/roles'
 import type { UUID } from '../shared/types/api'
-
-type AppTab = 'messages' | 'contacts' | 'etc'
-
-const railTabs: Array<{ id: AppTab; label: string; icon: string }> = [
-  { id: 'messages', label: '메시지', icon: '#' },
-  { id: 'contacts', label: '연락처', icon: '✉' },
-  { id: 'etc', label: '설정', icon: '⚙' },
-]
+import { SidebarFrame } from './layout/SidebarFrame'
+import { WorkspaceRail, type AppTab } from './layout/WorkspaceRail'
 
 const roomTitle = (roomName: string, fallback: string) => roomName || fallback
 
@@ -170,65 +164,15 @@ function App() {
     <main className="app-shell" data-theme="light">
       <RealtimeBridge />
       <NotificationTray />
-
-      <aside className="rail" aria-label="워크스페이스 내비게이션">
-        <button type="button" className="rail-ws active" title="아이누리">
-          아
-        </button>
-        <button type="button" className="rail-ws" title="사이드 프로젝트">
-          SP
-        </button>
-        <button type="button" className="rail-ws" title="스터디">
-          스
-        </button>
-        <div className="rail-nav" title="워크스페이스 추가">＋</div>
-        <div className="rail-div" />
-        {railTabs.map((tab) => (
-          <button
-            type="button"
-            className={activeTab === tab.id ? 'rail-nav is-active' : 'rail-nav'}
-            key={tab.id}
-            title={tab.label}
-            onClick={() => setActiveTab(tab.id)}
-            aria-pressed={activeTab === tab.id}
-          >
-            {tab.icon}
-            {tab.id === 'messages' && unreadTotal > 0 && <span className="rail-pip">{unreadTotal}</span>}
-          </button>
-        ))}
-        <span className={accessToken ? 'nav-session is-ready' : 'nav-session'}>
-          {accessToken ? 'on' : 'off'}
-        </span>
-      </aside>
-
-      <aside className="sidebar" aria-label="워크스페이스 사이드바">
-        <div className="ws-head">
-          <span className="av sm">우</span>
-          <span className="nm display">아이누리</span>
-          <button type="button" className="icobtn" title="새 메시지">✎</button>
-          <span className="chev">▾</span>
-        </div>
-        <div className="sb-search">
-          <span>🔍</span>
-          <span>검색 또는 점프</span>
-          <kbd>⌘K</kbd>
-        </div>
-        <div className="sb-scroll">{renderSidebar()}</div>
-        <div className="me-bar">
-          <div className="av-pos">
-            <span className="av sm">우</span>
-            <span className="presence p-online" />
-          </div>
-          <div className="me-text">
-            <div className="nm">정우</div>
-            <div className="st">{accessToken ? '집중 모드' : '오프라인'}</div>
-          </div>
-          <button type="button" className="icobtn" onClick={() => setActiveTab('etc')} title="설정">
-            ⚙
-          </button>
-        </div>
-      </aside>
-
+      <WorkspaceRail
+        activeTab={activeTab}
+        unreadTotal={unreadTotal}
+        sessionReady={Boolean(accessToken)}
+        onSelectTab={setActiveTab}
+      />
+      <SidebarFrame sessionReady={Boolean(accessToken)} onOpenSettings={() => setActiveTab('etc')}>
+        {renderSidebar()}
+      </SidebarFrame>
       {renderMain()}
     </main>
   )
