@@ -22,6 +22,7 @@ import {
 type RoomState = {
   rooms: RoomResponse[]
   activeRoomId: UUID | null
+  hasLoadedRooms: boolean
   isLoading: boolean
   isMutating: boolean
   error: ApiError | null
@@ -46,6 +47,7 @@ const sortRooms = (rooms: RoomResponse[]) =>
 export const useRoomStore = create<RoomState>((set, get) => ({
   rooms: [],
   activeRoomId: null,
+  hasLoadedRooms: false,
   isLoading: false,
   isMutating: false,
   error: null,
@@ -61,6 +63,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
           state.activeRoomId && rooms.some((room) => room.roomId === state.activeRoomId)
             ? state.activeRoomId
             : null,
+        hasLoadedRooms: true,
         isLoading: false,
       }))
     } catch (error) {
