@@ -57,15 +57,11 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
     try {
       const rooms = await listRooms()
-      set((state) => ({
+      set({
         rooms: sortRooms(rooms),
-        activeRoomId:
-          state.activeRoomId && rooms.some((room) => room.roomId === state.activeRoomId)
-            ? state.activeRoomId
-            : null,
         hasLoadedRooms: true,
         isLoading: false,
-      }))
+      })
     } catch (error) {
       set({ isLoading: false, error: toApiError(error) })
     }
@@ -111,7 +107,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     try {
       const response = await getOrCreateDirectRoom(request)
       await get().loadRooms()
-      set({ activeRoomId: response.chatRoomId, isMutating: false })
+      set({ isMutating: false })
       return response.chatRoomId
     } catch (error) {
       set({ isMutating: false, error: toApiError(error) })
@@ -125,7 +121,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     try {
       const response = await createGroupRoom(request)
       await get().loadRooms()
-      set({ activeRoomId: response.chatRoomId, isMutating: false })
+      set({ isMutating: false })
       return response.chatRoomId
     } catch (error) {
       set({ isMutating: false, error: toApiError(error) })
@@ -139,7 +135,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     try {
       const response = await createChannelRoom(request)
       await get().loadRooms()
-      set({ activeRoomId: response.chatRoomId, isMutating: false })
+      set({ isMutating: false })
       return response.chatRoomId
     } catch (error) {
       set({ isMutating: false, error: toApiError(error) })
@@ -162,7 +158,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         const rooms = state.rooms.filter((room) => room.roomId !== roomId)
         return {
           rooms,
-          activeRoomId: null,
           isMutating: false,
         }
       })
@@ -186,7 +181,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         const rooms = state.rooms.filter((room) => room.roomId !== roomId)
         return {
           rooms,
-          activeRoomId: null,
           isMutating: false,
         }
       })

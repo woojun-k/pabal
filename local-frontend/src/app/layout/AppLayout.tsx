@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { useAuthStore } from '../../features/auth/authStore'
 import { SettingsSidebar } from '../../features/auth/components/SettingsSidebar'
@@ -17,6 +17,7 @@ export function AppLayout() {
   const activeTab = deriveTab(location.pathname)
   const accessToken = useAuthStore((state) => state.accessToken)
   const rooms = useRoomStore((state) => state.rooms)
+  const selectRoom = useRoomStore((state) => state.selectRoom)
   const { goToRoom, goToTab } = useAppNavigation()
   const directRooms = useMemo(
     () => rooms.filter((room) => room.type === 'DIRECT' || room.type === 'GROUP'),
@@ -24,13 +25,19 @@ export function AppLayout() {
   )
   const unreadTotal = rooms.reduce((total, room) => total + room.unreadCount, 0)
 
+  useEffect(() => {
+    if (!accessToken) {
+      void selectRoom(null)
+    }
+  }, [accessToken, selectRoom])
+
   const renderSidebar = () => {
     if (activeTab === 'messages') {
       if (!accessToken) {
         return <p className="empty-text sb-empty">설정에서 로컬 토큰을 발급하세요.</p>
       }
 
-      return <RoomSidebar />
+      return <RoomSidebar onSelectRoom={goToRoom} />
     }
 
     if (activeTab === 'contacts') {

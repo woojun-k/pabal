@@ -80,7 +80,11 @@ function RoomGroup({
   )
 }
 
-export function RoomSidebar() {
+interface RoomSidebarProps {
+  onSelectRoom: (roomId: UUID) => void
+}
+
+export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
   const {
     rooms,
     activeRoomId,
@@ -88,11 +92,9 @@ export function RoomSidebar() {
     isMutating,
     error,
     loadRooms,
-    selectRoom,
     createDirectRoom,
   } = useRoomStore()
   const addNotification = useNotificationStore((state) => state.addNotification)
-  const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
   const [participantId, setParticipantId] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const channels = useMemo(() => rooms.filter((room) => room.type === 'CHANNEL'), [rooms])
@@ -118,6 +120,7 @@ export function RoomSidebar() {
     if (roomId) {
       setParticipantId('')
       setIsCreateOpen(false)
+      onSelectRoom(roomId)
       addNotification({
         kind: 'success',
         title: '대화방이 준비되었습니다',
@@ -127,18 +130,13 @@ export function RoomSidebar() {
     }
   }
 
-  const handleSelectRoom = async (roomId: UUID) => {
-    clearNotificationsForRoom(roomId)
-    await selectRoom(roomId)
-  }
-
   return (
     <section className="room-sidebar" aria-label="채팅방">
       <RoomGroup
         label="채널"
         rooms={channels}
         activeRoomId={activeRoomId}
-        onSelectRoom={(roomId) => void handleSelectRoom(roomId)}
+        onSelectRoom={onSelectRoom}
       />
 
       <button type="button" className="create-row" onClick={() => void loadRooms()}>
@@ -151,7 +149,7 @@ export function RoomSidebar() {
         rooms={directRooms}
         activeRoomId={activeRoomId}
         isDirectGroup
-        onSelectRoom={(roomId) => void handleSelectRoom(roomId)}
+        onSelectRoom={onSelectRoom}
         onOpenCreate={() => setIsCreateOpen((value) => !value)}
       />
 

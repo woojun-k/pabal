@@ -23,7 +23,6 @@ export function RealtimeBridge() {
   const applyMessageEvent = useMessageStore((state) => state.applyRoomEvent)
   const applyRoomEvent = useRoomStore((state) => state.applyRoomEvent)
   const loadRooms = useRoomStore((state) => state.loadRooms)
-  const selectRoom = useRoomStore((state) => state.selectRoom)
   const addNotification = useNotificationStore((state) => state.addNotification)
   const roomIds = useMemo(() => (roomIdsKey ? roomIdsKey.split('|') : []), [roomIdsKey])
   const activeRoomIdRef = useRef(activeRoomId)
@@ -35,15 +34,13 @@ export function RealtimeBridge() {
   useEffect(() => {
     if (!accessToken) {
       clearSubscriptions()
-      void selectRoom(null)
       void disconnect()
       return
     }
 
     connect()
-    void selectRoom(null)
     void loadRooms()
-  }, [accessToken, clearSubscriptions, connect, disconnect, loadRooms, selectRoom])
+  }, [accessToken, clearSubscriptions, connect, disconnect, loadRooms])
 
   useEffect(() => {
     if (!accessToken) {
