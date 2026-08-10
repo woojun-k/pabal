@@ -44,9 +44,12 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
 
 ## 4. 상태 승격
 
-- **`activeTab` useState 제거** — 탭은 URL에서 파생. `app/tabs.ts`에 경로↔탭 매핑 유틸을
-  추가하고 `WorkspaceRail.onSelectTab`은 navigate 콜백으로 연결.
-- **`activeRoomId`는 read-only mirror** — 갱신 경로는 RouteSync(→`selectRoom`) 하나만 남긴다.
+- **`activeTab` useState 제거** — 탭은 URL에서 파생. 경로↔탭 매핑은 `app/paths.ts`의
+  `deriveTab`이 담당하고(`app/tabs.ts`에는 `AppTab` 타입만 있다), `WorkspaceRail.onSelectTab`은
+  navigate 콜백으로 연결.
+- **`activeRoomId`는 read-only mirror** — mirror를 쓰는 경로는 두 곳이다: RouteSync
+  (→`selectRoom`, URL의 `:roomId`를 반영)와 `AppLayout`의 세션 변경 리셋
+  (→`resetRooms`, `accessToken` 변경 시 `rooms`/`activeRoomId`/`hasLoadedRooms`를 초기화).
   **규칙: store의 `activeRoomId`를 직접 set하는 코드 금지, 이동은 navigate로만.** (리뷰 기준)
 
 ## 5. ClientGuard / RouteSync 시퀀스
@@ -56,22 +59,30 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
 2. URL tenantId ≠ 토큰 tenantId → 토큰 tenant 경로로 replace
 3. roomId 있으면: rooms 로딩 완료 대기(로딩 중엔 기존 로딩 UI) → 목록에 있으면
    `selectRoom(roomId)`(mirror 갱신 + 읽음처리), 없으면 `/client/:tenantId` replace
-4. URL 변경마다 3 재실행. RealtimeBridge의 `selectRoom(null)` 호출(로그인/로그아웃 시 리셋)은
-   **제거한다** — §4의 "직접 set 금지" 규칙에 해당하며, 로그아웃 정리는 가드 1(`/settings`
-   replace)이, 로그인 후 복원은 3이 대체한다
+4. URL 변경마다 3 재실행. 방 상태 리셋은 RouteSync가 아니라 `AppLayout`의 세션 변경
+   effect가 담당한다 — `accessToken`이 바뀔 때마다(로그인/로그아웃/테넌트 재발급 포함)
+   `resetRooms()`를 호출해 `rooms`/`activeRoomId`/`hasLoadedRooms`를 전부 초기화한다.
+   `RealtimeBridge`(자식 컴포넌트)의 `loadRooms()`보다 이 리셋이 먼저 반영되어야 하므로
+   컴포넌트 트리 순서(자식 effect 우선 실행)에 의존한다 — 그렇지 않으면 세션 전환 직후
+   낡은 tenant의 `rooms`로 새 URL의 `roomId`를 오인해 잘못된 요청이 나갈 수 있다
 
 ## 6. Selection 변경 지점 전환 매핑
 
 | 동작 | 현재 (store 직접 set) | 전환 후 | 히스토리 |
 |---|---|---|---|
 | 방 클릭 (RoomSidebar/Contacts) | `selectRoom(id)` | `navigate(/client/:tid/:roomId)` | push |
-| 알림 클릭 (`openRoom`) | `setActiveTab` + `selectRoom` | navigate | push |
 | 탭 전환 (rail, me-bar ⚙) | `setActiveTab` | navigate | push |
 | 방 생성 3종 성공 | `activeRoomId` set | 새 방으로 navigate | push |
 | leave / delete | `activeRoomId: null` | `/client/:tid`로 navigate | replace |
 | 가드 redirect (무토큰/tenant 불일치/404 방) | — | replace | replace |
 
 store 함수들은 생성된 roomId를 반환만 하고(이미 반환함) 호출자가 navigate한다.
+
+**현재 UI 호출처 현황**: `createDirectRoom`은 `RoomSidebar`에서 이미 성공 시
+`onSelectRoom`(→navigate)으로 연결돼 있다. `createGroupRoom`·`createChannelRoom`·
+`leaveActiveRoom`·`deleteActiveRoom`은 아직 호출하는 UI가 없다 — 향후 이 액션들을 호출하는
+UI를 추가할 때는 반드시 위 표대로 성공 콜백에서 navigate로 이동해야 하며, store의
+`activeRoomId`를 직접 set해서는 안 된다.
 
 ## 7. 검증 시나리오 (Playwright 수동 시나리오)
 
