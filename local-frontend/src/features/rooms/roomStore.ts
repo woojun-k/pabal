@@ -28,6 +28,7 @@ type RoomState = {
   error: ApiError | null
   loadRooms: () => Promise<void>
   selectRoom: (roomId: UUID | null) => Promise<void>
+  resetRooms: () => void
   getActiveRoom: () => RoomResponse | null
   createDirectRoom: (request: GetOrCreateDirectRoomRequest) => Promise<UUID | null>
   createGroupRoom: (request: CreateGroupRoomRequest) => Promise<UUID | null>
@@ -94,6 +95,10 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     } catch (error) {
       set({ error: toApiError(error) })
     }
+  },
+
+  resetRooms: () => {
+    set({ rooms: [], activeRoomId: null, hasLoadedRooms: false, error: null })
   },
 
   getActiveRoom: () => {

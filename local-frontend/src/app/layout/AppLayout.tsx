@@ -17,7 +17,7 @@ export function AppLayout() {
   const activeTab = deriveTab(location.pathname)
   const accessToken = useAuthStore((state) => state.accessToken)
   const rooms = useRoomStore((state) => state.rooms)
-  const selectRoom = useRoomStore((state) => state.selectRoom)
+  const resetRooms = useRoomStore((state) => state.resetRooms)
   const { goToRoom, goToTab } = useAppNavigation()
   const directRooms = useMemo(
     () => rooms.filter((room) => room.type === 'DIRECT' || room.type === 'GROUP'),
@@ -26,10 +26,8 @@ export function AppLayout() {
   const unreadTotal = rooms.reduce((total, room) => total + room.unreadCount, 0)
 
   useEffect(() => {
-    if (!accessToken) {
-      void selectRoom(null)
-    }
-  }, [accessToken, selectRoom])
+    resetRooms()
+  }, [accessToken, resetRooms])
 
   const renderSidebar = () => {
     if (activeTab === 'messages') {
