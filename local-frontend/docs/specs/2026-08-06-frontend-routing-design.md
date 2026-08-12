@@ -5,7 +5,7 @@
 - 선행: [2026-08-06-frontend-architecture-design.md](2026-08-06-frontend-architecture-design.md) §6 로드맵의 PR2
 - 범위: URL 스킴, 라우터 셋업, tab/activeRoom 상태의 URL 승격, 가드/히스토리 의미론, 검증 시나리오
 - 범위 외: 라우트 코드 스플리팅, 스크롤 복원, 딥링크 공유 UI("링크 복사" — §10), 다중 워크스페이스 URL(§2.1)
-- 배포 시 선택: SPA fallback 또는 HashRouter (§9) — 배포 경로가 생기는 시점의 결정이며 지금 할 일은 없다
+- 배포 산출물에 포함할 것: SPA rewrite (§9) — 배포 경로가 생기는 시점의 작업이며 지금 할 일은 없다
 
 ## 1. 배경
 
@@ -27,7 +27,7 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
 | R2 | 동기화 모델 = **URL master + store mirror** | `applyRoomEvent`(unread 카운팅)가 store 내부에서 `activeRoomId`를 읽으므로 store에서 값 제거는 주입 통로만 늘림. mirror가 변경 면적 최소 |
 | R3 | react-router v7 **declarative(library) 모드** | 데이터 소유권이 zustand에 있어 data router(loader/action)는 이중 데이터 레이어. 신규 의존성은 `react-router` 1개 |
 | R4 | 히스토리 = 사용자 이동 push / 정리·가드 replace | 아래 §6 표 참조. 뒤로가기 = 방 이력 탐색 |
-| R5 | 라우터 모드 = **history**(`BrowserRouter`), hash 아님 | hash로 바꿔서 얻는 기능이 0이고 되돌리는 비용은 import 1줄이라, 지금 history 외의 선택을 할 이유가 없다. 대가는 배포 시 SPA fallback 의무 (§2.2, §9) |
+| R5 | 라우터 모드 = **history**(`BrowserRouter`), hash 아님 | 기능은 hash와 동일하다(둘 다 `pushState`/`popstate` 기반). 갈리는 것은 제품 방향이다 — `#`을 메시지 permalink 자리로 남겨야 하고, 같은 오리진에 색인 대상 공개 페이지가 붙을 수 있으며, `BrowserRouter`가 기여자에게 표준이다. 대가인 SPA rewrite는 배포 산출물에 포함해 self-host 사용자에게 전가하지 않는다 (§2.2, §9) |
 
 ### 2.1 R1 개정 기록 — 왜 테넌트 세그먼트를 쓰지 않는가
 
@@ -50,17 +50,35 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
 
 ### 2.2 R5 — 왜 hash가 아닌가
 
-`BrowserRouter`(history) 대신 `HashRouter`를 쓰면 URL이 `/#/rooms/:roomId`가 된다.
+`BrowserRouter`(history) 대신 `HashRouter`를 쓰면 URL이 `/#/rooms/:roomId`가 되고 배포 시
+SPA fallback 설정이 아예 필요 없어진다. 그 이점을 알면서도 history를 택했다.
 
-- **기능 차이가 없다.** 이 PR의 목표(새로고침 복원, 뒤로/앞으로, 딥링크, 멀티탭, 북마크,
-  알림 클릭→방)는 hash에서도 전부 동일하게 동작한다. 갈리는 것은 URL 외관, 배포 시 SPA fallback
-  필요 여부, SEO(인증 뒤 앱이라 무관)뿐이다.
-- **Tauri 로드맵은 이 결정의 근거가 아니다.** Tauri v2의 딥링크는 웹뷰가 해당 URL로 이동하는 방식이
-  아니라 `onOpenUrl` 이벤트(앱 시작 시 `getCurrent()`)로 문자열이 전달되고, 그것을 파싱해
-  `navigate()`를 호출하는 구조다. 라우터 모드와 무관하다.
-- **되돌리는 비용이 사실상 0이다.** `App.tsx`의 `BrowserRouter` → `HashRouter` import 한 줄이 전부고
-  `paths.ts`의 경로 빌더는 `#` 뒤 문자열을 만들므로 무변경이다. 따라서 배포 시 SPA fallback을
-  넣지 않기로 하면 그 시점에 전환하면 된다 (§9).
+**먼저 기능은 둘이 같다.** react-router의 `createHashHistory`는 `createBrowserHistory`와 동일한
+엔진(`getUrlBasedHistory`)에 위임하며 `pushState`/`replaceState` + `popstate`를 그대로 쓴다
+(`hashchange`를 쓰지 않는다). 따라서 새로고침 복원, 뒤로/앞으로, 딥링크, 멀티탭, 북마크,
+그리고 이 스펙이 정의한 push/replace 의미론(R4)이 hash에서도 동일하게 성립한다. 차이는
+URL 모양과 `#` 뒤가 서버로 전송되지 않는다는 점뿐이다. 판단 근거는 기능 차이가 아니라
+제품이 갈 방향이다.
+
+- **`#`은 메시지 permalink가 쓸 자리다.** 특정 메시지로 가는 링크는 `/rooms/:roomId#message-<id>`가
+  자연스러운 형태이고 §10에 후속 과제로 잡혀 있다. hash 라우팅은 그 자리를 라우트가 차지한다.
+  react-router는 `#/rooms/abc#message-1`을 파싱할 수 있지만(두 번째 `#`부터 fragment로 읽음)
+  브라우저가 보는 fragment는 `/rooms/abc#message-1` 전체라 네이티브 앵커 동작이 사라지고,
+  링크를 받는 쪽 파서가 두 번째 `#`에서 절단할 위험도 생긴다.
+- **공개 페이지가 같은 오리진에 붙을 가능성이 있다.** 오픈소스 업무용 메신저는 소개·가입·문서
+  페이지가 함께 서빙되는 경우가 흔하다. 그 페이지들은 색인되어야 하는데 hash 뒤 경로는 색인되지
+  않는다. 나중에 붙이려면 라우팅 구조를 갈라야 한다.
+- **`BrowserRouter`가 생태계 기본값이다.** 오픈소스라 새 기여자의 진입 비용이 실제 비용이며,
+  표준 형태면 별도 설명이 필요 없다.
+- **서버 설정이 self-host 사용자에게 전가되지 않는다.** 배포를 Docker 이미지로 제공하면 SPA rewrite를
+  이미지 안에 넣어두면 되고 설치하는 쪽은 아무것도 하지 않는다 (§9).
+
+**Tauri 로드맵은 이 결정의 근거가 아니다.** Tauri v2의 딥링크는 웹뷰가 해당 URL로 이동하는 방식이
+아니라 `onOpenUrl` 이벤트(앱 시작 시 `getCurrent()`)로 문자열이 전달되고, 그것을 파싱해
+`navigate()`를 호출하는 구조다. 라우터 모드와 무관하다.
+
+전환이 필요해지면 `App.tsx` import 한 줄이고 `paths.ts`는 무변경이다. 다만 위 근거들 때문에
+**전환할 이유가 생기려면 제품 방향이 바뀌어야 한다.**
 
 ## 3. 라우트 트리
 
@@ -145,15 +163,17 @@ UI를 추가할 때는 반드시 위 표대로 성공 콜백에서 navigate로 �
   `18a663b`) 위에 스택. PR1이 front에 머지된 뒤 rebase 또는 base 변경으로 PR 생성.
 - 신규 의존성: `react-router` v7 1개.
 
-## 9. 배포 시 선택 — SPA fallback 또는 HashRouter
+## 9. 배포 산출물에 포함할 것 — SPA rewrite
 
 **현재 저장소에는 프론트 배포 경로가 없다** (CI/CD·호스팅 설정 없음. `origin/dev` 기준으로도 동일).
-아래는 배포 트랙 착수 시점의 선택지이며 지금 수행할 항목이 아니다.
+아래는 배포 트랙 착수 시점에 챙길 항목이며 지금 수행할 것이 아니다.
 
 history 라우팅(R5)이라 `/rooms/<id>`로 직접 들어오는 요청은 호스팅이 `index.html`을 돌려줘야 한다.
-dev에서는 Vite dev server가 자동 처리하므로 드러나지 않는다. 아래 둘 중 하나를 고른다.
+dev에서는 Vite dev server가 자동 처리하므로 드러나지 않는다.
 
-**선택 1 — 호스팅에서 SPA rewrite**
+**SPA rewrite를 배포 산출물에 포함한다.** 오픈소스 self-host 사용자가 별도 설정을 하지 않아도
+되도록, 빌드된 앱과 rewrite 규칙을 함께 패키징하는 것을 기본으로 한다(예: nginx를 포함한
+Docker 이미지). 호스팅 유형별 조치는 아래와 같다.
 
 | 호스팅 | 조치 |
 |---|---|
@@ -161,10 +181,9 @@ dev에서는 Vite dev server가 자동 처리하므로 드러나지 않는다. �
 | Vercel/Netlify류 | SPA rewrite 규칙 1줄 |
 | 리버스 프록시 | 미매칭 경로를 `index.html`로 (예: nginx `try_files $uri $uri/ /index.html`) |
 
-**선택 2 — `HashRouter`로 교체**: `App.tsx` import 1줄, `paths.ts` 무변경(§2.2). 서버 설정이 아예
-필요 없고 URL만 `/#/rooms/:roomId`가 된다.
+`HashRouter`로 교체하면 이 설정 자체가 필요 없어지지만, §2.2의 이유로 채택하지 않는다.
 
-**어느 쪽이든 백엔드 코드·설정은 무변경이다.** 프론트는 별도 Vite 앱이고 백엔드는 API만 담당한다
+**백엔드 코드·설정은 어느 경우에도 무변경이다.** 프론트는 별도 Vite 앱이고 백엔드는 API만 담당한다
 (`origin/dev` 확인: `resources/static`·`WebMvcConfigurer`·`ErrorController` 모두 없고 Gradle에
 프론트 빌드 통합도 없다).
 
