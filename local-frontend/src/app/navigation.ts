@@ -4,19 +4,19 @@ import { useAuthStore } from '../features/auth/authStore'
 import { useNotificationStore } from '../features/notifications/notificationStore'
 import { useRoomStore } from '../features/rooms/roomStore'
 import type { UUID } from '../shared/types/api'
-import { clientPath, contactsPath, roomPath, settingsPath } from './paths'
+import { contactsPath, roomPath, roomsPath, settingsPath } from './paths'
 import type { AppTab } from './tabs'
 
 export function useAppNavigation() {
   const navigate = useNavigate()
   const location = useLocation()
-  const tenantId = useAuthStore((state) => state.tenantId)
+  const accessToken = useAuthStore((state) => state.accessToken)
   const activeRoomId = useRoomStore((state) => state.activeRoomId)
   const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
 
   const goToTab = useCallback(
     (tab: AppTab) => {
-      if (!tenantId) {
+      if (!accessToken) {
         navigate(settingsPath(), { replace: true })
         return
       }
@@ -28,28 +28,28 @@ export function useAppNavigation() {
       }
 
       if (tab === 'contacts') {
-        const destination = contactsPath(tenantId)
+        const destination = contactsPath()
         navigate(destination, { replace: destination === location.pathname })
         return
       }
 
-      const destination = activeRoomId ? roomPath(tenantId, activeRoomId) : clientPath(tenantId)
+      const destination = activeRoomId ? roomPath(activeRoomId) : roomsPath()
       navigate(destination, { replace: destination === location.pathname })
     },
-    [activeRoomId, location.pathname, navigate, tenantId],
+    [accessToken, activeRoomId, location.pathname, navigate],
   )
 
   const goToRoom = useCallback(
     (roomId: UUID) => {
-      if (!tenantId) {
+      if (!accessToken) {
         return
       }
 
       clearNotificationsForRoom(roomId)
-      const destination = roomPath(tenantId, roomId)
+      const destination = roomPath(roomId)
       navigate(destination, { replace: destination === location.pathname })
     },
-    [clearNotificationsForRoom, location.pathname, navigate, tenantId],
+    [accessToken, clearNotificationsForRoom, location.pathname, navigate],
   )
 
   return { goToTab, goToRoom }

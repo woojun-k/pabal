@@ -3,18 +3,18 @@ import type { AppTab } from './tabs'
 
 export const settingsPath = () => '/settings'
 
-export const clientPath = (tenantId: UUID) => `/client/${tenantId}`
+export const roomsPath = () => '/rooms'
 
-export const contactsPath = (tenantId: UUID) => `/client/${tenantId}/contacts`
+export const contactsPath = () => '/contacts'
 
-export const roomPath = (tenantId: UUID, roomId: UUID) => `/client/${tenantId}/${roomId}`
+export const roomPath = (roomId: UUID) => `/rooms/${roomId}`
 
 export const deriveTab = (pathname: string): AppTab => {
   if (pathname.startsWith('/settings')) {
     return 'etc'
   }
 
-  if (pathname.endsWith('/contacts')) {
+  if (pathname.startsWith('/contacts')) {
     return 'contacts'
   }
 

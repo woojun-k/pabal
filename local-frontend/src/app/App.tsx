@@ -1,9 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AppLayout } from './layout/AppLayout'
-import { ClientGuard } from './routes/ClientGuard'
 import { ContactsRoute } from './routes/ContactsRoute'
 import { MessagesRoute } from './routes/MessagesRoute'
 import { RootRedirect } from './routes/RootRedirect'
+import { SessionGuard } from './routes/SessionGuard'
 import { SettingsRoute } from './routes/SettingsRoute'
 
 function App() {
@@ -13,10 +13,10 @@ function App() {
         <Route path="/" element={<RootRedirect />} />
         <Route element={<AppLayout />}>
           <Route path="/settings" element={<SettingsRoute />} />
-          <Route path="/client/:tenantId" element={<ClientGuard />}>
-            <Route index element={<MessagesRoute />} />
-            <Route path="contacts" element={<ContactsRoute />} />
-            <Route path=":roomId" element={<MessagesRoute />} />
+          <Route element={<SessionGuard />}>
+            <Route path="/rooms" element={<MessagesRoute />} />
+            <Route path="/rooms/:roomId" element={<MessagesRoute />} />
+            <Route path="/contacts" element={<ContactsRoute />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
