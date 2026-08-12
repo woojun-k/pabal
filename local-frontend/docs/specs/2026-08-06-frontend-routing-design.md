@@ -1,10 +1,11 @@
 # Frontend Routing Design — react-router 도입과 URL 승격 (PR2)
 
-- 날짜: 2026-08-06
-- 상태: Approved (구현 전 설계)
+- 날짜: 2026-08-06 (2026-08-12 개정 — R1 재평가, R5 추가)
+- 상태: Approved
 - 선행: [2026-08-06-frontend-architecture-design.md](2026-08-06-frontend-architecture-design.md) §6 로드맵의 PR2
 - 범위: URL 스킴, 라우터 셋업, tab/activeRoom 상태의 URL 승격, 가드/히스토리 의미론, 검증 시나리오
-- 범위 외: workspace 실계층 URL(하위 경로로 추후 확장), 라우트 코드 스플리팅, 스크롤 복원, 배포용 SPA fallback 설정(배포 인프라 트랙)
+- 범위 외: 라우트 코드 스플리팅, 스크롤 복원, 딥링크 공유 UI("링크 복사" — §10), 다중 워크스페이스 URL(§2.1)
+- 배포 전 필수 조건: SPA fallback (§9) — 이 PR 범위 밖이지만 **미이행 시 배포가 깨진다**
 
 ## 1. 배경
 
@@ -22,25 +23,65 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
 
 | # | 결정 | 근거 |
 |---|---|---|
-| R1 | URL 스킴 = Slack형 `/client/:tenantId/...`, `:ws` 자리에 **tenantId** | Pabal 도메인에서 Slack의 workspace에 해당하는 실체는 tenant이고, tenantId는 authStore에 실존하는 데이터 — 가짜 세그먼트 없이 Slack형 구조 구현 가능. 미래 workspace 계층은 하위 경로로 확장 |
+| R1 | URL 스킴 = 평탄한 리소스 경로 `/rooms/:roomId` · `/contacts` · `/settings`. **테넌트 세그먼트 없음** | URL에는 사용자가 실제로 선택하는 것만 담는다. tenantId는 토큰이 정하는 상수라 URL에 넣으면 선택자가 아니라 **검증 대상**이 되고, 그 검증만을 위한 가드가 새로 필요해진다 (§2.1) |
 | R2 | 동기화 모델 = **URL master + store mirror** | `applyRoomEvent`(unread 카운팅)가 store 내부에서 `activeRoomId`를 읽으므로 store에서 값 제거는 주입 통로만 늘림. mirror가 변경 면적 최소 |
-| R3 | react-router v7 **declarative(library) 모드** (`BrowserRouter`) | 데이터 소유권이 zustand에 있어 data router(loader/action)는 이중 데이터 레이어. 신규 의존성은 `react-router` 1개 |
-| R4 | 히스토리 = 사용자 이동 push / 정리·가드 replace | 아래 §6 표 참조. 뒤로가기 = 방 이력 탐색 (Slack 동일) |
+| R3 | react-router v7 **declarative(library) 모드** | 데이터 소유권이 zustand에 있어 data router(loader/action)는 이중 데이터 레이어. 신규 의존성은 `react-router` 1개 |
+| R4 | 히스토리 = 사용자 이동 push / 정리·가드 replace | 아래 §6 표 참조. 뒤로가기 = 방 이력 탐색 |
+| R5 | 라우터 모드 = **history**(`BrowserRouter`), hash 아님 | hash로 바꿔서 얻는 기능이 0이고 되돌리는 비용은 import 1줄이라, 지금 history 외의 선택을 할 이유가 없다. 대가는 배포 시 SPA fallback 의무 (§2.2, §9) |
+
+### 2.1 R1 개정 기록 — 왜 Slack형 계층을 쓰지 않는가
+
+초판 R1은 `/client/:tenantId/:roomId`(Slack형)였다. 2026-08-12 재평가에서 근거가 성립하지 않아 뒤집었다.
+
+- **Slack의 `T…`는 선택자지만 Pabal의 tenantId는 상수다.** Slack이 첫 세그먼트에 workspace ID를
+  두는 이유는 한 브라우저에 여러 워크스페이스 세션이 공존해서 링크가 어느 세션 것인지 가려야 하기
+  때문이다(Discord의 `:guildId`도 동일). Pabal은 `tokenStorage` 기반 단일 세션이고 토큰당 tenant가
+  1개다. 모양은 빌려왔지만 그 모양이 필요했던 조건은 따라오지 않았다.
+- **세그먼트가 자기 자신을 지키는 가드를 낳았다.** 초판 구현에서 `params.tenantId`의 유일한 독자는
+  `ClientGuard`의 "URL tenantId ≠ 토큰 tenantId → redirect" 분기 하나였다. 실제 동작(STOMP
+  destination, REST 호출, 인가)은 전부 `authStore.tenantId`를 직접 읽는다. 즉 세그먼트는 라우팅
+  결정에 참여하지 않으면서, 자신이 만든 불변식을 지킬 가드만 추가했다. 세그먼트를 빼면 불변식도
+  가드 분기도 함께 사라진다.
+- **미래 대비도 되지 못한다.** 다중 워크스페이스가 도입되면 선택자는 `workspaceId`이고 tenantId는
+  그때도 토큰이 정하는 상수다. 그 시점에 `/w/:workspaceId/...`를 새로 얹는 것이 맞고, 지금의
+  tenantId 세그먼트는 그 설계에 재사용되지 않는다.
+- **UUID 노출은 판단 근거가 아니다.** 인가는 JWT가 결정하고 백엔드가 tenant 스코프를 강제하므로
+  URL의 UUID는 권한 없는 식별자다(Slack·Discord도 노출한다). 제거 근거는 보안이 아니라
+  "라우팅에 기여하지 않는다"는 것이다.
+
+### 2.2 R5 — 왜 hash가 아닌가
+
+`BrowserRouter`(history) 대신 `HashRouter`를 쓰면 URL이 `/#/rooms/:roomId`가 된다.
+
+- **기능 차이가 없다.** 이 PR의 목표(새로고침 복원, 뒤로/앞으로, 딥링크, 멀티탭, 북마크,
+  알림 클릭→방)는 hash에서도 전부 동일하게 동작한다. 갈리는 것은 URL 외관, 배포 시 SPA fallback
+  필요 여부, SEO(인증 뒤 앱이라 무관)뿐이다.
+- **Tauri 로드맵은 이 결정의 근거가 아니다.** Tauri v2의 딥링크는 웹뷰가 해당 URL로 이동하는 방식이
+  아니라 `onOpenUrl` 이벤트(앱 시작 시 `getCurrent()`)로 문자열이 전달되고, 그것을 파싱해
+  `navigate()`를 호출하는 구조다. 라우터 모드와 무관하다.
+- **되돌리는 비용이 사실상 0이다.** `App.tsx`의 `BrowserRouter` → `HashRouter` import 한 줄이 전부고
+  `paths.ts`의 경로 빌더는 `#` 뒤 문자열을 만들므로 무변경이다. 따라서 배포 시 SPA fallback을
+  넣지 않기로 하면 그 시점에 전환하면 된다 (§9).
 
 ## 3. 라우트 트리
 
 ```
-/                           RootRedirect — 토큰 있으면 /client/:tenantId, 없으면 /settings (replace)
-/settings                   설정 화면 (DevAuthPanel + RealtimeStatusPanel). 무토큰 접근 가능 —
-                            토큰 발급 수단이 이 화면에 있으므로 가드 대상이 아니다
-/client/:tenantId           ClientGuard 하위. messages 탭, 방 미선택
-/client/:tenantId/contacts  연락처 탭 (정적 세그먼트가 :roomId 동적 매칭보다 우선)
-/client/:tenantId/:roomId   방 선택됨 (roomId는 UUID — 'contacts'와 충돌 없음)
-*                           → / redirect
+/                  RootRedirect — 세션 있으면 /rooms, 없으면 /settings (replace)
+/settings          설정 화면 (DevAuthPanel + RealtimeStatusPanel). 무세션 접근 가능 —
+                   토큰 발급 수단이 이 화면에 있으므로 가드 대상이 아니다
+                   ─── 아래 세 경로는 SessionGuard 하위 ───
+/rooms             messages 탭, 방 미선택
+/rooms/:roomId     방 선택됨
+/contacts          연락처 탭
+*                  → / redirect
 ```
 
+`/contacts`와 `/rooms/:roomId`는 서로 다른 최상위 경로이므로, 초판에 있던 "정적 세그먼트가
+동적 `:roomId`보다 먼저 매칭돼야 한다"는 암묵적 제약이 없다.
+
 라우트 정의는 `src/app/`에 위치한다 (선행 스펙 §3). `AppLayout`(layout route)이
-`WorkspaceRail` + `SidebarFrame` + `<Outlet/>`(main)을 렌더한다.
+`WorkspaceRail` + `SidebarFrame` + `<Outlet/>`(main)을 렌더한다. `SessionGuard`는 경로 없는
+layout route로 세 경로를 감싼다.
 
 ## 4. 상태 승격
 
@@ -52,29 +93,32 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
   (→`resetRooms`, `accessToken` 변경 시 `rooms`/`activeRoomId`/`hasLoadedRooms`를 초기화).
   **규칙: store의 `activeRoomId`를 직접 set하는 코드 금지, 이동은 navigate로만.** (리뷰 기준)
 
-## 5. ClientGuard / RouteSync 시퀀스
+## 5. SessionGuard / RouteSync 시퀀스
 
-`/client/*` 진입·URL 변경 시 순서대로:
-1. 무토큰 → `/settings` replace
-2. URL tenantId ≠ 토큰 tenantId → 토큰 tenant 경로로 replace
-3. roomId 있으면: rooms 로딩 완료 대기(로딩 중엔 기존 로딩 UI) → 목록에 있으면
-   `selectRoom(roomId)`(mirror 갱신 + 읽음처리), 없으면 `/client/:tenantId` replace
-4. URL 변경마다 3 재실행. 방 상태 리셋은 RouteSync가 아니라 `AppLayout`의 세션 변경
+`/rooms`·`/contacts` 진입·URL 변경 시 순서대로:
+1. 무세션(`accessToken` 없음) → `/settings` replace
+2. roomId 있으면: rooms 로딩 완료 대기(로딩 중엔 기존 로딩 UI) → 목록에 있으면
+   `selectRoom(roomId)`(mirror 갱신 + 읽음처리), 없으면 `/rooms` replace
+3. URL 변경마다 2 재실행. 방 상태 리셋은 RouteSync가 아니라 `AppLayout`의 세션 변경
    effect가 담당한다 — `accessToken`이 바뀔 때마다(로그인/로그아웃/테넌트 재발급 포함)
    `resetRooms()`를 호출해 `rooms`/`activeRoomId`/`hasLoadedRooms`를 전부 초기화한다.
    `RealtimeBridge`(자식 컴포넌트)의 `loadRooms()`보다 이 리셋이 먼저 반영되어야 하므로
    컴포넌트 트리 순서(자식 effect 우선 실행)에 의존한다 — 그렇지 않으면 세션 전환 직후
    낡은 tenant의 `rooms`로 새 URL의 `roomId`를 오인해 잘못된 요청이 나갈 수 있다
 
+**테넌트 전환은 전용 가드 없이 2단계가 흡수한다.** 다른 tenant로 재발급하면 위 리셋으로 `rooms`가
+비고, 새 목록을 받은 뒤 옛 `roomId`가 목록에 없으므로 `/rooms`로 정리된다. 초판의 "URL tenantId ≠
+토큰 tenantId → redirect" 분기와 결과가 같고 메커니즘은 하나 줄어든다 (§2.1).
+
 ## 6. Selection 변경 지점 전환 매핑
 
 | 동작 | 현재 (store 직접 set) | 전환 후 | 히스토리 |
 |---|---|---|---|
-| 방 클릭 (RoomSidebar/Contacts) | `selectRoom(id)` | `navigate(/client/:tid/:roomId)` | push |
+| 방 클릭 (RoomSidebar/Contacts) | `selectRoom(id)` | `navigate(/rooms/:roomId)` | push |
 | 탭 전환 (rail, me-bar ⚙) | `setActiveTab` | navigate | push |
 | 방 생성 3종 성공 | `activeRoomId` set | 새 방으로 navigate | push |
-| leave / delete | `activeRoomId: null` | `/client/:tid`로 navigate | replace |
-| 가드 redirect (무토큰/tenant 불일치/404 방) | — | replace | replace |
+| leave / delete | `activeRoomId: null` | `/rooms`로 navigate | replace |
+| 가드 redirect (무세션/목록에 없는 방) | — | replace | replace |
 
 store 함수들은 생성된 roomId를 반환만 하고(이미 반환함) 호출자가 navigate한다.
 
@@ -86,16 +130,45 @@ UI를 추가할 때는 반드시 위 표대로 성공 콜백에서 navigate로 �
 
 ## 7. 검증 시나리오 (Playwright 수동 시나리오)
 
-1. 방 선택 → 새로고침 → 같은 방 복원 (URL 유지)
-2. 방 A → 방 B → 뒤로가기 → 방 A 복원
-3. 무토큰 상태 `/client/<tid>/<roomId>` 딥링크 → `/settings` 착지
-4. 토큰 발급 후 `/` 진입 → `/client/:tenantId` 착지
-5. 존재하지 않는 roomId 딥링크 → `/client/:tenantId`로 정리 (replace)
-6. leave 후 URL이 방 미선택 상태로 정리
+1. 무세션 상태 `/rooms/<roomId>` 딥링크 → `/settings` 착지
+2. 토큰 발급 후 `/` 진입 → `/rooms` 착지
+3. 방 선택 → 새로고침 → 같은 방 복원 (URL 유지)
+4. 방 A → 방 B → 뒤로가기 → 방 A 복원
+5. 존재하지 않는 roomId 딥링크 → `/rooms`로 정리 (replace — 뒤로가기가 그 URL로 돌아가지 않음)
+6. 다른 tenant로 재발급 → 옛 방 URL이 `/rooms`로 정리 (§5 전용 가드 없이 흡수되는지 확인)
 7. 각 탭 화면은 PR1 baseline 스크린샷과 비주얼 동일 (라우팅은 외관 무변경)
+
+`leaveActiveRoom`/`deleteActiveRoom`은 호출 UI가 아직 없어 시나리오에서 제외한다 (§6 참조).
 
 ## 8. 브랜치 / 의존
 
 - 브랜치: `feature/frontend-routing` — PR1 브랜치(`refactor/frontend-componentization`,
   `18a663b`) 위에 스택. PR1이 front에 머지된 뒤 rebase 또는 base 변경으로 PR 생성.
 - 신규 의존성: `react-router` v7 1개.
+
+## 9. 배포 전 필수 조건 — SPA fallback
+
+history 라우팅(R5)의 대가다. **이 항목 미이행 시 배포된 앱에서 `/rooms/<id>` 직접 진입·새로고침이
+404가 된다.** dev에서는 Vite dev server가 자동 처리하므로 드러나지 않는다 — 배포 트랙 착수 시
+아래 중 하나를 반드시 수행한다.
+
+| 호스팅 | 조치 |
+|---|---|
+| nginx | `location / { try_files $uri $uri/ /index.html; }` |
+| 정적 호스팅 (S3/CDN 등) | 404 응답을 `/index.html`(200)로 rewrite |
+| Vercel/Netlify류 | SPA rewrite 규칙 1줄 |
+| 백엔드가 프론트를 서빙 | `/api`·`/websocket`·`/actuator`·`/dev` 외 경로를 `index.html`로 forward |
+
+**이 조치를 하지 않기로 결정한 경우의 대안**: `App.tsx`의 `BrowserRouter`를 `HashRouter`로 교체한다
+(import 1줄, `paths.ts` 무변경 — §2.2). 서버 설정 없이 동작하며 URL만 `/#/rooms/:roomId`가 된다.
+
+## 10. 후속 — 딥링크 공유("링크 복사") 미제공
+
+Slack·Teams·Discord는 모두 주소창 URL과 별개로 **공유 전용 링크 표면**을 갖는다
+(Slack `/archives/C…/p<ts>`, Teams `/l/channel/…`). Pabal에는 아직 없다 — 사용자가 링크를 공유하려면
+주소창을 직접 복사해야 한다.
+
+이 PR 범위 밖이며, 다음 조건이 갖춰질 때 별도로 다룬다:
+- 메시지 단위 permalink가 필요해지는 시점 (`/rooms/:roomId/:messageId` 확장)
+- Tauri 패키징 시점 — 데스크톱에는 주소창이 없으므로 "링크 복사" 액션이 **필수**가 된다
+  (딥링크 수신은 `onOpenUrl` 이벤트로 처리하므로 라우터 모드와 무관, §2.2)
