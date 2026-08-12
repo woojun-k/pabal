@@ -5,7 +5,7 @@
 - 선행: [2026-08-06-frontend-architecture-design.md](2026-08-06-frontend-architecture-design.md) §6 로드맵의 PR2
 - 범위: URL 스킴, 라우터 셋업, tab/activeRoom 상태의 URL 승격, 가드/히스토리 의미론, 검증 시나리오
 - 범위 외: 라우트 코드 스플리팅, 스크롤 복원, 딥링크 공유 UI("링크 복사" — §10), 다중 워크스페이스 URL(§2.1)
-- 배포 전 필수 조건: SPA fallback (§9) — 이 PR 범위 밖이지만 **미이행 시 배포가 깨진다**
+- 배포 시 선택: SPA fallback 또는 HashRouter (§9) — 배포 경로가 생기는 시점의 결정이며 지금 할 일은 없다
 
 ## 1. 배경
 
@@ -29,14 +29,14 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
 | R4 | 히스토리 = 사용자 이동 push / 정리·가드 replace | 아래 §6 표 참조. 뒤로가기 = 방 이력 탐색 |
 | R5 | 라우터 모드 = **history**(`BrowserRouter`), hash 아님 | hash로 바꿔서 얻는 기능이 0이고 되돌리는 비용은 import 1줄이라, 지금 history 외의 선택을 할 이유가 없다. 대가는 배포 시 SPA fallback 의무 (§2.2, §9) |
 
-### 2.1 R1 개정 기록 — 왜 Slack형 계층을 쓰지 않는가
+### 2.1 R1 개정 기록 — 왜 테넌트 세그먼트를 쓰지 않는가
 
-초판 R1은 `/client/:tenantId/:roomId`(Slack형)였다. 2026-08-12 재평가에서 근거가 성립하지 않아 뒤집었다.
+초판 R1은 `/client/:tenantId/:roomId`였다. 2026-08-12 재평가에서 근거가 성립하지 않아 뒤집었다.
 
-- **Slack의 `T…`는 선택자지만 Pabal의 tenantId는 상수다.** Slack이 첫 세그먼트에 workspace ID를
-  두는 이유는 한 브라우저에 여러 워크스페이스 세션이 공존해서 링크가 어느 세션 것인지 가려야 하기
-  때문이다(Discord의 `:guildId`도 동일). Pabal은 `tokenStorage` 기반 단일 세션이고 토큰당 tenant가
-  1개다. 모양은 빌려왔지만 그 모양이 필요했던 조건은 따라오지 않았다.
+- **URL로 테넌트를 고를 수가 없다.** 세션은 `tokenStorage` 하나이고 토큰당 tenant가 1개다. 다른
+  tenant의 URL을 열어도 그 tenant로 갈 방법이 없어 리다이렉트될 뿐이다. 즉 이 세그먼트는 선택자가
+  아니라 **선택지가 하나뿐인 값의 표시**였다. 계층형 URL은 그 자리에 실제 선택지가 여럿일 때 값을
+  하는 구조이고, Pabal에는 그 조건이 없다.
 - **세그먼트가 자기 자신을 지키는 가드를 낳았다.** 초판 구현에서 `params.tenantId`의 유일한 독자는
   `ClientGuard`의 "URL tenantId ≠ 토큰 tenantId → redirect" 분기 하나였다. 실제 동작(STOMP
   destination, REST 호출, 인가)은 전부 `authStore.tenantId`를 직접 읽는다. 즉 세그먼트는 라우팅
@@ -46,8 +46,7 @@ URL 공유가 불가능하다. 이 PR은 URL을 tab/activeRoom의 source of trut
   그때도 토큰이 정하는 상수다. 그 시점에 `/w/:workspaceId/...`를 새로 얹는 것이 맞고, 지금의
   tenantId 세그먼트는 그 설계에 재사용되지 않는다.
 - **UUID 노출은 판단 근거가 아니다.** 인가는 JWT가 결정하고 백엔드가 tenant 스코프를 강제하므로
-  URL의 UUID는 권한 없는 식별자다(Slack·Discord도 노출한다). 제거 근거는 보안이 아니라
-  "라우팅에 기여하지 않는다"는 것이다.
+  URL의 UUID는 권한 없는 식별자다. 제거 근거는 보안이 아니라 "라우팅에 기여하지 않는다"는 것이다.
 
 ### 2.2 R5 — 왜 hash가 아닌가
 
@@ -146,27 +145,39 @@ UI를 추가할 때는 반드시 위 표대로 성공 콜백에서 navigate로 �
   `18a663b`) 위에 스택. PR1이 front에 머지된 뒤 rebase 또는 base 변경으로 PR 생성.
 - 신규 의존성: `react-router` v7 1개.
 
-## 9. 배포 전 필수 조건 — SPA fallback
+## 9. 배포 시 선택 — SPA fallback 또는 HashRouter
 
-history 라우팅(R5)의 대가다. **이 항목 미이행 시 배포된 앱에서 `/rooms/<id>` 직접 진입·새로고침이
-404가 된다.** dev에서는 Vite dev server가 자동 처리하므로 드러나지 않는다 — 배포 트랙 착수 시
-아래 중 하나를 반드시 수행한다.
+**현재 저장소에는 프론트 배포 경로가 없다** (CI/CD·호스팅 설정 없음. `origin/dev` 기준으로도 동일).
+아래는 배포 트랙 착수 시점의 선택지이며 지금 수행할 항목이 아니다.
+
+history 라우팅(R5)이라 `/rooms/<id>`로 직접 들어오는 요청은 호스팅이 `index.html`을 돌려줘야 한다.
+dev에서는 Vite dev server가 자동 처리하므로 드러나지 않는다. 아래 둘 중 하나를 고른다.
+
+**선택 1 — 호스팅에서 SPA rewrite**
 
 | 호스팅 | 조치 |
 |---|---|
-| nginx | `location / { try_files $uri $uri/ /index.html; }` |
 | 정적 호스팅 (S3/CDN 등) | 404 응답을 `/index.html`(200)로 rewrite |
 | Vercel/Netlify류 | SPA rewrite 규칙 1줄 |
-| 백엔드가 프론트를 서빙 | `/api`·`/websocket`·`/actuator`·`/dev` 외 경로를 `index.html`로 forward |
+| 리버스 프록시 | 미매칭 경로를 `index.html`로 (예: nginx `try_files $uri $uri/ /index.html`) |
 
-**이 조치를 하지 않기로 결정한 경우의 대안**: `App.tsx`의 `BrowserRouter`를 `HashRouter`로 교체한다
-(import 1줄, `paths.ts` 무변경 — §2.2). 서버 설정 없이 동작하며 URL만 `/#/rooms/:roomId`가 된다.
+**선택 2 — `HashRouter`로 교체**: `App.tsx` import 1줄, `paths.ts` 무변경(§2.2). 서버 설정이 아예
+필요 없고 URL만 `/#/rooms/:roomId`가 된다.
+
+**어느 쪽이든 백엔드 코드·설정은 무변경이다.** 프론트는 별도 Vite 앱이고 백엔드는 API만 담당한다
+(`origin/dev` 확인: `resources/static`·`WebMvcConfigurer`·`ErrorController` 모두 없고 Gradle에
+프론트 빌드 통합도 없다).
+
+> **"백엔드가 프론트를 함께 서빙" 토폴로지는 권장하지 않는다.** forward 설정만으로는 부족하다 —
+> `SecurityConfig`가 `anyRequest().authenticated()`(default deny)라 `/`·`/assets/*`·`/rooms/*`가
+> 전부 401이 된다. 정적 자산과 SPA 라우트를 `permitAll`에 추가해야 하는데 이는 보안 경계를 뒤집는
+> 변경이라 독립 리뷰 대상이다. 프론트 산출물을 jar에 넣는 Gradle 통합도 별도로 필요하다(현재 없음).
 
 ## 10. 후속 — 딥링크 공유("링크 복사") 미제공
 
-Slack·Teams·Discord는 모두 주소창 URL과 별개로 **공유 전용 링크 표면**을 갖는다
-(Slack `/archives/C…/p<ts>`, Teams `/l/channel/…`). Pabal에는 아직 없다 — 사용자가 링크를 공유하려면
-주소창을 직접 복사해야 한다.
+현재 Pabal에는 "링크 복사" 같은 **공유 전용 진입점이 없다** — 사용자가 대화 링크를 공유하려면
+주소창을 직접 복사해야 한다. 주소창 URL이 곧 공유 링크인 셈이라, 경로 구조를 바꾸면 이전에 공유된
+링크가 깨진다는 뜻이기도 하다(현재는 공유된 링크가 없어 문제가 되지 않는다).
 
 이 PR 범위 밖이며, 다음 조건이 갖춰질 때 별도로 다룬다:
 - 메시지 단위 permalink가 필요해지는 시점 (`/rooms/:roomId/:messageId` 확장)
