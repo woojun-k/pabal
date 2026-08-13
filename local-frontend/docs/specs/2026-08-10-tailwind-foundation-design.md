@@ -99,7 +99,9 @@ alias 블록은 App.css가 소멸할 때 함께 삭제한다.
 - **빌드 산출 CSS 확인** — Tailwind가 실제로 동작했는지: 산출 CSS에 `bg-accent-strong` 등
   전환된 클래스의 정의가 존재하고, 그 값이 토큰을 참조하는지
 - `npm run build`(tsc -b, strict) + `npm run lint`
-- baseline은 PR2 시점 화면을 새로 캡처한다 (PR1 baseline은 라우팅 이전 URL 구조라 재사용 불가)
+- baseline은 PR2 검증 세션이 캡처해 둔 `.claude/artifacts/pr2b-after/` 3장(1440×900, mock 모드)을
+  재사용한다 (PR1 baseline은 라우팅 이전 URL 구조라 재사용 불가). 방 선택 화면은 pr2b-after에
+  없으므로 before/after를 같은 세션에서 신규 캡처한다
 
 ## 7. 브랜치 / 의존
 
