@@ -4,6 +4,7 @@ import { BackendModeBadge } from '../../shared/config/BackendModeBadge'
 import { env } from '../../shared/config/env'
 import { displayRole, roleOptions } from '../../shared/security/roles'
 import { getJwtExpiration, isJwtExpired } from '../../shared/security/jwt'
+import { Button } from '../../shared/ui/Button'
 import { createUuid, isUuid } from '../../shared/utils/uuid'
 import { formatDateTime } from '../../shared/utils/dateTime'
 import { useAuthStore } from './authStore'
@@ -82,12 +83,12 @@ export function DevAuthPanel() {
         </label>
 
         <div className="button-row">
-          <button type="submit" disabled={!canSubmit}>
+          <Button type="submit" disabled={!canSubmit}>
             {isIssuingToken ? 'Issuing...' : 'Issue local token'}
-          </button>
-          <button type="button" className="secondary" onClick={clearSession}>
+          </Button>
+          <Button type="button" variant="ghost" onClick={clearSession}>
             Clear
-          </button>
+          </Button>
         </div>
       </form>
 

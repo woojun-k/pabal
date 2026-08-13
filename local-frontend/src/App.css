@@ -1108,7 +1108,6 @@ button {
   justify-content: flex-end;
 }
 
-.button-row button,
 .btn-primary {
   border: 0;
   border-radius: var(--r-sm);
@@ -1119,7 +1118,6 @@ button {
   font-weight: 700;
 }
 
-.button-row button.secondary,
 .btn-ghost,
 .ghost-button {
   border: 0;
@@ -1131,7 +1129,6 @@ button {
   font-weight: 700;
 }
 
-.button-row button.compact,
 button.compact {
   padding: 8px 10px;
   font-size: 13px;
@@ -1142,7 +1139,6 @@ button.compact {
   font-size: 13px;
 }
 
-.button-row button.secondary:hover,
 .btn-ghost:hover,
 .ghost-button:hover {
   color: var(--text);
