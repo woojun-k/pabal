@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { RoomResponse, UUID } from '../../shared/types/api'
-import { isUuid } from '../../shared/utils/uuid'
-import { useNotificationStore } from '../notifications/notificationStore'
-import { useRoomStore } from './roomStore'
+import type { RoomResponse, UUID } from '../../../shared/types/api'
+import { isUuid } from '../../../shared/utils/uuid'
+import { useNotificationStore } from '../../notifications/notificationStore'
+import { useRoomStore } from '../roomStore'
 
 type RoomGroupProps = {
   label: string
