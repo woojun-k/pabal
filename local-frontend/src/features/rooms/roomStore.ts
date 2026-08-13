@@ -22,11 +22,13 @@ import {
 type RoomState = {
   rooms: RoomResponse[]
   activeRoomId: UUID | null
+  hasLoadedRooms: boolean
   isLoading: boolean
   isMutating: boolean
   error: ApiError | null
   loadRooms: () => Promise<void>
   selectRoom: (roomId: UUID | null) => Promise<void>
+  resetRooms: () => void
   getActiveRoom: () => RoomResponse | null
   createDirectRoom: (request: GetOrCreateDirectRoomRequest) => Promise<UUID | null>
   createGroupRoom: (request: CreateGroupRoomRequest) => Promise<UUID | null>
@@ -46,6 +48,7 @@ const sortRooms = (rooms: RoomResponse[]) =>
 export const useRoomStore = create<RoomState>((set, get) => ({
   rooms: [],
   activeRoomId: null,
+  hasLoadedRooms: false,
   isLoading: false,
   isMutating: false,
   error: null,
@@ -55,14 +58,11 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
     try {
       const rooms = await listRooms()
-      set((state) => ({
+      set({
         rooms: sortRooms(rooms),
-        activeRoomId:
-          state.activeRoomId && rooms.some((room) => room.roomId === state.activeRoomId)
-            ? state.activeRoomId
-            : null,
+        hasLoadedRooms: true,
         isLoading: false,
-      }))
+      })
     } catch (error) {
       set({ isLoading: false, error: toApiError(error) })
     }
@@ -97,6 +97,10 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     }
   },
 
+  resetRooms: () => {
+    set({ rooms: [], activeRoomId: null, hasLoadedRooms: false, error: null })
+  },
+
   getActiveRoom: () => {
     const { rooms, activeRoomId } = get()
     return rooms.find((room) => room.roomId === activeRoomId) ?? null
@@ -108,7 +112,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     try {
       const response = await getOrCreateDirectRoom(request)
       await get().loadRooms()
-      set({ activeRoomId: response.chatRoomId, isMutating: false })
+      set({ isMutating: false })
       return response.chatRoomId
     } catch (error) {
       set({ isMutating: false, error: toApiError(error) })
@@ -122,7 +126,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     try {
       const response = await createGroupRoom(request)
       await get().loadRooms()
-      set({ activeRoomId: response.chatRoomId, isMutating: false })
+      set({ isMutating: false })
       return response.chatRoomId
     } catch (error) {
       set({ isMutating: false, error: toApiError(error) })
@@ -136,7 +140,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     try {
       const response = await createChannelRoom(request)
       await get().loadRooms()
-      set({ activeRoomId: response.chatRoomId, isMutating: false })
+      set({ isMutating: false })
       return response.chatRoomId
     } catch (error) {
       set({ isMutating: false, error: toApiError(error) })
@@ -159,7 +163,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         const rooms = state.rooms.filter((room) => room.roomId !== roomId)
         return {
           rooms,
-          activeRoomId: null,
           isMutating: false,
         }
       })
@@ -183,7 +186,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         const rooms = state.rooms.filter((room) => room.roomId !== roomId)
         return {
           rooms,
-          activeRoomId: null,
           isMutating: false,
         }
       })
