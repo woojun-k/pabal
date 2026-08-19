@@ -7,9 +7,7 @@ import { roomsPath } from '../paths'
 export function useRoomRouteSync() {
   const params = useParams()
   const navigate = useNavigate()
-  const clearNotificationsForRoom = useNotificationStore(
-    (state) => state.clearNotificationsForRoom,
-  )
+  const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
   const rooms = useRoomStore((state) => state.rooms)
   const loadStatus = useRoomStore((state) => state.loadStatus)
   const selectRoom = useRoomStore((state) => state.selectRoom)

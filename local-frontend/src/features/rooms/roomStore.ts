@@ -2,11 +2,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { toApiError, type ApiError } from '../../shared/api/apiError'
 import { isMessageReadEvent, isMessageSentEvent } from '../../shared/realtime/eventGuards'
-import type {
-  GetOrCreateDirectRoomRequest,
-  RoomResponse,
-  UUID,
-} from '../../shared/types/api'
+import type { GetOrCreateDirectRoomRequest, RoomResponse, UUID } from '../../shared/types/api'
 import type { RoomEventEnvelope } from '../../shared/types/realtime'
 import { tokenStorage } from '../../shared/security/tokenStorage'
 import { getOrCreateDirectRoom, listRooms, markRoomRead } from './roomsApi'
@@ -182,8 +178,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 }))
 
-const isDirectSectionRoom = (room: RoomResponse) =>
-  room.type === 'DIRECT' || room.type === 'GROUP'
+const isDirectSectionRoom = (room: RoomResponse) => room.type === 'DIRECT' || room.type === 'GROUP'
 
 export function useDirectRooms(): RoomResponse[] {
   const rooms = useRoomStore((state) => state.rooms)
