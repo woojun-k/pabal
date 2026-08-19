@@ -1,7 +1,8 @@
 .app-shell {
-  --r-sm: 7px;
-  --r-md: 11px;
-  --r-lg: 16px;
+  /* legacy alias — @theme의 --radius-*를 참조, App.css 소멸 시 함께 삭제 */
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
   --accent-weak: color-mix(in srgb, var(--accent-strong) 12%, var(--bg));
   --accent-line: color-mix(in srgb, var(--accent-strong) 30%, var(--border));
   --bubble: #f3f2ef;
@@ -1107,7 +1108,6 @@ button {
   justify-content: flex-end;
 }
 
-.button-row button,
 .btn-primary {
   border: 0;
   border-radius: var(--r-sm);
@@ -1118,7 +1118,6 @@ button {
   font-weight: 700;
 }
 
-.button-row button.secondary,
 .btn-ghost,
 .ghost-button {
   border: 0;
@@ -1130,7 +1129,6 @@ button {
   font-weight: 700;
 }
 
-.button-row button.compact,
 button.compact {
   padding: 8px 10px;
   font-size: 13px;
@@ -1141,7 +1139,6 @@ button.compact {
   font-size: 13px;
 }
 
-.button-row button.secondary:hover,
 .btn-ghost:hover,
 .ghost-button:hover {
   color: var(--text);
