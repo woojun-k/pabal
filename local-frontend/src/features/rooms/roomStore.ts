@@ -8,7 +8,14 @@ import type {
   UUID,
 } from '../../shared/types/api'
 import type { RoomEventEnvelope } from '../../shared/types/realtime'
+import { tokenStorage } from '../../shared/security/tokenStorage'
 import { getOrCreateDirectRoom, listRooms, markRoomRead } from './roomsApi'
+
+/* 비동기 응답 적용 가드 — 더 새 요청이 시작됐거나(세대) 세션 토큰이 바뀐 뒤
+   도착한 응답은 버린다. 세션 전환·연속 새로고침에서 stale 응답이 최신 상태를
+   덮어쓰는 것을 방지 (요청 헤더는 전송 시점 토큰으로 굳으므로 store가 걸러야 함) */
+let loadGeneration = 0
+const sessionToken = () => tokenStorage.load()?.accessToken ?? null
 
 /* loadStatus는 "목록을 신뢰할 수 있는가"의 latch — 'ready' 도달 후에는 새로고침이
    실패해도 'ready'를 유지한다(stale-while-revalidate). 요청 in-flight 여부는
@@ -46,6 +53,8 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   error: null,
 
   loadRooms: async () => {
+    const generation = ++loadGeneration
+    const token = sessionToken()
     const keepReady = get().loadStatus === 'ready'
     set(
       keepReady
@@ -55,12 +64,21 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
     try {
       const rooms = await listRooms()
+
+      if (generation !== loadGeneration || token !== sessionToken()) {
+        return
+      }
+
       set({
         rooms: sortRooms(rooms),
         loadStatus: 'ready',
         isFetching: false,
       })
     } catch (error) {
+      if (generation !== loadGeneration || token !== sessionToken()) {
+        return
+      }
+
       set(
         keepReady
           ? { isFetching: false, error: toApiError(error) }
@@ -84,9 +102,15 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     }
 
     const lastReadMessageId = room.lastMessageId
+    const token = sessionToken()
 
     try {
       await markRoomRead(roomId, { lastReadMessageId })
+
+      if (token !== sessionToken()) {
+        return
+      }
+
       set((state) => ({
         rooms: state.rooms.map((candidate) =>
           candidate.roomId === roomId && candidate.lastMessageId === lastReadMessageId
@@ -95,12 +119,16 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         ),
       }))
     } catch (error) {
+      if (token !== sessionToken()) {
+        return
+      }
+
       set({ error: toApiError(error) })
     }
   },
 
   resetRooms: () => {
-    set({ rooms: [], activeRoomId: null, loadStatus: 'loading', error: null })
+    set({ rooms: [], activeRoomId: null, loadStatus: 'loading', isFetching: false, error: null })
   },
 
   getActiveRoom: () => {
