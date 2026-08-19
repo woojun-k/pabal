@@ -118,11 +118,12 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
       setParticipantId('')
       setIsCreateOpen(false)
       onSelectRoom(roomId)
+      /* roomId 태그를 붙이면 방 진입 시점의 알림 정리에 즉시 지워진다 —
+         이 토스트는 미확인 활동 알림이 아니므로 태그 없이 남긴다 */
       addNotification({
         kind: 'success',
         title: '대화방이 준비되었습니다',
         message: roomId,
-        roomId,
       })
     }
   }

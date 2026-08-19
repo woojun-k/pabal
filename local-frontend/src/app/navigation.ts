@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useAuthStore } from '../features/auth/authStore'
-import { useNotificationStore } from '../features/notifications/notificationStore'
 import { useRoomStore } from '../features/rooms/roomStore'
 import type { UUID } from '../shared/types/api'
 import { contactsPath, roomPath, roomsPath, settingsPath } from './paths'
@@ -12,7 +11,6 @@ export function useAppNavigation() {
   const location = useLocation()
   const accessToken = useAuthStore((state) => state.accessToken)
   const activeRoomId = useRoomStore((state) => state.activeRoomId)
-  const clearNotificationsForRoom = useNotificationStore((state) => state.clearNotificationsForRoom)
 
   const goToTab = useCallback(
     (tab: AppTab) => {
@@ -45,11 +43,10 @@ export function useAppNavigation() {
         return
       }
 
-      clearNotificationsForRoom(roomId)
       const destination = roomPath(roomId)
       navigate(destination, { replace: destination === location.pathname })
     },
-    [accessToken, clearNotificationsForRoom, location.pathname, navigate],
+    [accessToken, location.pathname, navigate],
   )
 
   return { goToTab, goToRoom }
