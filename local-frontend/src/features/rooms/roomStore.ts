@@ -3,22 +3,12 @@ import { create } from 'zustand'
 import { toApiError, type ApiError } from '../../shared/api/apiError'
 import { isMessageReadEvent, isMessageSentEvent } from '../../shared/realtime/eventGuards'
 import type {
-  CreateChannelRoomRequest,
-  CreateGroupRoomRequest,
   GetOrCreateDirectRoomRequest,
   RoomResponse,
   UUID,
 } from '../../shared/types/api'
 import type { RoomEventEnvelope } from '../../shared/types/realtime'
-import {
-  createChannelRoom,
-  createGroupRoom,
-  deleteRoomImmediately,
-  getOrCreateDirectRoom,
-  leaveRoom,
-  listRooms,
-  markRoomRead,
-} from './roomsApi'
+import { getOrCreateDirectRoom, listRooms, markRoomRead } from './roomsApi'
 
 type RoomState = {
   rooms: RoomResponse[]
@@ -32,10 +22,6 @@ type RoomState = {
   resetRooms: () => void
   getActiveRoom: () => RoomResponse | null
   createDirectRoom: (request: GetOrCreateDirectRoomRequest) => Promise<UUID | null>
-  createGroupRoom: (request: CreateGroupRoomRequest) => Promise<UUID | null>
-  createChannelRoom: (request: CreateChannelRoomRequest) => Promise<UUID | null>
-  leaveActiveRoom: () => Promise<void>
-  deleteActiveRoom: () => Promise<void>
   applyRoomEvent: (event: RoomEventEnvelope, currentUserId: UUID | null) => void
 }
 
@@ -118,80 +104,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     } catch (error) {
       set({ isMutating: false, error: toApiError(error) })
       return null
-    }
-  },
-
-  createGroupRoom: async (request) => {
-    set({ isMutating: true, error: null })
-
-    try {
-      const response = await createGroupRoom(request)
-      await get().loadRooms()
-      set({ isMutating: false })
-      return response.chatRoomId
-    } catch (error) {
-      set({ isMutating: false, error: toApiError(error) })
-      return null
-    }
-  },
-
-  createChannelRoom: async (request) => {
-    set({ isMutating: true, error: null })
-
-    try {
-      const response = await createChannelRoom(request)
-      await get().loadRooms()
-      set({ isMutating: false })
-      return response.chatRoomId
-    } catch (error) {
-      set({ isMutating: false, error: toApiError(error) })
-      return null
-    }
-  },
-
-  leaveActiveRoom: async () => {
-    const roomId = get().activeRoomId
-
-    if (!roomId) {
-      return
-    }
-
-    set({ isMutating: true, error: null })
-
-    try {
-      await leaveRoom(roomId)
-      set((state) => {
-        const rooms = state.rooms.filter((room) => room.roomId !== roomId)
-        return {
-          rooms,
-          isMutating: false,
-        }
-      })
-    } catch (error) {
-      set({ isMutating: false, error: toApiError(error) })
-    }
-  },
-
-  deleteActiveRoom: async () => {
-    const roomId = get().activeRoomId
-
-    if (!roomId) {
-      return
-    }
-
-    set({ isMutating: true, error: null })
-
-    try {
-      await deleteRoomImmediately(roomId)
-      set((state) => {
-        const rooms = state.rooms.filter((room) => room.roomId !== roomId)
-        return {
-          rooms,
-          isMutating: false,
-        }
-      })
-    } catch (error) {
-      set({ isMutating: false, error: toApiError(error) })
     }
   },
 
