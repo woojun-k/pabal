@@ -32,7 +32,6 @@ type RoomState = {
   loadRooms: () => Promise<void>
   selectRoom: (roomId: UUID | null) => Promise<void>
   resetRooms: () => void
-  getActiveRoom: () => RoomResponse | null
   createDirectRoom: (request: GetOrCreateDirectRoomRequest) => Promise<UUID | null>
   applyRoomEvent: (event: RoomEventEnvelope, currentUserId: UUID | null) => void
 }
@@ -132,11 +131,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   resetRooms: () => {
     set({ rooms: [], activeRoomId: null, loadStatus: 'loading', isFetching: false, error: null })
-  },
-
-  getActiveRoom: () => {
-    const { rooms, activeRoomId } = get()
-    return rooms.find((room) => room.roomId === activeRoomId) ?? null
   },
 
   createDirectRoom: async (request) => {
