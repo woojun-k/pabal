@@ -88,10 +88,13 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   selectRoom: async (roomId) => {
-    const wasActive = get().activeRoomId === roomId
+    if (get().activeRoomId === roomId) {
+      return
+    }
+
     set({ activeRoomId: roomId })
 
-    if (!roomId || wasActive) {
+    if (!roomId) {
       return
     }
 
