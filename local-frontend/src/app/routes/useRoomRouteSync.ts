@@ -7,7 +7,7 @@ export function useRoomRouteSync() {
   const params = useParams()
   const navigate = useNavigate()
   const rooms = useRoomStore((state) => state.rooms)
-  const hasLoadedRooms = useRoomStore((state) => state.hasLoadedRooms)
+  const loadStatus = useRoomStore((state) => state.loadStatus)
   const activeRoomId = useRoomStore((state) => state.activeRoomId)
   const selectRoom = useRoomStore((state) => state.selectRoom)
   const roomId = params.roomId ?? null
@@ -20,7 +20,7 @@ export function useRoomRouteSync() {
       return
     }
 
-    if (!hasLoadedRooms) {
+    if (loadStatus !== 'ready') {
       return
     }
 
@@ -32,5 +32,5 @@ export function useRoomRouteSync() {
     if (activeRoomId !== roomId) {
       void selectRoom(roomId)
     }
-  }, [activeRoomId, hasLoadedRooms, navigate, roomId, rooms, selectRoom])
+  }, [activeRoomId, loadStatus, navigate, roomId, rooms, selectRoom])
 }

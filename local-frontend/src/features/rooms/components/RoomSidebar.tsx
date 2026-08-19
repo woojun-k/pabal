@@ -88,7 +88,7 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
   const {
     rooms,
     activeRoomId,
-    isLoading,
+    loadStatus,
     isMutating,
     error,
     loadRooms,
@@ -138,7 +138,7 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
 
       <button type="button" className="create-row" onClick={() => void loadRooms()}>
         <span className="plus">↻</span>
-        {isLoading ? '새로고침 중' : '채널 새로고침'}
+        {loadStatus === 'loading' ? '새로고침 중' : '채널 새로고침'}
       </button>
 
       <RoomGroup

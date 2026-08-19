@@ -10,11 +10,12 @@ import type {
 import type { RoomEventEnvelope } from '../../shared/types/realtime'
 import { getOrCreateDirectRoom, listRooms, markRoomRead } from './roomsApi'
 
+export type RoomLoadStatus = 'idle' | 'loading' | 'ready' | 'error'
+
 type RoomState = {
   rooms: RoomResponse[]
   activeRoomId: UUID | null
-  hasLoadedRooms: boolean
-  isLoading: boolean
+  loadStatus: RoomLoadStatus
   isMutating: boolean
   error: ApiError | null
   loadRooms: () => Promise<void>
@@ -35,23 +36,21 @@ const sortRooms = (rooms: RoomResponse[]) =>
 export const useRoomStore = create<RoomState>((set, get) => ({
   rooms: [],
   activeRoomId: null,
-  hasLoadedRooms: false,
-  isLoading: false,
+  loadStatus: 'idle',
   isMutating: false,
   error: null,
 
   loadRooms: async () => {
-    set({ isLoading: true, error: null })
+    set({ loadStatus: 'loading', error: null })
 
     try {
       const rooms = await listRooms()
       set({
         rooms: sortRooms(rooms),
-        hasLoadedRooms: true,
-        isLoading: false,
+        loadStatus: 'ready',
       })
     } catch (error) {
-      set({ isLoading: false, error: toApiError(error) })
+      set({ loadStatus: 'error', error: toApiError(error) })
     }
   },
 
@@ -85,7 +84,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   resetRooms: () => {
-    set({ rooms: [], activeRoomId: null, hasLoadedRooms: false, error: null })
+    set({ rooms: [], activeRoomId: null, loadStatus: 'idle', error: null })
   },
 
   getActiveRoom: () => {
