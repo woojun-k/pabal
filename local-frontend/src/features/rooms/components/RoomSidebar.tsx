@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import type { RoomResponse, UUID } from '../../../shared/types/api'
 import { isUuid } from '../../../shared/utils/uuid'
 import { useNotificationStore } from '../../notifications/notificationStore'
-import { useRoomStore } from '../roomStore'
+import { useDirectRooms, useRoomStore } from '../roomStore'
 
 type RoomGroupProps = {
   label: string
@@ -98,10 +98,7 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
   const [participantId, setParticipantId] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const channels = useMemo(() => rooms.filter((room) => room.type === 'CHANNEL'), [rooms])
-  const directRooms = useMemo(
-    () => rooms.filter((room) => room.type === 'DIRECT' || room.type === 'GROUP'),
-    [rooms],
-  )
+  const directRooms = useDirectRooms()
 
   const handleCreateDirect = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

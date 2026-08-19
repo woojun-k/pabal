@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { useAuthStore } from '../../features/auth/authStore'
 import { SettingsSidebar } from '../../features/auth/components/SettingsSidebar'
@@ -6,7 +6,7 @@ import { NotificationTray } from '../../features/notifications/NotificationTray'
 import { RealtimeBridge } from '../../features/realtime/RealtimeBridge'
 import { ContactsSidebar } from '../../features/rooms/components/ContactsSidebar'
 import { RoomSidebar } from '../../features/rooms/components/RoomSidebar'
-import { useRoomStore } from '../../features/rooms/roomStore'
+import { useDirectRooms, useRoomStore } from '../../features/rooms/roomStore'
 import { useAppNavigation } from '../navigation'
 import { deriveTab } from '../paths'
 import { SidebarFrame } from './SidebarFrame'
@@ -19,10 +19,7 @@ export function AppLayout() {
   const rooms = useRoomStore((state) => state.rooms)
   const resetRooms = useRoomStore((state) => state.resetRooms)
   const { goToRoom, goToTab } = useAppNavigation()
-  const directRooms = useMemo(
-    () => rooms.filter((room) => room.type === 'DIRECT' || room.type === 'GROUP'),
-    [rooms],
-  )
+  const directRooms = useDirectRooms()
   const unreadTotal = rooms.reduce((total, room) => total + room.unreadCount, 0)
 
   useEffect(() => {

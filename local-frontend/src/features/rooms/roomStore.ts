@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { create } from 'zustand'
 import { toApiError, type ApiError } from '../../shared/api/apiError'
 import { isMessageReadEvent, isMessageSentEvent } from '../../shared/realtime/eventGuards'
@@ -228,3 +229,11 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     })
   },
 }))
+
+const isDirectSectionRoom = (room: RoomResponse) =>
+  room.type === 'DIRECT' || room.type === 'GROUP'
+
+export function useDirectRooms(): RoomResponse[] {
+  const rooms = useRoomStore((state) => state.rooms)
+  return useMemo(() => rooms.filter(isDirectSectionRoom), [rooms])
+}
