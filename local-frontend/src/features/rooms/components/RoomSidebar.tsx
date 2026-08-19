@@ -88,7 +88,7 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
   const {
     rooms,
     activeRoomId,
-    loadStatus,
+    isFetching,
     isMutating,
     error,
     loadRooms,
@@ -137,9 +137,14 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
         onSelectRoom={onSelectRoom}
       />
 
-      <button type="button" className="create-row" onClick={() => void loadRooms()}>
+      <button
+        type="button"
+        className="create-row"
+        disabled={isFetching}
+        onClick={() => void loadRooms()}
+      >
         <span className="plus">↻</span>
-        {loadStatus === 'loading' ? '새로고침 중' : '채널 새로고침'}
+        {isFetching ? '새로고침 중' : '채널 새로고침'}
       </button>
 
       <RoomGroup

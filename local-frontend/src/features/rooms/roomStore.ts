@@ -10,12 +10,16 @@ import type {
 import type { RoomEventEnvelope } from '../../shared/types/realtime'
 import { getOrCreateDirectRoom, listRooms, markRoomRead } from './roomsApi'
 
-export type RoomLoadStatus = 'idle' | 'loading' | 'ready' | 'error'
+/* loadStatus는 "목록을 신뢰할 수 있는가"의 latch — 'ready' 도달 후에는 새로고침이
+   실패해도 'ready'를 유지한다(stale-while-revalidate). 요청 in-flight 여부는
+   isFetching이 별도로 담당. 'loading'은 신뢰할 목록이 아직 없는 상태(초기·리셋 직후) */
+export type RoomLoadStatus = 'loading' | 'ready' | 'error'
 
 type RoomState = {
   rooms: RoomResponse[]
   activeRoomId: UUID | null
   loadStatus: RoomLoadStatus
+  isFetching: boolean
   isMutating: boolean
   error: ApiError | null
   loadRooms: () => Promise<void>
@@ -36,21 +40,32 @@ const sortRooms = (rooms: RoomResponse[]) =>
 export const useRoomStore = create<RoomState>((set, get) => ({
   rooms: [],
   activeRoomId: null,
-  loadStatus: 'idle',
+  loadStatus: 'loading',
+  isFetching: false,
   isMutating: false,
   error: null,
 
   loadRooms: async () => {
-    set({ loadStatus: 'loading', error: null })
+    const keepReady = get().loadStatus === 'ready'
+    set(
+      keepReady
+        ? { isFetching: true, error: null }
+        : { loadStatus: 'loading', isFetching: true, error: null },
+    )
 
     try {
       const rooms = await listRooms()
       set({
         rooms: sortRooms(rooms),
         loadStatus: 'ready',
+        isFetching: false,
       })
     } catch (error) {
-      set({ loadStatus: 'error', error: toApiError(error) })
+      set(
+        keepReady
+          ? { isFetching: false, error: toApiError(error) }
+          : { loadStatus: 'error', isFetching: false, error: toApiError(error) },
+      )
     }
   },
 
@@ -85,7 +100,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   resetRooms: () => {
-    set({ rooms: [], activeRoomId: null, loadStatus: 'idle', error: null })
+    set({ rooms: [], activeRoomId: null, loadStatus: 'loading', error: null })
   },
 
   getActiveRoom: () => {

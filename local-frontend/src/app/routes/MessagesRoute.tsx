@@ -10,8 +10,9 @@ export function MessagesRoute() {
   const activeRoomId = useRoomStore((state) => state.activeRoomId)
   const loadStatus = useRoomStore((state) => state.loadStatus)
   const loadRooms = useRoomStore((state) => state.loadRooms)
+  const error = useRoomStore((state) => state.error)
 
-  if (!activeRoomId && (loadStatus === 'idle' || loadStatus === 'loading')) {
+  if (!activeRoomId && loadStatus === 'loading') {
     return (
       <section className="main empty-main">
         <div className="empty-chat">
@@ -29,7 +30,7 @@ export function MessagesRoute() {
         <div className="empty-chat">
           <div className="av lg">!</div>
           <h2>방 목록을 불러오지 못했습니다</h2>
-          <p>네트워크 상태를 확인한 뒤 다시 시도하세요.</p>
+          <p>{error?.message ?? '네트워크 상태를 확인한 뒤 다시 시도하세요.'}</p>
           <Button variant="ghost" size="compact" onClick={() => void loadRooms()}>
             다시 시도
           </Button>
