@@ -21,114 +21,6 @@ button {
   font-family: inherit;
 }
 
-.rail {
-  width: 62px;
-  flex: 0 0 62px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  border-right: 1px solid var(--border);
-  padding: 14px 0;
-  background: var(--rail);
-}
-
-.rail-ws,
-.rail-nav {
-  position: relative;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.rail-ws {
-  border-radius: 13px;
-  color: var(--text-muted);
-  background: var(--surface);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.rail-ws:hover,
-.rail-nav:hover,
-.rail-nav.is-active {
-  color: var(--text);
-  background: var(--surface);
-}
-
-.rail-ws.active {
-  border-radius: 12px;
-  color: var(--accent-ink);
-  background: var(--accent-strong);
-  font-family: var(--font-display);
-}
-
-.rail-ws.active::before {
-  content: '';
-  position: absolute;
-  left: -12px;
-  top: 50%;
-  width: 4px;
-  height: 22px;
-  border-radius: 0 4px 4px 0;
-  background: var(--text);
-  transform: translateY(-50%);
-}
-
-.rail-nav {
-  border-radius: 11px;
-  color: var(--text-faint);
-  background: transparent;
-  font-size: 17px;
-}
-
-.rail-div {
-  width: 24px;
-  height: 1px;
-  margin: 6px 0;
-  background: var(--border-strong);
-}
-
-.rail-pip {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  padding: 0 5px;
-  color: white;
-  background: var(--accent-strong);
-  font-size: 11px;
-  font-family: var(--font-mono);
-}
-
-.nav-session {
-  width: 34px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  margin-top: auto;
-  color: var(--text-faint);
-  background: var(--surface);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.nav-session.is-ready {
-  border-color: var(--accent-line);
-  color: var(--accent-ink);
-  background: var(--accent-strong);
-}
-
 .sidebar {
   width: 252px;
   flex: 0 0 252px;
@@ -1287,11 +1179,6 @@ button:disabled {
     grid-template-rows: minmax(220px, 34svh) minmax(0, 1fr);
   }
 
-  .rail {
-    grid-row: 1 / -1;
-    height: 100svh;
-  }
-
   .sidebar {
     width: auto;
     min-height: 0;
@@ -1311,17 +1198,6 @@ button:disabled {
 @media (max-width: 680px) {
   .app-shell {
     grid-template-columns: 52px minmax(0, 1fr);
-  }
-
-  .rail {
-    width: 52px;
-    flex-basis: 52px;
-  }
-
-  .rail-ws,
-  .rail-nav {
-    width: 36px;
-    height: 36px;
   }
 
   .chead {
