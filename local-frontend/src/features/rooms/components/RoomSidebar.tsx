@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import type { RoomResponse, UUID } from '../../../shared/types/api'
 import { isUuid } from '../../../shared/utils/uuid'
 import { useNotificationStore } from '../../notifications/notificationStore'
-import { useRoomStore } from '../roomStore'
+import { useDirectRooms, useRoomStore } from '../roomStore'
 
 type RoomGroupProps = {
   label: string
@@ -88,7 +88,7 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
   const {
     rooms,
     activeRoomId,
-    isLoading,
+    isFetching,
     isMutating,
     error,
     loadRooms,
@@ -98,10 +98,7 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
   const [participantId, setParticipantId] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const channels = useMemo(() => rooms.filter((room) => room.type === 'CHANNEL'), [rooms])
-  const directRooms = useMemo(
-    () => rooms.filter((room) => room.type === 'DIRECT' || room.type === 'GROUP'),
-    [rooms],
-  )
+  const directRooms = useDirectRooms()
 
   const handleCreateDirect = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -121,11 +118,12 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
       setParticipantId('')
       setIsCreateOpen(false)
       onSelectRoom(roomId)
+      /* 작업 완료 피드백이지 미확인 활동 알림이 아니므로 roomId 태그를 붙이지 않는다
+         (붙이면 바로 아래 onSelectRoom → 방 진입 알림 정리에 즉시 지워진다) */
       addNotification({
         kind: 'success',
         title: '대화방이 준비되었습니다',
         message: roomId,
-        roomId,
       })
     }
   }
@@ -139,9 +137,14 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
         onSelectRoom={onSelectRoom}
       />
 
-      <button type="button" className="create-row" onClick={() => void loadRooms()}>
+      <button
+        type="button"
+        className="create-row"
+        disabled={isFetching}
+        onClick={() => void loadRooms()}
+      >
         <span className="plus">↻</span>
-        {isLoading ? '새로고침 중' : '채널 새로고침'}
+        {isFetching ? '새로고침 중' : '채널 새로고침'}
       </button>
 
       <RoomGroup
