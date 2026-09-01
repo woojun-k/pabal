@@ -10,7 +10,7 @@ const railTabs: Array<{ id: AppTab; label: string; icon: string }> = [
 /* preflight 미도입 상태라 border 유틸은 width·style·color를 모두 명시해야 한다
    (기본 border-style이 none, 기본 border-width가 medium) */
 const railItem =
-  'relative grid size-[40px] cursor-pointer place-items-center border border-solid border-transparent max-[680px]:size-[36px]'
+  'relative grid size-[40px] cursor-pointer place-items-center border border-solid border-transparent [@media(max-width:680px)]:size-[36px]'
 
 /* 활성 워크스페이스 버튼은 hover 클래스를 붙이지 않는다 — 원본 CSS에서
    .rail-ws.active가 :hover와 동일 특이성·후순위라 hover를 이겼던 동작 보존 */
@@ -28,7 +28,7 @@ interface WorkspaceRailProps {
 export function WorkspaceRail({ activeTab, unreadTotal, hasSession, onSelectTab }: WorkspaceRailProps) {
   return (
     <aside
-      className="flex w-[62px] flex-[0_0_62px] flex-col items-center gap-[6px] border-0 border-r border-solid border-border bg-rail py-[14px] max-[980px]:row-span-full max-[980px]:h-svh max-[680px]:w-[52px] max-[680px]:basis-[52px]"
+      className="flex w-[62px] flex-[0_0_62px] flex-col items-center gap-[6px] border-0 border-r border-solid border-border bg-rail py-[14px] [@media(max-width:980px)]:row-span-full [@media(max-width:980px)]:h-svh [@media(max-width:680px)]:w-[52px] [@media(max-width:680px)]:basis-[52px]"
       aria-label="워크스페이스 내비게이션"
     >
       <button
