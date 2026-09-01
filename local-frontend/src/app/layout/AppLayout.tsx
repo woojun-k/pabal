@@ -29,7 +29,7 @@ export function AppLayout() {
   const renderSidebar = () => {
     if (activeTab === 'messages') {
       if (!accessToken) {
-        return <p className="empty-text sb-empty">설정에서 로컬 토큰을 발급하세요.</p>
+        return <p className="empty-text mx-[8px] my-[10px]">설정에서 로컬 토큰을 발급하세요.</p>
       }
 
       return <RoomSidebar onSelectRoom={goToRoom} />

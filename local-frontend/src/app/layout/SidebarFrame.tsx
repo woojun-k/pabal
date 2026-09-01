@@ -29,7 +29,7 @@ export function SidebarFrame({ hasSession, onOpenSettings, children }: SidebarFr
       <div className="flex items-center gap-[10px] border-0 border-t border-solid border-border bg-sidebar px-[12px] py-[10px]">
         <div className="relative">
           <span className="av sm">우</span>
-          <span className="presence p-online absolute right-[-2px] bottom-[-2px]" />
+          <span className="absolute right-[-2px] bottom-[-2px] size-[9px] flex-[0_0_9px] rounded-full bg-[#34b27b] shadow-[0_0_0_2px_var(--color-sidebar)]" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-semibold">정우</div>
