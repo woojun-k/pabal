@@ -738,15 +738,13 @@ button:disabled {
   color: var(--text-muted);
 }
 
-.runtime-grid,
-.session-summary {
+.runtime-grid {
   display: grid;
   gap: 10px;
   margin: 20px 0 0;
 }
 
-.runtime-grid div,
-.session-summary div {
+.runtime-grid div {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -754,38 +752,18 @@ button:disabled {
   background: var(--bg-sub);
 }
 
-.runtime-grid dt,
-.session-summary dt {
+.runtime-grid dt {
   color: var(--text-faint);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.runtime-grid dd,
-.session-summary dd {
+.runtime-grid dd {
   overflow-wrap: anywhere;
   margin: 3px 0 0;
   font-family: var(--font-mono);
   font-size: 12px;
-}
-
-.settings-nav-item {
-  min-height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 10px 12px;
-  background: var(--bg);
-  font-weight: 700;
-}
-
-.settings-nav-item.is-active {
-  border-color: var(--accent-line);
-  background: var(--accent-weak);
 }
 
 .notification-tray {
