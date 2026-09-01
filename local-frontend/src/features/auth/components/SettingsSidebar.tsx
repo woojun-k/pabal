@@ -8,7 +8,7 @@ export function SettingsSidebar() {
   const roles = useAuthStore((state) => state.roles)
 
   return (
-    <section className="settings-sidebar" aria-label="설정">
+    <section className="grid content-start gap-[4px]" aria-label="설정">
       <div className="settings-nav-item is-active">
         <span>연결</span>
         <BackendModeBadge />

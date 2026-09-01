@@ -9,7 +9,7 @@ interface ContactsSidebarProps {
 
 export function ContactsSidebar({ directRooms, hasSession, onOpenRoom }: ContactsSidebarProps) {
   return (
-    <section className="contact-sidebar" aria-label="연락처">
+    <section className="grid content-start gap-[4px]" aria-label="연락처">
       <div className="grp">
         <span className="tri">▾</span>
         다이렉트 메시지

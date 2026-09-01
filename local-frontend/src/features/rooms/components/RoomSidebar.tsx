@@ -129,7 +129,7 @@ export function RoomSidebar({ onSelectRoom }: RoomSidebarProps) {
   }
 
   return (
-    <section className="room-sidebar" aria-label="채팅방">
+    <section className="grid content-start gap-[4px]" aria-label="채팅방">
       <RoomGroup
         label="채널"
         rooms={channels}
